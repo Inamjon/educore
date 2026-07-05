@@ -306,9 +306,9 @@ function SecurityPanel() {
 
 function APIKeysPanel() {
   const KEYS = [
-    { name: 'Production API Key', key: 'ek_live_xxxxxxxxxxxxxxxxxxxxxxxxxxx', created: 'Jan 1, 2026', last: 'Jul 4, 2026' },
-    { name: 'Webhook Secret',     key: 'whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', created: 'Jan 1, 2026', last: 'Jul 3, 2026' },
-    { name: 'Sandbox API Key',    key: 'ek_test_xxxxxxxxxxxxxxxxxxxxxxxxxxx', created: 'Mar 10, 2026', last: 'Jun 28, 2026' },
+    { name: 'Production API Key', key: 'ek_live_••••••••••••••••••••••••••••••••', created: 'Jan 1, 2026', last: 'Jul 4, 2026' },
+    { name: 'Webhook Secret',     key: 'whsec_••••••••••••••••••••••••••••••••', created: 'Jan 1, 2026', last: 'Jul 3, 2026' },
+    { name: 'Sandbox API Key',    key: 'ek_test_••••••••••••••••••••••••••••••••', created: 'Mar 10, 2026', last: 'Jun 28, 2026' },
   ];
 
   return (
