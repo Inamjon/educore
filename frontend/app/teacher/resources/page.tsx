@@ -1,0 +1,306 @@
+'use client';
+
+import { useState } from 'react';
+import {
+  Upload,
+  FileText,
+  Video,
+  Image,
+  Link2,
+  Download,
+  Share2,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { PageHeader } from '@/components/ui/page-header';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input, SearchInput, Select } from '@/components/ui/input';
+import { TEACHER_RESOURCES, TEACHER_GROUPS } from '@/lib/teacher-data';
+import { cn } from '@/lib/utils';
+
+type ResourceType = 'pdf' | 'video' | 'document' | 'image' | 'link';
+
+interface Resource {
+  id: string;
+  title: string;
+  subject: string;
+  type: ResourceType;
+  size: string;
+  uploadedAt: string;
+  groupId?: string;
+  groupName?: string;
+  downloads: number;
+  shared: boolean;
+}
+
+const TYPE_CONFIG: Record<
+  ResourceType,
+  { bg: string; iconColor: string; Icon: React.ElementType }
+> = {
+  pdf: { bg: 'bg-red-50', iconColor: 'text-red-500', Icon: FileText },
+  video: { bg: 'bg-blue-50', iconColor: 'text-blue-500', Icon: Video },
+  document: { bg: 'bg-indigo-50', iconColor: 'text-indigo-500', Icon: FileText },
+  image: { bg: 'bg-emerald-50', iconColor: 'text-emerald-500', Icon: Image },
+  link: { bg: 'bg-amber-50', iconColor: 'text-amber-500', Icon: Link2 },
+};
+
+const SUBJECT_OPTIONS = [
+  { value: '', label: 'All Subjects' },
+  { value: 'Algebra', label: 'Algebra' },
+  { value: 'Calculus', label: 'Calculus' },
+  { value: 'Mathematics', label: 'Mathematics' },
+];
+
+const FILE_TYPE_OPTIONS = [
+  { value: 'pdf', label: 'PDF' },
+  { value: 'video', label: 'Video' },
+  { value: 'document', label: 'Document' },
+  { value: 'image', label: 'Image' },
+  { value: 'link', label: 'Link' },
+];
+
+const GROUP_OPTIONS = [
+  { value: '', label: 'All Groups' },
+  ...TEACHER_GROUPS.map((g) => ({ value: g.id, label: g.name })),
+];
+
+function ResourceCard({ resource }: { resource: Resource }) {
+  const config = TYPE_CONFIG[resource.type];
+  const Icon = config.Icon;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+      {/* Icon area */}
+      <div className="p-5 pb-0">
+        <div className="flex items-start justify-between gap-3">
+          <div className={cn('h-14 w-14 rounded-xl flex items-center justify-center flex-shrink-0', config.bg)}>
+            <Icon className={cn('h-7 w-7', config.iconColor)} />
+          </div>
+          <div className="flex flex-col items-end gap-1.5">
+            {resource.shared && (
+              <Badge label="Shared" variant="success" />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="p-5 flex-1 space-y-2.5">
+        <p className="font-medium text-slate-900 leading-snug line-clamp-2">{resource.title}</p>
+
+        <div className="flex flex-wrap gap-1.5">
+          <Badge label={resource.subject} variant="info" />
+          {resource.groupName && (
+            <Badge label={resource.groupName} variant="purple" />
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 text-xs text-slate-400">
+          <span>{resource.size}</span>
+          <span className="h-1 w-1 rounded-full bg-slate-300" />
+          <span>{new Date(resource.uploadedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+        </div>
+
+        <div className="text-xs text-slate-500">
+          <span className="font-medium text-slate-700">{resource.downloads}</span> downloads
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="px-4 py-3 border-t border-slate-50 flex items-center gap-1">
+        <Button variant="ghost" size="sm" className="flex-1 justify-center">
+          <Download className="h-3.5 w-3.5" />
+          Download
+        </Button>
+        <Button variant="ghost" size="sm" className="flex-1 justify-center">
+          <Share2 className="h-3.5 w-3.5" />
+          Share
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="flex-1 justify-center text-red-500 hover:bg-red-50 hover:text-red-600"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Delete
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export default function ResourcesPage() {
+  const [search, setSearch] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('');
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [resources, setResources] = useState<Resource[]>(TEACHER_RESOURCES);
+
+  // Upload form state
+  const [uploadTitle, setUploadTitle] = useState('');
+  const [uploadSubject, setUploadSubject] = useState('');
+  const [uploadGroup, setUploadGroup] = useState('');
+  const [uploadType, setUploadType] = useState<ResourceType>('pdf');
+  const [uploadShared, setUploadShared] = useState(false);
+
+  const filtered = resources.filter((r) => {
+    const matchesSearch =
+      !search ||
+      r.title.toLowerCase().includes(search.toLowerCase()) ||
+      r.subject.toLowerCase().includes(search.toLowerCase());
+    const matchesSubject = !subjectFilter || r.subject === subjectFilter;
+    return matchesSearch && matchesSubject;
+  });
+
+  function handleUpload() {
+    if (!uploadTitle.trim() || !uploadSubject.trim()) return;
+    const group = TEACHER_GROUPS.find((g) => g.id === uploadGroup);
+    const newResource: Resource = {
+      id: `res${Date.now()}`,
+      title: uploadTitle,
+      subject: uploadSubject,
+      type: uploadType,
+      size: '—',
+      uploadedAt: new Date().toISOString().split('T')[0],
+      groupId: group?.id,
+      groupName: group?.name,
+      downloads: 0,
+      shared: uploadShared,
+    };
+    setResources([newResource, ...resources]);
+    setUploadTitle('');
+    setUploadSubject('');
+    setUploadGroup('');
+    setUploadType('pdf');
+    setUploadShared(false);
+    setShowUploadForm(false);
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Resources"
+        subtitle="Manage and share learning materials with your students"
+        actions={
+          <>
+            <SearchInput
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search resources..."
+            />
+            <Select
+              value={subjectFilter}
+              onChange={(e) => setSubjectFilter(e.target.value)}
+              options={SUBJECT_OPTIONS}
+            />
+            <Button onClick={() => setShowUploadForm(!showUploadForm)}>
+              <Upload className="h-4 w-4" />
+              Upload File
+            </Button>
+          </>
+        }
+      />
+
+      {/* Upload Form */}
+      {showUploadForm && (
+        <Card>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-slate-900">Upload New Resource</h3>
+              <button
+                onClick={() => setShowUploadForm(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">Title</label>
+                <Input
+                  placeholder="Resource title..."
+                  value={uploadTitle}
+                  onChange={(e) => setUploadTitle(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">Subject</label>
+                <Input
+                  placeholder="e.g. Algebra, Calculus..."
+                  value={uploadSubject}
+                  onChange={(e) => setUploadSubject(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">Group (optional)</label>
+                <Select
+                  value={uploadGroup}
+                  onChange={(e) => setUploadGroup(e.target.value)}
+                  options={GROUP_OPTIONS}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">File Type</label>
+                <Select
+                  value={uploadType}
+                  onChange={(e) => setUploadType(e.target.value as ResourceType)}
+                  options={FILE_TYPE_OPTIONS}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            {/* Share toggle */}
+            <div className="flex items-center gap-3">
+              <button
+                role="switch"
+                aria-checked={uploadShared}
+                onClick={() => setUploadShared(!uploadShared)}
+                className={cn(
+                  'relative inline-flex h-6 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1',
+                  uploadShared ? 'bg-indigo-600' : 'bg-slate-200'
+                )}
+              >
+                <span
+                  className={cn(
+                    'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                    uploadShared ? 'translate-x-4' : 'translate-x-0'
+                  )}
+                />
+              </button>
+              <span className="text-sm text-slate-700">Share with students</span>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" onClick={() => setShowUploadForm(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpload} disabled={!uploadTitle.trim() || !uploadSubject.trim()}>
+                <Upload className="h-4 w-4" />
+                Upload
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Resources Grid */}
+      {filtered.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filtered.map((resource) => (
+            <ResourceCard key={resource.id} resource={resource} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+          <FileText className="h-12 w-12 mb-3 opacity-30" />
+          <p className="text-sm font-medium">No resources found</p>
+          <p className="text-xs mt-1">Try adjusting your search or filters</p>
+        </div>
+      )}
+    </div>
+  );
+}
