@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Users,
   GraduationCap,
@@ -7,6 +8,7 @@ import {
   DollarSign,
   ClipboardCheck,
   UserPlus,
+  ReceiptText,
 } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card } from "@/components/ui/card";
@@ -103,6 +105,29 @@ export default function DashboardPage() {
           iconBg="bg-red-50"
         />
       </div>
+
+      {/* Quick Actions */}
+      <Card title="Quick Actions" subtitle="Jump to a common task">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "New Student", href: "/students", icon: UserPlus, color: "text-indigo-600", bg: "bg-indigo-50" },
+            { label: "New Teacher", href: "/teachers", icon: GraduationCap, color: "text-blue-600", bg: "bg-blue-50" },
+            { label: "New Invoice", href: "/finance", icon: ReceiptText, color: "text-violet-600", bg: "bg-violet-50" },
+            { label: "Take Attendance", href: "/attendance", icon: ClipboardCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
+          ].map(({ label, href, icon: Icon, color, bg }) => (
+            <Link
+              key={label}
+              href={href}
+              className="flex flex-col items-center gap-2 rounded-xl border border-slate-100 p-4 text-center hover:border-slate-200 hover:bg-slate-50 transition-colors"
+            >
+              <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${bg}`}>
+                <Icon className={`h-5 w-5 ${color}`} />
+              </div>
+              <span className="text-sm font-medium text-slate-700">{label}</span>
+            </Link>
+          ))}
+        </div>
+      </Card>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

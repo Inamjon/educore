@@ -1,11 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Bell, Info, CheckCircle2, AlertTriangle, XCircle, Check } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
-import { NOTIFICATIONS } from "@/lib/data";
+import { useNotificationsStore, markAllRead as markAllReadAction, markRead } from "@/lib/store/notifications-store";
 import { cn } from "@/lib/utils";
 import type { NotificationType, Notification } from "@/types";
 
@@ -80,16 +80,17 @@ function NotificationItem({ notification, onRead }: { notification: Notification
 }
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState(NOTIFICATIONS);
+  const notificationItems = useNotificationsStore((s) => s.items);
+  const notifications = useMemo(() => notificationItems.filter((n) => !n.deletedAt), [notificationItems]);
   const [typeFilter, setTypeFilter] = useState("");
   const [readFilter, setReadFilter] = useState("");
 
   const markAsRead = (id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    markRead(id);
   };
 
   const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    markAllReadAction();
   };
 
   const filtered = notifications.filter((n) => {

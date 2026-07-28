@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { UserPlus, Star, Users2, BookOpen } from "lucide-react";
+import { useMemo, useState } from "react";
+import { UserPlus, Star, Users2, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
@@ -8,10 +8,14 @@ import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchInput, Select } from "@/components/ui/input";
 import { StatCard } from "@/components/ui/stat-card";
-import { TEACHERS } from "@/lib/data";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useTeachersStore } from "@/lib/store/teachers-store";
+import { toast } from "@/lib/store/toast-store";
 import { formatCurrency } from "@/lib/utils";
 import type { Teacher } from "@/types";
 import { GraduationCap, UserCheck } from "lucide-react";
+import { TeacherFormDialog } from "./_components/teacher-form-dialog";
+import { TeacherDetailPanel } from "./_components/teacher-detail-panel";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Status" },
@@ -19,9 +23,22 @@ const STATUS_OPTIONS = [
   { value: "inactive", label: "Inactive" },
 ];
 
-function TeacherCard({ teacher }: { teacher: Teacher }) {
+function TeacherCard({
+  teacher,
+  onView,
+  onEdit,
+  onDelete,
+}: {
+  teacher: Teacher;
+  onView: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+    <div
+      className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:shadow-md transition-shadow cursor-pointer"
+      onClick={onView}
+    >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <Avatar name={teacher.name} size="lg" />
@@ -30,7 +47,14 @@ function TeacherCard({ teacher }: { teacher: Teacher }) {
             <p className="text-sm text-slate-500">{teacher.specialization}</p>
           </div>
         </div>
-        <StatusBadge status={teacher.status} />
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button variant="ghost" size="icon" onClick={onEdit}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onDelete}>
+            <Trash2 className="h-4 w-4 text-red-500" />
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-1.5 mb-4">
@@ -64,21 +88,26 @@ function TeacherCard({ teacher }: { teacher: Teacher }) {
           <p className="text-xs text-slate-400">Monthly Salary</p>
           <p className="font-semibold text-slate-900">{formatCurrency(teacher.salary)}</p>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-slate-400">Joined</p>
-          <p className="text-sm text-slate-600">{new Date(teacher.joinedAt).toLocaleDateString("en-US", { year: "numeric", month: "short" })}</p>
-        </div>
+        <StatusBadge status={teacher.status} />
       </div>
     </div>
   );
 }
 
 export default function TeachersPage() {
+  const teacherItems = useTeachersStore((s) => s.items);
+  const teachers = useMemo(() => teacherItems.filter((t) => !t.deletedAt), [teacherItems]);
+  const softDelete = useTeachersStore((s) => s.softDelete);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+  const [deletingTeacher, setDeletingTeacher] = useState<Teacher | null>(null);
 
-  const filtered = TEACHERS.filter((t) => {
+  const filtered = teachers.filter((t) => {
     const matchesSearch =
       !search ||
       t.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -88,38 +117,42 @@ export default function TeachersPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const totalStudents = TEACHERS.reduce((sum, t) => sum + t.studentCount, 0);
-  const avgRating = (TEACHERS.reduce((sum, t) => sum + t.rating, 0) / TEACHERS.length).toFixed(1);
+  const selectedTeacher = teachers.find((t) => t.id === selectedId) ?? null;
+  const totalStudents = teachers.reduce((sum, t) => sum + t.studentCount, 0);
+  const avgRating = teachers.length ? (teachers.reduce((sum, t) => sum + t.rating, 0) / teachers.length).toFixed(1) : "0.0";
+
+  function openEdit(teacher: Teacher) {
+    setEditingTeacher(teacher);
+    setFormOpen(true);
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Teachers"
-        subtitle={`${TEACHERS.length} teachers on staff`}
+        subtitle={`${teachers.length} teachers on staff`}
         actions={
-          <Button>
+          <Button
+            onClick={() => {
+              setEditingTeacher(null);
+              setFormOpen(true);
+            }}
+          >
             <UserPlus className="h-4 w-4" />
             Add Teacher
           </Button>
         }
       />
 
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Teachers" value={TEACHERS.length} icon={<GraduationCap className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
-        <StatCard label="Active Teachers" value={TEACHERS.filter((t) => t.status === "active").length} icon={<UserCheck className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label="Total Teachers" value={teachers.length} icon={<GraduationCap className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label="Active Teachers" value={teachers.filter((t) => t.status === "active").length} icon={<UserCheck className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
         <StatCard label="Total Students" value={totalStudents} icon={<Users2 className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
         <StatCard label="Avg. Rating" value={avgRating} icon={<Star className="h-5 w-5 text-amber-500" />} iconBg="bg-amber-50" />
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search teachers..."
-          className="w-64"
-        />
+        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search teachers..." className="w-64" />
         <Select options={STATUS_OPTIONS} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-36" />
         <div className="ml-auto flex items-center gap-2">
           <Button variant={view === "grid" ? "secondary" : "ghost"} size="sm" onClick={() => setView("grid")}>Grid</Button>
@@ -127,18 +160,27 @@ export default function TeachersPage() {
         </div>
       </div>
 
-      {/* Grid or List */}
       {view === "grid" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((teacher) => (
-            <TeacherCard key={teacher.id} teacher={teacher} />
+            <TeacherCard
+              key={teacher.id}
+              teacher={teacher}
+              onView={() => setSelectedId(teacher.id)}
+              onEdit={() => openEdit(teacher)}
+              onDelete={() => setDeletingTeacher(teacher)}
+            />
           ))}
         </div>
       ) : (
         <Card noPadding>
           <div className="divide-y divide-slate-50">
             {filtered.map((teacher) => (
-              <div key={teacher.id} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors">
+              <div
+                key={teacher.id}
+                className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                onClick={() => setSelectedId(teacher.id)}
+              >
                 <Avatar name={teacher.name} size="md" />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-slate-900">{teacher.name}</p>
@@ -162,11 +204,45 @@ export default function TeachersPage() {
                   </div>
                 </div>
                 <StatusBadge status={teacher.status} />
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" onClick={() => openEdit(teacher)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => setDeletingTeacher(teacher)}>
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
         </Card>
       )}
+
+      {selectedTeacher && (
+        <TeacherDetailPanel
+          teacher={selectedTeacher}
+          onBack={() => setSelectedId(null)}
+          onEdit={() => openEdit(selectedTeacher)}
+          onDelete={() => setDeletingTeacher(selectedTeacher)}
+        />
+      )}
+
+      <TeacherFormDialog open={formOpen} onOpenChange={setFormOpen} teacher={editingTeacher} />
+
+      <ConfirmDialog
+        open={!!deletingTeacher}
+        onOpenChange={(open) => !open && setDeletingTeacher(null)}
+        title="Delete teacher"
+        description={`Are you sure you want to remove ${deletingTeacher?.name}?`}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (deletingTeacher) {
+            softDelete(deletingTeacher.id);
+            toast.success("Teacher removed");
+            if (selectedId === deletingTeacher.id) setSelectedId(null);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -36,6 +36,7 @@ export interface Student {
   enrolledAt: string;
   attendanceRate: number;
   balance: number;
+  deletedAt?: string | null;
 }
 
 // ─── Teacher ──────────────────────────────────────────────────────────────────
@@ -55,6 +56,7 @@ export interface Teacher {
   joinedAt: string;
   salary: number;
   rating: number;
+  deletedAt?: string | null;
 }
 
 // ─── Course ───────────────────────────────────────────────────────────────────
@@ -75,6 +77,7 @@ export interface Course {
   status: Status;
   createdAt: string;
   color: string;
+  deletedAt?: string | null;
 }
 
 // ─── Group ────────────────────────────────────────────────────────────────────
@@ -99,6 +102,7 @@ export interface Group {
   startDate: string;
   endDate: string;
   level: CourseLevel;
+  deletedAt?: string | null;
 }
 
 // ─── Schedule ─────────────────────────────────────────────────────────────────
@@ -154,6 +158,7 @@ export interface Invoice {
   dueDate: string;
   status: PaymentStatus;
   createdAt: string;
+  deletedAt?: string | null;
 }
 
 export interface Transaction {
@@ -179,6 +184,7 @@ export interface Notification {
   read: boolean;
   createdAt: string;
   targetRole?: Role;
+  deletedAt?: string | null;
 }
 
 // ─── Stats ────────────────────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { toast } from "@/lib/store/toast-store";
 
 const SETTINGS_TABS = [
   { id: "profile", label: "Profile", icon: User },
@@ -61,6 +62,29 @@ export default function SettingsPage() {
     phone: "+1 555-0000",
     role: "Administrator",
   });
+
+  const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" });
+
+  function handleSaveProfile() {
+    toast.success("Profile updated");
+  }
+
+  function handleUpdatePassword() {
+    if (!passwords.current || !passwords.next || !passwords.confirm) {
+      toast.error("Fill in all password fields");
+      return;
+    }
+    if (passwords.next !== passwords.confirm) {
+      toast.error("New password and confirmation do not match");
+      return;
+    }
+    toast.success("Password updated");
+    setPasswords({ current: "", next: "", confirm: "" });
+  }
+
+  function handleSaveOrganization() {
+    toast.success("Organization settings saved");
+  }
 
   return (
     <div className="space-y-6">
@@ -143,7 +167,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex justify-end pt-2">
-                  <Button>
+                  <Button onClick={handleSaveProfile}>
                     <Save className="h-4 w-4" />
                     Save Changes
                   </Button>
@@ -179,18 +203,33 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium text-slate-700 block mb-1.5">Current Password</label>
-                  <Input type="password" placeholder="Enter current password" />
+                  <Input
+                    type="password"
+                    placeholder="Enter current password"
+                    value={passwords.current}
+                    onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
+                  />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-700 block mb-1.5">New Password</label>
-                  <Input type="password" placeholder="Enter new password" />
+                  <Input
+                    type="password"
+                    placeholder="Enter new password"
+                    value={passwords.next}
+                    onChange={(e) => setPasswords({ ...passwords, next: e.target.value })}
+                  />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-700 block mb-1.5">Confirm New Password</label>
-                  <Input type="password" placeholder="Confirm new password" />
+                  <Input
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={passwords.confirm}
+                    onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
+                  />
                 </div>
                 <div className="flex justify-end">
-                  <Button>
+                  <Button onClick={handleUpdatePassword}>
                     <Lock className="h-4 w-4" />
                     Update Password
                   </Button>
@@ -221,7 +260,7 @@ export default function SettingsPage() {
                   <Input defaultValue="123 Education Blvd, New York, NY 10001" />
                 </div>
                 <div className="flex justify-end">
-                  <Button>
+                  <Button onClick={handleSaveOrganization}>
                     <Save className="h-4 w-4" />
                     Save Changes
                   </Button>
