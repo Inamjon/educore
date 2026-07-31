@@ -31,6 +31,8 @@ INSTALLED_APPS = [
     "common",
     "foundation",
     "auth_custom",
+    "student",
+    "teacher",
 ]
 
 MIDDLEWARE = [
