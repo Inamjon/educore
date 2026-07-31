@@ -1,0 +1,28 @@
+[project]
+name = "educore-backend"
+version = "0.1.0"
+description = "EduCore LMS backend — Django + DRF"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "django>=5.1,<5.2",
+    "djangorestframework>=3.15",
+    "djangorestframework-simplejwt>=5.3",
+    "psycopg[binary]>=3.2",
+    "django-environ>=0.11",
+    "django-filter>=24.3",
+    "django-cors-headers>=4.4",
+    "argon2-cffi>=23.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-django>=4.9",
+    "factory-boy>=3.3",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["tests.py", "test_*.py"]
+
