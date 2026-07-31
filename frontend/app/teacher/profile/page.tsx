@@ -5,7 +5,7 @@ import {
   Users,
   Layers,
   Star,
-  Mail,
+  KeyRound,
   Phone,
   Clock,
   Copy,
@@ -238,11 +238,7 @@ export default function ProfilePage() {
               <>
                 <div>
                   <InfoRow label="Full Name">{p.name}</InfoRow>
-                  <InfoRow label="Email">
-                    <a href={`mailto:${p.email}`} className="text-indigo-600 hover:underline">
-                      {p.email}
-                    </a>
-                  </InfoRow>
+                  <InfoRow label="Login ID">{p.loginId}</InfoRow>
                   <InfoRow label="Phone">{p.phone}</InfoRow>
                   <InfoRow label="Specialization">{p.specialization}</InfoRow>
                   <InfoRow label="Subjects">{p.subject}</InfoRow>
@@ -303,7 +299,7 @@ export default function ProfilePage() {
           {/* Contact & Social */}
           <Card title="Contact & Social" subtitle="Quick contact information">
             <div>
-              <CopyRow icon={Mail} label="Email address" value={p.email} />
+              <CopyRow icon={KeyRound} label="Login ID" value={p.loginId} />
               <CopyRow icon={Phone} label="Phone number" value={p.phone} />
             </div>
           </Card>

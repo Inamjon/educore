@@ -5,7 +5,7 @@ import {
   Users,
   ClipboardCheck,
   BarChart2,
-  Mail,
+  KeyRound,
   Phone,
   ChevronLeft,
   BookOpen,
@@ -97,8 +97,8 @@ function StudentCard({
       {/* Contact */}
       <div className="w-full space-y-1">
         <div className="flex items-center gap-2 text-xs text-slate-500 truncate">
-          <Mail className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
-          <span className="truncate">{student.email}</span>
+          <KeyRound className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
+          <span className="truncate">{student.loginId}</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <Phone className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
@@ -173,7 +173,7 @@ function StudentDetailPanel({
           </h4>
 
           <div className="space-y-3">
-            <InfoRow icon={<Mail className="h-4 w-4" />} label="Email" value={student.email} />
+            <InfoRow icon={<KeyRound className="h-4 w-4" />} label="Login ID" value={student.loginId} />
             <InfoRow icon={<Phone className="h-4 w-4" />} label="Phone" value={student.phone} />
             <InfoRow icon={<Users className="h-4 w-4" />} label="Group" value={student.groupName} />
             <InfoRow icon={<Users className="h-4 w-4" />} label="Parent" value={student.parentName} />
@@ -344,7 +344,7 @@ export default function StudentsPage() {
       const matchSearch =
         !search ||
         s.name.toLowerCase().includes(search.toLowerCase()) ||
-        s.email.toLowerCase().includes(search.toLowerCase());
+        s.loginId.toLowerCase().includes(search.toLowerCase());
       const matchGroup = !groupFilter || s.groupId === groupFilter;
       return matchSearch && matchGroup;
     });

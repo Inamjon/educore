@@ -292,7 +292,7 @@ function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
               <p className="text-sm font-semibold text-slate-900">
                 {profile.name}
               </p>
-              <p className="text-xs text-slate-400">{profile.email}</p>
+              <p className="text-xs text-slate-400">{profile.loginId}</p>
             </div>
             <Link
               href="/teacher/profile"

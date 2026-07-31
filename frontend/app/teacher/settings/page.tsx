@@ -80,7 +80,6 @@ export default function TeacherSettingsPage() {
   // Account form
   const [account, setAccount] = useState({
     name: p.name,
-    email: p.email,
     phone: p.phone,
     bio: p.bio,
     subject: p.subject,
@@ -89,8 +88,8 @@ export default function TeacherSettingsPage() {
   // Re-sync once the persisted profile store finishes rehydrating from localStorage,
   // since that happens after this component's initial useState runs.
   useEffect(() => {
-    setAccount({ name: p.name, email: p.email, phone: p.phone, bio: p.bio, subject: p.subject });
-  }, [p.name, p.email, p.phone, p.bio, p.subject]);
+    setAccount({ name: p.name, phone: p.phone, bio: p.bio, subject: p.subject });
+  }, [p.name, p.phone, p.bio, p.subject]);
 
   // Security form
   const [passwords, setPasswords] = useState({
@@ -217,12 +216,8 @@ export default function TeacherSettingsPage() {
                       onChange={(e) => setAccount({ ...account, name: e.target.value })}
                     />
                   </Field>
-                  <Field label="Email">
-                    <Input
-                      type="email"
-                      value={account.email}
-                      onChange={(e) => setAccount({ ...account, email: e.target.value })}
-                    />
+                  <Field label="Login ID">
+                    <Input value={p.loginId} disabled />
                   </Field>
                   <Field label="Phone">
                     <Input

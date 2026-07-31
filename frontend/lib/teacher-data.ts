@@ -3,7 +3,7 @@
 export const TEACHER_PROFILE = {
   id: "t1",
   name: "Dr. Sarah Connor",
-  email: "sarah@educore.com",
+  loginId: "TCH-2001",
   phone: "+1 555-0201",
   subject: "Mathematics",
   specialization: "Algebra & Calculus",
@@ -93,7 +93,7 @@ export const TEACHER_STUDENTS = [
   {
     id: "s1",
     name: "Alice Johnson",
-    email: "alice@email.com",
+    loginId: "STU-2101",
     phone: "+1 555-0101",
     groupId: "g1",
     groupName: "Algebra A1",
@@ -108,7 +108,7 @@ export const TEACHER_STUDENTS = [
   {
     id: "s2",
     name: "Bob Smith",
-    email: "bob@email.com",
+    loginId: "STU-2102",
     phone: "+1 555-0102",
     groupId: "g1",
     groupName: "Algebra A1",
@@ -123,7 +123,7 @@ export const TEACHER_STUDENTS = [
   {
     id: "s3",
     name: "Carol White",
-    email: "carol@email.com",
+    loginId: "STU-2103",
     phone: "+1 555-0103",
     groupId: "g2",
     groupName: "Algebra A2",
@@ -138,7 +138,7 @@ export const TEACHER_STUDENTS = [
   {
     id: "s4",
     name: "Daniel Brown",
-    email: "daniel@email.com",
+    loginId: "STU-2104",
     phone: "+1 555-0104",
     groupId: "g2",
     groupName: "Algebra A2",
@@ -153,7 +153,7 @@ export const TEACHER_STUDENTS = [
   {
     id: "s5",
     name: "Eva Martinez",
-    email: "eva@email.com",
+    loginId: "STU-2105",
     phone: "+1 555-0105",
     groupId: "g3",
     groupName: "Calculus B1",
@@ -168,7 +168,7 @@ export const TEACHER_STUDENTS = [
   {
     id: "s6",
     name: "Frank Lee",
-    email: "frank@email.com",
+    loginId: "STU-2106",
     phone: "+1 555-0106",
     groupId: "g3",
     groupName: "Calculus B1",
@@ -183,7 +183,7 @@ export const TEACHER_STUDENTS = [
   {
     id: "s7",
     name: "Grace Kim",
-    email: "grace@email.com",
+    loginId: "STU-2107",
     phone: "+1 555-0107",
     groupId: "g3",
     groupName: "Calculus B1",
@@ -198,7 +198,7 @@ export const TEACHER_STUDENTS = [
   {
     id: "s11",
     name: "Kate Adams",
-    email: "kate@email.com",
+    loginId: "STU-2111",
     phone: "+1 555-0111",
     groupId: "g1",
     groupName: "Algebra A1",
@@ -213,7 +213,7 @@ export const TEACHER_STUDENTS = [
   {
     id: "s12",
     name: "Liam Turner",
-    email: "liam@email.com",
+    loginId: "STU-2112",
     phone: "+1 555-0112",
     groupId: "g2",
     groupName: "Algebra A2",
@@ -228,7 +228,7 @@ export const TEACHER_STUDENTS = [
   {
     id: "s13",
     name: "Noah Evans",
-    email: "noah@email.com",
+    loginId: "STU-2113",
     phone: "+1 555-0113",
     groupId: "g1",
     groupName: "Algebra A1",
@@ -243,7 +243,7 @@ export const TEACHER_STUDENTS = [
   {
     id: "s14",
     name: "Olivia Harris",
-    email: "olivia@email.com",
+    loginId: "STU-2114",
     phone: "+1 555-0114",
     groupId: "g1",
     groupName: "Algebra A1",
@@ -258,7 +258,7 @@ export const TEACHER_STUDENTS = [
   {
     id: "s15",
     name: "Sophia Clark",
-    email: "sophia@email.com",
+    loginId: "STU-2115",
     phone: "+1 555-0115",
     groupId: "g2",
     groupName: "Algebra A2",
@@ -273,7 +273,7 @@ export const TEACHER_STUDENTS = [
   {
     id: "s16",
     name: "Mason Lewis",
-    email: "mason@email.com",
+    loginId: "STU-2116",
     phone: "+1 555-0116",
     groupId: "g2",
     groupName: "Algebra A2",
@@ -288,7 +288,7 @@ export const TEACHER_STUDENTS = [
   {
     id: "s17",
     name: "Ethan Walker",
-    email: "ethan@email.com",
+    loginId: "STU-2117",
     phone: "+1 555-0117",
     groupId: "g3",
     groupName: "Calculus B1",
@@ -303,7 +303,7 @@ export const TEACHER_STUDENTS = [
   {
     id: "s18",
     name: "Ava Hall",
-    email: "ava@email.com",
+    loginId: "STU-2118",
     phone: "+1 555-0118",
     groupId: "g3",
     groupName: "Calculus B1",

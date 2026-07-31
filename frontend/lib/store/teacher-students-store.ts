@@ -4,7 +4,7 @@ import { TEACHER_STUDENTS } from "@/lib/teacher-data";
 export interface TeacherStudentRecord {
   id: string;
   name: string;
-  email: string;
+  loginId: string;
   phone: string;
   groupId: string;
   groupName: string;

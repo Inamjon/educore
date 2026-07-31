@@ -5,7 +5,7 @@ import { TEACHER_PROFILE } from "@/lib/teacher-data";
 export interface TeacherProfile {
   id: string;
   name: string;
-  email: string;
+  loginId: string;
   phone: string;
   subject: string;
   specialization: string;

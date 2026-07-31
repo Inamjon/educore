@@ -160,7 +160,7 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
                       <Avatar name={student.name} size="sm" />
                       <div>
                         <p className="text-sm font-medium text-slate-800">{student.name}</p>
-                        <p className="text-xs text-slate-400">{student.email}</p>
+                        <p className="text-xs text-slate-400">{student.loginId}</p>
                       </div>
                     </div>
                   </td>
