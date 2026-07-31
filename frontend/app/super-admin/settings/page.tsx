@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Settings,
   Globe,
@@ -17,6 +17,8 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
+import { useSASettingsStore } from '@/lib/store/sa-settings-store';
+import { toast } from '@/lib/store/toast-store';
 import { cn } from '@/lib/utils';
 
 // ─── Settings Sections ────────────────────────────────────────────────────────
@@ -74,64 +76,113 @@ function FieldRow({ label, hint, children }: { label: string; hint?: string; chi
 // ─── Section Panels ───────────────────────────────────────────────────────────
 
 function GeneralPanel() {
-  const [name, setName] = useState('EduCore');
-  const [tagline, setTagline] = useState('The All-in-One LMS Platform');
+  const general = useSASettingsStore((s) => s.settings.general);
+  const updateGeneral = useSASettingsStore((s) => s.updateGeneral);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (field: 'logoUrl' | 'faviconUrl') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateGeneral({ [field]: reader.result as string });
+      toast.success(field === 'logoUrl' ? 'Logo uploaded' : 'Favicon uploaded');
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   return (
     <div className="space-y-0">
       <FieldRow label="Platform Name" hint="Displayed across the entire application">
-        <Input value={name} onChange={(e) => setName(e.target.value)} className="w-64" />
+        <Input
+          value={general.platformName}
+          onChange={(e) => updateGeneral({ platformName: e.target.value })}
+          className="w-64"
+        />
       </FieldRow>
       <FieldRow label="Tagline" hint="Short description shown on the login page">
-        <Input value={tagline} onChange={(e) => setTagline(e.target.value)} className="w-64" />
+        <Input
+          value={general.tagline}
+          onChange={(e) => updateGeneral({ tagline: e.target.value })}
+          className="w-64"
+        />
       </FieldRow>
       <FieldRow label="Logo" hint="Recommended size: 256×64px, PNG or SVG">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-28 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-400">
-            No file
-          </div>
-          <Button variant="outline" size="sm">Upload</Button>
+          {general.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={general.logoUrl} alt="Logo" className="h-9 w-28 object-contain rounded-lg border border-slate-200" />
+          ) : (
+            <div className="h-9 w-28 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-400">
+              No file
+            </div>
+          )}
+          <Button variant="outline" size="sm" onClick={() => logoInputRef.current?.click()}>Upload</Button>
+          <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload('logoUrl')} />
         </div>
       </FieldRow>
       <FieldRow label="Favicon" hint="16×16 or 32×32 ICO file">
-        <Button variant="outline" size="sm">Upload</Button>
+        <div className="flex items-center gap-3">
+          {general.faviconUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={general.faviconUrl} alt="Favicon" className="h-8 w-8 object-contain rounded border border-slate-200" />
+          )}
+          <Button variant="outline" size="sm" onClick={() => faviconInputRef.current?.click()}>Upload</Button>
+          <input ref={faviconInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload('faviconUrl')} />
+        </div>
       </FieldRow>
       <FieldRow label="Support Email" hint="Contact email shown to users">
-        <Input type="email" defaultValue="support@educore.com" className="w-64" />
+        <Input
+          type="email"
+          value={general.supportEmail}
+          onChange={(e) => updateGeneral({ supportEmail: e.target.value })}
+          className="w-64"
+        />
       </FieldRow>
     </div>
   );
 }
 
 function ThemePanel() {
-  const [darkMode, setDarkMode] = useState(false);
-  const [compactMode, setCompactMode] = useState(false);
+  const theme = useSASettingsStore((s) => s.settings.theme);
+  const updateTheme = useSASettingsStore((s) => s.updateTheme);
 
   return (
     <div className="space-y-0">
       <FieldRow label="Dark Mode" hint="Enable dark theme for all users">
-        <Toggle checked={darkMode} onChange={setDarkMode} />
+        <Toggle checked={theme.darkMode} onChange={(v) => updateTheme({ darkMode: v })} />
       </FieldRow>
       <FieldRow label="Compact Sidebar" hint="Collapse sidebar by default">
-        <Toggle checked={compactMode} onChange={setCompactMode} />
+        <Toggle checked={theme.compactSidebar} onChange={(v) => updateTheme({ compactSidebar: v })} />
       </FieldRow>
       <FieldRow label="Primary Color" hint="Used for buttons, links and accents">
         <div className="flex items-center gap-2">
-          <input type="color" defaultValue="#6366f1" className="h-9 w-9 cursor-pointer rounded-lg border border-slate-200" />
-          <Input defaultValue="#6366f1" className="w-28 font-mono text-sm" />
+          <input
+            type="color"
+            value={theme.primaryColor}
+            onChange={(e) => updateTheme({ primaryColor: e.target.value })}
+            className="h-9 w-9 cursor-pointer rounded-lg border border-slate-200"
+          />
+          <Input
+            value={theme.primaryColor}
+            onChange={(e) => updateTheme({ primaryColor: e.target.value })}
+            className="w-28 font-mono text-sm"
+          />
         </div>
       </FieldRow>
       <FieldRow label="Font Family" hint="Typography used across the platform">
         <Select
           className="w-48"
-          defaultValue="inter"
+          value={theme.fontFamily}
           options={[
             { value: 'inter', label: 'Inter (Default)' },
             { value: 'roboto', label: 'Roboto' },
             { value: 'outfit', label: 'Outfit' },
             { value: 'system', label: 'System Default' },
           ]}
-          onChange={() => {}}
+          onChange={(e) => updateTheme({ fontFamily: e.target.value })}
         />
       </FieldRow>
     </div>
@@ -139,23 +190,27 @@ function ThemePanel() {
 }
 
 function LanguagesPanel() {
-  const LANGS = [
-    { code: 'en', label: 'English', flag: '🇺🇸', enabled: true, default: true },
-    { code: 'uz', label: 'Uzbek',   flag: '🇺🇿', enabled: true, default: false },
-    { code: 'ru', label: 'Russian', flag: '🇷🇺', enabled: true, default: false },
-    { code: 'ar', label: 'Arabic',  flag: '🇸🇦', enabled: false, default: false },
-    { code: 'es', label: 'Spanish', flag: '🇪🇸', enabled: false, default: false },
-  ];
+  const languages = useSASettingsStore((s) => s.settings.languages);
+  const toggleLanguage = useSASettingsStore((s) => s.toggleLanguage);
 
   return (
     <div className="space-y-0">
-      {LANGS.map((lang) => (
+      {languages.map((lang) => (
         <FieldRow key={lang.code} label={`${lang.flag} ${lang.label}`} hint={lang.default ? 'Default language' : undefined}>
           <div className="flex items-center gap-3">
             {lang.default && (
               <span className="text-xs text-indigo-600 font-medium bg-indigo-50 px-2 py-0.5 rounded-md">Default</span>
             )}
-            <Toggle checked={lang.enabled} onChange={() => {}} />
+            <Toggle
+              checked={lang.enabled}
+              onChange={() => {
+                if (lang.default) {
+                  toast.error('The default language cannot be disabled');
+                  return;
+                }
+                toggleLanguage(lang.code);
+              }}
+            />
           </div>
         </FieldRow>
       ))}
@@ -164,97 +219,137 @@ function LanguagesPanel() {
 }
 
 function EmailPanel() {
+  const email = useSASettingsStore((s) => s.settings.email);
+  const updateEmail = useSASettingsStore((s) => s.updateEmail);
+
   return (
     <div className="space-y-0">
       <FieldRow label="SMTP Host" hint="Your email server host">
-        <Input defaultValue="smtp.mailgun.org" className="w-64" />
+        <Input value={email.smtpHost} onChange={(e) => updateEmail({ smtpHost: e.target.value })} className="w-64" />
       </FieldRow>
       <FieldRow label="SMTP Port" hint="">
-        <Input type="number" defaultValue="587" className="w-32" />
+        <Input
+          type="number"
+          value={email.smtpPort}
+          onChange={(e) => updateEmail({ smtpPort: Number(e.target.value) || 0 })}
+          className="w-32"
+        />
       </FieldRow>
       <FieldRow label="Username" hint="">
-        <Input defaultValue="postmaster@educore.com" className="w-64" />
+        <Input value={email.username} onChange={(e) => updateEmail({ username: e.target.value })} className="w-64" />
       </FieldRow>
       <FieldRow label="Password" hint="">
-        <Input type="password" defaultValue="••••••••••" className="w-64" />
+        <Input
+          type="password"
+          value={email.password}
+          onChange={(e) => updateEmail({ password: e.target.value })}
+          className="w-64"
+        />
       </FieldRow>
       <FieldRow label="From Name" hint="Sender name shown in inbox">
-        <Input defaultValue="EduCore Platform" className="w-64" />
+        <Input value={email.fromName} onChange={(e) => updateEmail({ fromName: e.target.value })} className="w-64" />
       </FieldRow>
       <FieldRow label="Enable TLS" hint="Secure connection">
-        <Toggle checked={true} onChange={() => {}} />
+        <Toggle checked={email.tlsEnabled} onChange={(v) => updateEmail({ tlsEnabled: v })} />
       </FieldRow>
     </div>
   );
 }
 
 function SMSPanel() {
+  const sms = useSASettingsStore((s) => s.settings.sms);
+  const updateSms = useSASettingsStore((s) => s.updateSms);
+
   return (
     <div className="space-y-0">
       <FieldRow label="SMS Provider" hint="">
         <Select
           className="w-48"
-          defaultValue="twilio"
+          value={sms.provider}
           options={[
             { value: 'twilio', label: 'Twilio' },
             { value: 'nexmo', label: 'Nexmo / Vonage' },
             { value: 'aws-sns', label: 'AWS SNS' },
             { value: 'custom', label: 'Custom' },
           ]}
-          onChange={() => {}}
+          onChange={(e) => updateSms({ provider: e.target.value })}
         />
       </FieldRow>
       <FieldRow label="Account SID" hint="">
-        <Input defaultValue="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="w-64 font-mono text-xs" />
+        <Input
+          value={sms.accountSid}
+          onChange={(e) => updateSms({ accountSid: e.target.value })}
+          className="w-64 font-mono text-xs"
+        />
       </FieldRow>
       <FieldRow label="Auth Token" hint="">
-        <Input type="password" defaultValue="••••••••••" className="w-64" />
+        <Input
+          type="password"
+          value={sms.authToken}
+          onChange={(e) => updateSms({ authToken: e.target.value })}
+          className="w-64"
+        />
       </FieldRow>
       <FieldRow label="From Number" hint="Your Twilio phone number">
-        <Input defaultValue="+1 555-000-0001" className="w-64" />
+        <Input value={sms.fromNumber} onChange={(e) => updateSms({ fromNumber: e.target.value })} className="w-64" />
       </FieldRow>
       <FieldRow label="Enable SMS" hint="Send SMS notifications to users">
-        <Toggle checked={true} onChange={() => {}} />
+        <Toggle checked={sms.enabled} onChange={(v) => updateSms({ enabled: v })} />
       </FieldRow>
     </div>
   );
 }
 
 function BackupPanel() {
+  const backup = useSASettingsStore((s) => s.settings.backup);
+  const updateBackup = useSASettingsStore((s) => s.updateBackup);
+  const runBackup = useSASettingsStore((s) => s.runBackup);
+
   return (
     <div className="space-y-0">
       <FieldRow label="Auto Backup" hint="Automatically backup data on a schedule">
-        <Toggle checked={true} onChange={() => {}} />
+        <Toggle checked={backup.autoBackup} onChange={(v) => updateBackup({ autoBackup: v })} />
       </FieldRow>
       <FieldRow label="Backup Frequency" hint="">
         <Select
           className="w-48"
-          defaultValue="daily"
+          value={backup.frequency}
           options={[
             { value: 'hourly', label: 'Every Hour' },
             { value: 'daily', label: 'Daily' },
             { value: 'weekly', label: 'Weekly' },
           ]}
-          onChange={() => {}}
+          onChange={(e) => updateBackup({ frequency: e.target.value })}
         />
       </FieldRow>
       <FieldRow label="Backup Retention" hint="How long to keep backups">
         <Select
           className="w-48"
-          defaultValue="30d"
+          value={backup.retention}
           options={[
             { value: '7d', label: '7 Days' },
             { value: '30d', label: '30 Days' },
             { value: '90d', label: '90 Days' },
           ]}
-          onChange={() => {}}
+          onChange={(e) => updateBackup({ retention: e.target.value })}
         />
       </FieldRow>
       <FieldRow label="Last Backup" hint="">
-        <span className="text-sm text-emerald-600 font-medium">Jul 4, 2026 at 03:00 UTC ✓</span>
+        <span className="text-sm text-emerald-600 font-medium">
+          {new Date(backup.lastBackupAt).toLocaleString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
+          })} ✓
+        </span>
       </FieldRow>
       <FieldRow label="Manual Backup" hint="Trigger an immediate backup now">
-        <Button variant="outline" size="sm">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            runBackup();
+            toast.success('Backup completed');
+          }}
+        >
           <Database className="h-3.5 w-3.5" />
           Run Backup
         </Button>
@@ -264,40 +359,48 @@ function BackupPanel() {
 }
 
 function SecurityPanel() {
+  const security = useSASettingsStore((s) => s.settings.security);
+  const updateSecurity = useSASettingsStore((s) => s.updateSecurity);
+
   return (
     <div className="space-y-0">
       <FieldRow label="Two-Factor Authentication" hint="Require 2FA for all admins">
-        <Toggle checked={true} onChange={() => {}} />
+        <Toggle checked={security.twoFactor} onChange={(v) => updateSecurity({ twoFactor: v })} />
       </FieldRow>
       <FieldRow label="Session Timeout" hint="Auto-logout after inactivity">
         <Select
           className="w-48"
-          defaultValue="60"
+          value={security.sessionTimeout}
           options={[
             { value: '15', label: '15 minutes' },
             { value: '30', label: '30 minutes' },
             { value: '60', label: '1 hour' },
             { value: '480', label: '8 hours' },
           ]}
-          onChange={() => {}}
+          onChange={(e) => updateSecurity({ sessionTimeout: e.target.value })}
         />
       </FieldRow>
       <FieldRow label="IP Allowlist" hint="Restrict admin access to specific IPs">
-        <Toggle checked={false} onChange={() => {}} />
+        <Toggle checked={security.ipAllowlist} onChange={(v) => updateSecurity({ ipAllowlist: v })} />
       </FieldRow>
       <FieldRow label="Max Login Attempts" hint="Lock account after N failed attempts">
-        <Input type="number" defaultValue="5" className="w-24" />
+        <Input
+          type="number"
+          value={security.maxLoginAttempts}
+          onChange={(e) => updateSecurity({ maxLoginAttempts: Number(e.target.value) || 0 })}
+          className="w-24"
+        />
       </FieldRow>
       <FieldRow label="Password Policy" hint="Minimum requirements for passwords">
         <Select
           className="w-48"
-          defaultValue="strong"
+          value={security.passwordPolicy}
           options={[
             { value: 'basic', label: 'Basic (8 chars)' },
             { value: 'medium', label: 'Medium (8+ mixed)' },
             { value: 'strong', label: 'Strong (12+ special)' },
           ]}
-          onChange={() => {}}
+          onChange={(e) => updateSecurity({ passwordPolicy: e.target.value })}
         />
       </FieldRow>
     </div>
@@ -305,29 +408,48 @@ function SecurityPanel() {
 }
 
 function APIKeysPanel() {
-  const KEYS = [
-    { name: 'Production API Key', key: 'ek_live_••••••••••••••••••••••••••••••••', created: 'Jan 1, 2026', last: 'Jul 4, 2026' },
-    { name: 'Webhook Secret',     key: 'whsec_••••••••••••••••••••••••••••••••', created: 'Jan 1, 2026', last: 'Jul 3, 2026' },
-    { name: 'Sandbox API Key',    key: 'ek_test_••••••••••••••••••••••••••••••••', created: 'Mar 10, 2026', last: 'Jun 28, 2026' },
-  ];
+  const apiKeys = useSASettingsStore((s) => s.settings.apiKeys);
+  const rotateApiKey = useSASettingsStore((s) => s.rotateApiKey);
+  const generateApiKey = useSASettingsStore((s) => s.generateApiKey);
+
+  const handleCopy = (key: string) => {
+    navigator.clipboard.writeText(key);
+    toast.success('API key copied to clipboard');
+  };
 
   return (
     <div className="space-y-4">
-      {KEYS.map((k) => (
-        <div key={k.name} className="flex items-start gap-4 py-4 border-b border-slate-50 last:border-0">
+      {apiKeys.map((k) => (
+        <div key={k.id} className="flex items-start gap-4 py-4 border-b border-slate-50 last:border-0">
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-slate-800">{k.name}</p>
             <p className="text-xs font-mono text-slate-400 mt-1 truncate">{k.key}</p>
-            <p className="text-xs text-slate-400 mt-1">Created {k.created} · Last used {k.last}</p>
+            <p className="text-xs text-slate-400 mt-1">Created {k.createdAt} · Last used {k.lastUsed}</p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Button variant="ghost" size="sm">Copy</Button>
-            <Button variant="ghost" size="sm">Rotate</Button>
+            <Button variant="ghost" size="sm" onClick={() => handleCopy(k.key)}>Copy</Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                rotateApiKey(k.id);
+                toast.success('API key rotated');
+              }}
+            >
+              Rotate
+            </Button>
           </div>
         </div>
       ))}
       <div className="pt-2">
-        <Button variant="outline" size="sm">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            generateApiKey();
+            toast.success('New API key generated');
+          }}
+        >
           <Key className="h-3.5 w-3.5" />
           Generate New Key
         </Button>
@@ -362,7 +484,7 @@ export default function SystemSettingsPage() {
         title="System Settings"
         subtitle="Configure platform-wide settings and integrations"
         actions={
-          <Button>
+          <Button onClick={() => toast.success('Settings saved')}>
             <Save className="h-4 w-4" />
             Save Changes
           </Button>

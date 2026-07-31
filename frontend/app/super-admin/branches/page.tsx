@@ -19,7 +19,10 @@ import { Badge, StatusBadge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui/stat-card';
 import { DataTable, Column } from '@/components/ui/data-table';
 import { Input, SearchInput, Select } from '@/components/ui/input';
-import { SA_BRANCHES, SA_CENTERS, SABranch } from '@/lib/super-admin-data';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { SA_CENTERS, BranchStatus } from '@/lib/super-admin-data';
+import { useSABranchesStore, type SABranch } from '@/lib/store/sa-branches-store';
+import { toast } from '@/lib/store/toast-store';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,7 +53,15 @@ const emptyForm: BranchFormData = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BranchesPage() {
+  const branchItems = useSABranchesStore((s) => s.items);
+  const branches = branchItems.filter((b) => !b.deletedAt);
+  const addBranch = useSABranchesStore((s) => s.add);
+  const updateBranch = useSABranchesStore((s) => s.update);
+  const removeBranch = useSABranchesStore((s) => s.softDelete);
+
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingBranch, setDeletingBranch] = useState<SABranch | null>(null);
   const [form, setForm] = useState<BranchFormData>(emptyForm);
   const [search, setSearch] = useState('');
   const [filterCenter, setFilterCenter] = useState('');
@@ -58,14 +69,14 @@ export default function BranchesPage() {
 
   // ── Stats ──────────────────────────────────────────────────────────────────
 
-  const total = SA_BRANCHES.length;
-  const active = SA_BRANCHES.filter((b) => b.status === 'active').length;
-  const inactive = SA_BRANCHES.filter((b) => b.status !== 'active').length;
+  const total = branches.length;
+  const active = branches.filter((b) => b.status === 'active').length;
+  const inactive = branches.filter((b) => b.status !== 'active').length;
 
   // ── Filtered data ──────────────────────────────────────────────────────────
 
   const filtered = useMemo(() => {
-    return SA_BRANCHES.filter((b) => {
+    return branches.filter((b) => {
       const q = search.toLowerCase();
       const matchSearch =
         !q ||
@@ -76,7 +87,7 @@ export default function BranchesPage() {
       const matchStatus = !filterStatus || b.status === filterStatus;
       return matchSearch && matchCenter && matchStatus;
     });
-  }, [search, filterCenter, filterStatus]);
+  }, [branches, search, filterCenter, filterStatus]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -86,12 +97,72 @@ export default function BranchesPage() {
 
   const handleCancel = () => {
     setShowForm(false);
+    setEditingId(null);
     setForm(emptyForm);
   };
 
+  const handleEdit = (branch: SABranch) => {
+    setEditingId(branch.id);
+    setForm({
+      name: branch.name,
+      centerId: branch.centerId,
+      address: branch.address,
+      city: branch.city,
+      phone: branch.phone,
+      email: branch.email,
+      manager: branch.manager,
+      workingHours: branch.workingHours,
+      status: branch.status,
+    });
+    setShowForm(true);
+  };
+
+  const handleSuspendToggle = (branch: SABranch) => {
+    const nextStatus: BranchStatus = branch.status === 'suspended' ? 'active' : 'suspended';
+    updateBranch(branch.id, { status: nextStatus });
+    toast.success(nextStatus === 'suspended' ? 'Branch suspended' : 'Branch reactivated');
+  };
+
   const handleSubmit = () => {
-    // In a real app, submit to API
+    if (!form.name.trim() || !form.centerId) {
+      toast.error('Branch name and center are required');
+      return;
+    }
+    const center = SA_CENTERS.find((c) => c.id === form.centerId);
+    if (editingId) {
+      updateBranch(editingId, {
+        name: form.name,
+        centerId: form.centerId,
+        centerName: center?.name ?? '',
+        address: form.address,
+        city: form.city,
+        phone: form.phone,
+        email: form.email,
+        manager: form.manager,
+        workingHours: form.workingHours,
+        status: form.status as BranchStatus,
+      });
+      toast.success('Branch updated');
+    } else {
+      addBranch({
+        name: form.name,
+        centerId: form.centerId,
+        centerName: center?.name ?? '',
+        address: form.address,
+        city: form.city,
+        phone: form.phone,
+        email: form.email,
+        manager: form.manager,
+        workingHours: form.workingHours,
+        status: form.status as BranchStatus,
+        studentCount: 0,
+        teacherCount: 0,
+        createdAt: new Date().toISOString(),
+      });
+      toast.success('Branch created');
+    }
     setShowForm(false);
+    setEditingId(null);
     setForm(emptyForm);
   };
 
@@ -151,21 +222,24 @@ export default function BranchesPage() {
     {
       key: 'id',
       label: 'Actions',
-      render: () => (
+      render: (_, row) => (
         <div className="flex items-center gap-1">
           <button
+            onClick={() => handleEdit(row)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
             title="Edit"
           >
             <Pencil className="h-4 w-4" />
           </button>
           <button
+            onClick={() => handleSuspendToggle(row)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
-            title="Suspend"
+            title={row.status === 'suspended' ? 'Reactivate' : 'Suspend'}
           >
             <Ban className="h-4 w-4" />
           </button>
           <button
+            onClick={() => setDeletingBranch(row)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
             title="Delete"
           >
@@ -189,7 +263,15 @@ export default function BranchesPage() {
         actions={
           <Button
             size="md"
-            onClick={() => setShowForm((v) => !v)}
+            onClick={() => {
+              if (showForm) {
+                handleCancel();
+              } else {
+                setEditingId(null);
+                setForm(emptyForm);
+                setShowForm(true);
+              }
+            }}
           >
             <Plus className="h-4 w-4" />
             Add Branch
@@ -223,7 +305,9 @@ export default function BranchesPage() {
       {showForm && (
         <Card>
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-base font-semibold text-slate-900">Add New Branch</h3>
+            <h3 className="text-base font-semibold text-slate-900">
+              {editingId ? 'Edit Branch' : 'Add New Branch'}
+            </h3>
             <button
               onClick={handleCancel}
               className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
@@ -329,7 +413,7 @@ export default function BranchesPage() {
             </Button>
             <Button onClick={handleSubmit}>
               <Plus className="h-4 w-4" />
-              Add Branch
+              {editingId ? 'Save Changes' : 'Add Branch'}
             </Button>
           </div>
         </Card>
@@ -382,6 +466,20 @@ export default function BranchesPage() {
           emptyMessage="No branches found"
         />
       </Card>
+
+      <ConfirmDialog
+        open={!!deletingBranch}
+        onOpenChange={(open) => !open && setDeletingBranch(null)}
+        title="Delete branch"
+        description={`Are you sure you want to delete "${deletingBranch?.name}"? This can be restored later if needed.`}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (deletingBranch) {
+            removeBranch(deletingBranch.id);
+            toast.success('Branch deleted');
+          }
+        }}
+      />
     </div>
   );
 }

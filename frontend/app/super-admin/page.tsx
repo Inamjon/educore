@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import Link from 'next/link';
 import {
   AreaChart,
   Area,
@@ -41,6 +41,7 @@ import {
   SUBSCRIPTION_DIST_SA,
   BRANCH_GROWTH_SA,
 } from '@/lib/super-admin-data';
+import { useSAProfileStore } from '@/lib/store/sa-profile-store';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -80,26 +81,31 @@ const actionBadgeVariant: Record<
 const QUICK_ACTIONS = [
   {
     label: 'Create Educational Center',
+    href: '/super-admin/centers',
     icon: <Building2 className="h-6 w-6 text-violet-600" />,
     iconBg: 'bg-violet-50',
   },
   {
     label: 'Create Branch',
+    href: '/super-admin/branches',
     icon: <GitBranch className="h-6 w-6 text-indigo-600" />,
     iconBg: 'bg-indigo-50',
   },
   {
     label: 'Add Administrator',
+    href: '/super-admin/administrators',
     icon: <ShieldCheck className="h-6 w-6 text-amber-600" />,
     iconBg: 'bg-amber-50',
   },
   {
     label: 'Assign Branch',
+    href: '/super-admin/administrators',
     icon: <Link2 className="h-6 w-6 text-blue-600" />,
     iconBg: 'bg-blue-50',
   },
   {
     label: 'View Reports',
+    href: '/super-admin/reports',
     icon: <BarChart2 className="h-6 w-6 text-emerald-600" />,
     iconBg: 'bg-emerald-50',
   },
@@ -188,7 +194,7 @@ const tooltipStyle = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SuperAdminDashboardPage() {
-  const [, setRefresh] = useState(0);
+  const profile = useSAProfileStore((s) => s.profile);
   const recentLogs = SA_AUDIT_LOGS.slice(0, 5);
 
   return (
@@ -197,7 +203,7 @@ export default function SuperAdminDashboardPage() {
       <div className="bg-gradient-to-r from-violet-700 to-indigo-600 rounded-2xl p-6 text-white">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold">Welcome back, Alex Rivera 👋</h2>
+            <h2 className="text-2xl font-bold">Welcome back, {profile.name} 👋</h2>
             <p className="text-violet-200 text-sm mt-1">
               Super Administrator — Full platform overview
             </p>
@@ -443,16 +449,16 @@ export default function SuperAdminDashboardPage() {
       <Card title="Quick Actions">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {QUICK_ACTIONS.map((action) => (
-            <div
+            <Link
               key={action.label}
-              onClick={() => setRefresh((r) => r + 1)}
+              href={action.href}
               className="flex flex-col items-center gap-3 p-4 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors border border-slate-100 hover:border-slate-200 hover:shadow-sm"
             >
               <div className={`p-3 rounded-xl ${action.iconBg}`}>{action.icon}</div>
               <span className="text-xs font-medium text-slate-700 text-center leading-tight">
                 {action.label}
               </span>
-            </div>
+            </Link>
           ))}
         </div>
       </Card>

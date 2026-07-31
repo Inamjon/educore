@@ -19,12 +19,16 @@ import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { SearchInput, Select } from '@/components/ui/input';
 import { DataTable, Column } from '@/components/ui/data-table';
-import { SA_TEACHERS, SA_CENTERS, SATeacher } from '@/lib/super-admin-data';
-
-// ─── Derived stats ─────────────────────────────────────────────────────────────
-const totalTeachers = SA_TEACHERS.length;
-const activeTeachers = SA_TEACHERS.filter((t) => t.status === 'active').length;
-const inactiveTeachers = SA_TEACHERS.filter((t) => t.status === 'inactive').length;
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+} from '@/components/ui/dialog';
+import { SA_CENTERS } from '@/lib/super-admin-data';
+import { useSATeachersStore, type SATeacher } from '@/lib/store/sa-teachers-store';
+import { toast } from '@/lib/store/toast-store';
 
 // ─── Filter options ────────────────────────────────────────────────────────────
 const centerOptions = [
@@ -49,14 +53,22 @@ function RatingStars({ rating }: { rating: number }) {
 }
 
 export default function TeachersPage() {
+  const teachers = useSATeachersStore((s) => s.items);
+  const updateTeacher = useSATeachersStore((s) => s.update);
+
   const [search, setSearch] = useState('');
   const [centerId, setCenterId] = useState('');
   const [status, setStatus] = useState('');
+  const [viewingTeacher, setViewingTeacher] = useState<SATeacher | null>(null);
+
+  const totalTeachers = teachers.length;
+  const activeTeachers = teachers.filter((t) => t.status === 'active').length;
+  const inactiveTeachers = teachers.filter((t) => t.status === 'inactive').length;
 
   // ── Filtered data ────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return SA_TEACHERS.filter((t) => {
+    return teachers.filter((t) => {
       const matchesSearch =
         !q ||
         t.name.toLowerCase().includes(q) ||
@@ -66,11 +78,17 @@ export default function TeachersPage() {
       const matchesStatus = !status || t.status === status;
       return matchesSearch && matchesCenter && matchesStatus;
     });
-  }, [search, centerId, status]);
+  }, [teachers, search, centerId, status]);
 
   // ── Average rating ──────────────────────────────────────────────────────────
   const avgRating =
-    SA_TEACHERS.reduce((sum, t) => sum + t.rating, 0) / SA_TEACHERS.length;
+    teachers.length > 0 ? teachers.reduce((sum, t) => sum + t.rating, 0) / teachers.length : 0;
+
+  const handleSuspendToggle = (teacher: SATeacher) => {
+    const nextStatus = teacher.status === 'active' ? 'inactive' : 'active';
+    updateTeacher(teacher.id, { status: nextStatus });
+    toast.success(nextStatus === 'inactive' ? 'Teacher suspended' : 'Teacher reactivated');
+  };
 
   // ── Table columns ────────────────────────────────────────────────────────────
   const columns: Column<SATeacher>[] = [
@@ -136,12 +154,17 @@ export default function TeachersPage() {
       label: 'Actions',
       headerClassName: 'text-right',
       className: 'text-right',
-      render: () => (
+      render: (_, row) => (
         <div className="flex items-center gap-1 justify-end">
-          <Button variant="ghost" size="icon" title="View teacher">
+          <Button variant="ghost" size="icon" title="View teacher" onClick={() => setViewingTeacher(row)}>
             <Eye className="h-4 w-4 text-slate-500" />
           </Button>
-          <Button variant="ghost" size="icon" title="Suspend teacher">
+          <Button
+            variant="ghost"
+            size="icon"
+            title={row.status === 'active' ? 'Suspend teacher' : 'Reactivate teacher'}
+            onClick={() => handleSuspendToggle(row)}
+          >
             <Ban className="h-4 w-4 text-slate-500 hover:text-amber-600" />
           </Button>
         </div>
@@ -239,6 +262,50 @@ export default function TeachersPage() {
           emptyMessage="No teachers match your filters."
         />
       </Card>
+
+      <Dialog open={!!viewingTeacher} onOpenChange={(open) => !open && setViewingTeacher(null)}>
+        <DialogContent className="max-w-sm">
+          {viewingTeacher && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{viewingTeacher.name}</DialogTitle>
+              </DialogHeader>
+              <DialogBody className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Avatar name={viewingTeacher.name} size="md" />
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{viewingTeacher.name}</p>
+                    <p className="text-xs text-slate-400">{viewingTeacher.email}</p>
+                  </div>
+                </div>
+                <DetailRow label="Phone" value={viewingTeacher.phone} />
+                <DetailRow label="Subject" value={viewingTeacher.subject} />
+                <DetailRow label="Center" value={viewingTeacher.centerName} />
+                <DetailRow label="Branch" value={viewingTeacher.branchName} />
+                <DetailRow label="Rating" value={`${viewingTeacher.rating.toFixed(1)} / 5.0`} />
+                <DetailRow
+                  label="Joined"
+                  value={new Date(viewingTeacher.joinedAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                />
+                <DetailRow label="Status" value={viewingTeacher.status === 'active' ? 'Active' : 'Inactive'} />
+              </DialogBody>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-slate-400">{label}</span>
+      <span className="font-medium text-slate-900">{value}</span>
     </div>
   );
 }

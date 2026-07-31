@@ -16,6 +16,7 @@ import {
   BRANCH_GROWTH_SA,
 } from '@/lib/super-admin-data';
 import { formatCurrency } from '@/lib/utils';
+import { toast } from '@/lib/store/toast-store';
 import {
   AreaChart,
   Area,
@@ -93,13 +94,37 @@ export default function ReportsPage() {
     return 'info';
   };
 
+  const handleExportReport = () => {
+    const rows = [
+      ['Center', 'City', 'Country', 'Students', 'Branches', 'Plan', 'Est. Revenue'],
+      ...sortedCenters.map((c) => [
+        c.name,
+        c.city,
+        c.country,
+        String(c.studentCount),
+        String(c.branchCount),
+        c.subscription,
+        String(CENTER_REVENUE_ESTIMATE[c.id] ?? 0),
+      ]),
+    ];
+    const csv = rows.map((r) => r.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `platform-report-${period}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success('Report exported');
+  };
+
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-6">
       <PageHeader
         title="Reports & Analytics"
         subtitle="Platform-wide insights and performance metrics"
         actions={
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExportReport}>
             <Download className="h-4 w-4" />
             Export Report
           </Button>

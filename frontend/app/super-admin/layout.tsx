@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Building2,
@@ -24,7 +24,8 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SA_NOTIFICATIONS, SA_PROFILE } from "@/lib/super-admin-data";
+import { useSANotificationsStore } from "@/lib/store/sa-notifications-store";
+import { useSAProfileStore } from "@/lib/store/sa-profile-store";
 
 // ─── Nav Config ───────────────────────────────────────────────────────────────
 
@@ -191,13 +192,20 @@ interface HeaderProps {
 
 function SuperAdminHeader({ sidebarCollapsed }: HeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const title = PAGE_TITLES[pathname] ?? "Super Admin";
-  const unreadCount = SA_NOTIFICATIONS.filter((n) => !n.read).length;
+  const notifications = useSANotificationsStore((s) => s.items);
+  const unreadCount = notifications.filter((n) => !n.read).length;
+  const profile = useSAProfileStore((s) => s.profile);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  function handleSignOut() {
+    router.push("/login");
+  }
+
   // Derive initials from profile name
-  const initials = SA_PROFILE.name
+  const initials = profile.name
     .split(" ")
     .map((w) => w[0])
     .join("")
@@ -278,9 +286,9 @@ function SuperAdminHeader({ sidebarCollapsed }: HeaderProps) {
           </div>
           <div className="hidden sm:block text-left">
             <p className="text-sm font-medium text-slate-900 leading-none">
-              {SA_PROFILE.name}
+              {profile.name}
             </p>
-            <p className="text-xs text-slate-400 mt-0.5">{SA_PROFILE.role}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{profile.role}</p>
           </div>
           <ChevronDown
             className={cn(
@@ -294,9 +302,9 @@ function SuperAdminHeader({ sidebarCollapsed }: HeaderProps) {
           <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-lg border border-slate-100 py-1.5 z-50">
             <div className="px-4 py-2.5 border-b border-slate-50">
               <p className="text-sm font-semibold text-slate-900">
-                {SA_PROFILE.name}
+                {profile.name}
               </p>
-              <p className="text-xs text-slate-400">{SA_PROFILE.email}</p>
+              <p className="text-xs text-slate-400">{profile.email}</p>
             </div>
             <Link
               href="/super-admin/profile"
@@ -315,7 +323,10 @@ function SuperAdminHeader({ sidebarCollapsed }: HeaderProps) {
               System Settings
             </Link>
             <div className="border-t border-slate-50 mt-1 pt-1">
-              <button className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full">
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full"
+              >
                 <LogOut className="h-4 w-4" />
                 Sign Out
               </button>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   CheckCircle2,
   GitBranch,
@@ -16,11 +17,9 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/input';
-import { SA_SUBSCRIPTIONS, SASubscription } from '@/lib/super-admin-data';
+import { useSASubscriptionsStore, type SASubscription } from '@/lib/store/sa-subscriptions-store';
+import { toast } from '@/lib/store/toast-store';
 import { formatCurrency } from '@/lib/utils';
-
-// ── Derived total active count for distribution bar ───────────────────────────
-const totalActive = SA_SUBSCRIPTIONS.reduce((sum, p) => sum + p.activeCount, 0);
 
 // ── Create Plan form default state ────────────────────────────────────────────
 const defaultForm = {
@@ -38,8 +37,16 @@ const billingOptions = [
   { value: 'annual', label: 'Annual' },
 ];
 
+const PLAN_COLORS = ['#6366f1', '#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#ec4899'];
+
 export default function SubscriptionsPage() {
+  const plans = useSASubscriptionsStore((s) => s.items);
+  const addPlan = useSASubscriptionsStore((s) => s.add);
+  const updatePlan = useSASubscriptionsStore((s) => s.update);
+  const totalActive = plans.reduce((sum, p) => sum + p.activeCount, 0);
+
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
 
   const handleField = (key: keyof typeof defaultForm, value: string) => {
@@ -48,13 +55,52 @@ export default function SubscriptionsPage() {
 
   const handleCancel = () => {
     setForm(defaultForm);
+    setEditingId(null);
     setShowForm(false);
+  };
+
+  const handleEdit = (plan: SASubscription) => {
+    setEditingId(plan.id);
+    setForm({
+      name: plan.name,
+      price: String(plan.price),
+      billingCycle: plan.billingCycle,
+      maxBranches: String(plan.maxBranches),
+      maxStudents: String(plan.maxStudents),
+      maxTeachers: String(plan.maxTeachers),
+      features: plan.features.join('\n'),
+    });
+    setShowForm(true);
   };
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app: send to API
+    const features = form.features
+      .split('\n')
+      .map((f) => f.trim())
+      .filter(Boolean);
+    const payload = {
+      name: form.name as SASubscription['name'],
+      price: Number(form.price) || 0,
+      billingCycle: form.billingCycle as SASubscription['billingCycle'],
+      maxBranches: Number(form.maxBranches) || 0,
+      maxStudents: Number(form.maxStudents) || 0,
+      maxTeachers: Number(form.maxTeachers) || 0,
+      features,
+    };
+    if (editingId) {
+      updatePlan(editingId, payload);
+      toast.success('Plan updated');
+    } else {
+      addPlan({
+        ...payload,
+        activeCount: 0,
+        color: PLAN_COLORS[plans.length % PLAN_COLORS.length],
+      });
+      toast.success('Plan created');
+    }
     setShowForm(false);
+    setEditingId(null);
     setForm(defaultForm);
   };
 
@@ -68,7 +114,15 @@ export default function SubscriptionsPage() {
           <Button
             variant="primary"
             size="md"
-            onClick={() => setShowForm((v) => !v)}
+            onClick={() => {
+              if (showForm) {
+                handleCancel();
+              } else {
+                setEditingId(null);
+                setForm(defaultForm);
+                setShowForm(true);
+              }
+            }}
           >
             <Plus className="h-4 w-4" />
             Create Plan
@@ -78,7 +132,7 @@ export default function SubscriptionsPage() {
 
       {/* ── Create Plan Form (toggle) ─────────────────────────────────────────── */}
       {showForm && (
-        <Card title="New Subscription Plan" actions={
+        <Card title={editingId ? 'Edit Subscription Plan' : 'New Subscription Plan'} actions={
           <button
             onClick={handleCancel}
             className="text-slate-400 hover:text-slate-600 transition-colors"
@@ -190,7 +244,7 @@ export default function SubscriptionsPage() {
               </Button>
               <Button type="submit" variant="primary">
                 <Plus className="h-4 w-4" />
-                Create Plan
+                {editingId ? 'Save Changes' : 'Create Plan'}
               </Button>
             </div>
           </form>
@@ -199,15 +253,15 @@ export default function SubscriptionsPage() {
 
       {/* ── Plan Cards Grid ───────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {SA_SUBSCRIPTIONS.map((plan) => (
-          <PlanCard key={plan.id} plan={plan} />
+        {plans.map((plan) => (
+          <PlanCard key={plan.id} plan={plan} onEdit={handleEdit} />
         ))}
       </div>
 
       {/* ── Plan Distribution ─────────────────────────────────────────────────── */}
       <Card title="Plan Distribution" subtitle="Active subscriptions per plan">
         <div className="space-y-4">
-          {SA_SUBSCRIPTIONS.map((plan) => {
+          {plans.map((plan) => {
             const pct = totalActive > 0 ? (plan.activeCount / totalActive) * 100 : 0;
             return (
               <div key={plan.id} className="space-y-1.5">
@@ -243,8 +297,18 @@ export default function SubscriptionsPage() {
 }
 
 // ── Plan Card sub-component ────────────────────────────────────────────────────
-function PlanCard({ plan }: { plan: SASubscription }) {
+function PlanCard({ plan, onEdit }: { plan: SASubscription; onEdit: (plan: SASubscription) => void }) {
+  const router = useRouter();
   const isUnlimited = (n: number) => n >= 999;
+
+  const handleViewCenters = () => {
+    const tier = plan.name.toLowerCase();
+    if (tier === 'basic' || tier === 'pro' || tier === 'enterprise') {
+      router.push(`/super-admin/centers?subscription=${tier}`);
+    } else {
+      router.push('/super-admin/centers');
+    }
+  };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
@@ -303,11 +367,11 @@ function PlanCard({ plan }: { plan: SASubscription }) {
 
         {/* Actions */}
         <div className="flex items-center gap-2 pt-1">
-          <Button variant="outline" size="sm" className="flex-1 justify-center">
+          <Button variant="outline" size="sm" className="flex-1 justify-center" onClick={() => onEdit(plan)}>
             <Pencil className="h-3.5 w-3.5" />
             Edit Plan
           </Button>
-          <Button variant="ghost" size="sm" className="flex-1 justify-center">
+          <Button variant="ghost" size="sm" className="flex-1 justify-center" onClick={handleViewCenters}>
             <Building2 className="h-3.5 w-3.5" />
             View Centers
           </Button>

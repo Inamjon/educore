@@ -17,7 +17,13 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/input';
-import { SA_NOTIFICATIONS, SANotification, NotificationType, NotificationCategory } from '@/lib/super-admin-data';
+import { NotificationType, NotificationCategory } from '@/lib/super-admin-data';
+import {
+  useSANotificationsStore,
+  markAllSANotificationsRead,
+  markSANotificationRead,
+  type SANotification,
+} from '@/lib/store/sa-notifications-store';
 import { cn } from '@/lib/utils';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -121,7 +127,7 @@ function NotificationRow({ notif, onMarkRead }: { notif: SANotification; onMarkR
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState(SA_NOTIFICATIONS);
+  const notifications = useSANotificationsStore((s) => s.items);
   const [filterCategory, setFilterCategory] = useState('');
   const [filterRead, setFilterRead] = useState('');
 
@@ -139,13 +145,11 @@ export default function NotificationsPage() {
   }, [notifications, filterCategory, filterRead]);
 
   const handleMarkRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+    markSANotificationRead(id);
   };
 
   const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    markAllSANotificationsRead();
   };
 
   return (

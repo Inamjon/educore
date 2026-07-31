@@ -17,8 +17,23 @@ import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui/stat-card';
 import { DataTable, Column } from '@/components/ui/data-table';
 import { SearchInput, Select } from '@/components/ui/input';
-import { SA_PAYMENTS, SAPayment, PaymentStatus } from '@/lib/super-admin-data';
+import { PaymentStatus } from '@/lib/super-admin-data';
+import { useSAPaymentsStore, type SAPayment } from '@/lib/store/sa-payments-store';
+import { toast } from '@/lib/store/toast-store';
 import { formatCurrency } from '@/lib/utils';
+
+// ─── CSV download helper ──────────────────────────────────────────────────────
+
+function downloadCsv(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 // ─── Payment Status Badge ─────────────────────────────────────────────────────
 
@@ -56,24 +71,24 @@ function MethodBadge({ method }: { method: string }) {
   );
 }
 
-// ─── Derived stats ─────────────────────────────────────────────────────────────
-
-const totalRevenue = SA_PAYMENTS.filter((p) => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
-const totalPaid = SA_PAYMENTS.filter((p) => p.status === 'paid').length;
-const totalPending = SA_PAYMENTS.filter((p) => p.status === 'pending').length;
-const totalFailed = SA_PAYMENTS.filter((p) => p.status === 'failed').length;
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PaymentsPage() {
+  const payments = useSAPaymentsStore((s) => s.items);
+  const updatePayment = useSAPaymentsStore((s) => s.update);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPlan, setFilterPlan] = useState('');
 
+  const totalRevenue = payments.filter((p) => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
+  const totalPaid = payments.filter((p) => p.status === 'paid').length;
+  const totalPending = payments.filter((p) => p.status === 'pending').length;
+  const totalFailed = payments.filter((p) => p.status === 'failed').length;
+
   // ── Filtered data ──────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return SA_PAYMENTS.filter((p) => {
+    return payments.filter((p) => {
       const matchSearch =
         !q ||
         p.centerName.toLowerCase().includes(q) ||
@@ -83,7 +98,28 @@ export default function PaymentsPage() {
       const matchPlan = !filterPlan || p.plan.toLowerCase() === filterPlan;
       return matchSearch && matchStatus && matchPlan;
     });
-  }, [search, filterStatus, filterPlan]);
+  }, [payments, search, filterStatus, filterPlan]);
+
+  const handleExportCsv = () => {
+    downloadCsv('payments-export.csv', [
+      ['Invoice', 'Center', 'Plan', 'Amount', 'Method', 'Date', 'Status'],
+      ...filtered.map((p) => [p.invoiceId, p.centerName, p.plan, String(p.amount), p.method, p.date, p.status]),
+    ]);
+    toast.success('Payments exported');
+  };
+
+  const handleDownloadInvoice = (payment: SAPayment) => {
+    downloadCsv(`${payment.invoiceId}.csv`, [
+      ['Invoice', 'Center', 'Plan', 'Amount', 'Method', 'Date', 'Status'],
+      [payment.invoiceId, payment.centerName, payment.plan, String(payment.amount), payment.method, payment.date, payment.status],
+    ]);
+    toast.success(`Invoice ${payment.invoiceId} downloaded`);
+  };
+
+  const handleRetry = (payment: SAPayment) => {
+    updatePayment(payment.id, { status: 'paid' });
+    toast.success(`Payment ${payment.invoiceId} marked as paid`);
+  };
 
   // ── Columns ────────────────────────────────────────────────────────────────
 
@@ -156,10 +192,17 @@ export default function PaymentsPage() {
       label: 'Actions',
       headerClassName: 'text-right',
       className: 'text-right',
-      render: () => (
-        <Button variant="ghost" size="icon" title="Download invoice">
-          <Download className="h-4 w-4 text-slate-500" />
-        </Button>
+      render: (_, row) => (
+        <div className="flex items-center gap-1 justify-end">
+          {row.status === 'failed' && (
+            <Button variant="ghost" size="sm" onClick={() => handleRetry(row)}>
+              Retry
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" title="Download invoice" onClick={() => handleDownloadInvoice(row)}>
+            <Download className="h-4 w-4 text-slate-500" />
+          </Button>
+        </div>
       ),
     },
   ];
@@ -171,7 +214,7 @@ export default function PaymentsPage() {
         title="Payments"
         subtitle="Track all subscription payments and invoices across the platform"
         actions={
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExportCsv}>
             <Download className="h-4 w-4" />
             Export CSV
           </Button>
@@ -212,7 +255,7 @@ export default function PaymentsPage() {
       <Card
         noPadding
         title="All Payments"
-        subtitle={`${filtered.length} of ${SA_PAYMENTS.length} invoices`}
+        subtitle={`${filtered.length} of ${payments.length} invoices`}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
             <SearchInput

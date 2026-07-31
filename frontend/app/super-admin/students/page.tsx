@@ -10,13 +10,16 @@ import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { SearchInput, Select } from '@/components/ui/input';
 import { DataTable, Column } from '@/components/ui/data-table';
-import { SA_STUDENTS, SA_CENTERS, SAStudent } from '@/lib/super-admin-data';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+} from '@/components/ui/dialog';
+import { SA_CENTERS } from '@/lib/super-admin-data';
+import { useSAStudentsStore, type SAStudent } from '@/lib/store/sa-students-store';
 import { formatCurrency } from '@/lib/utils';
-
-// ── Derived stats ──────────────────────────────────────────────────────────────
-const totalStudents = SA_STUDENTS.length;
-const activeStudents = SA_STUDENTS.filter((s) => s.status === 'active').length;
-const suspendedStudents = SA_STUDENTS.filter((s) => s.status === 'suspended').length;
 
 // ── Center options for filter ──────────────────────────────────────────────────
 const centerOptions = [
@@ -32,14 +35,20 @@ const statusOptions = [
 ];
 
 export default function StudentsPage() {
+  const students = useSAStudentsStore((s) => s.items);
   const [search, setSearch] = useState('');
   const [centerId, setCenterId] = useState('');
   const [status, setStatus] = useState('');
+  const [viewingStudent, setViewingStudent] = useState<SAStudent | null>(null);
+
+  const totalStudents = students.length;
+  const activeStudents = students.filter((s) => s.status === 'active').length;
+  const suspendedStudents = students.filter((s) => s.status === 'suspended').length;
 
   // ── Filtered data ────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return SA_STUDENTS.filter((s) => {
+    return students.filter((s) => {
       const matchesSearch =
         !q ||
         s.name.toLowerCase().includes(q) ||
@@ -49,7 +58,7 @@ export default function StudentsPage() {
       const matchesStatus = !status || s.status === status;
       return matchesSearch && matchesCenter && matchesStatus;
     });
-  }, [search, centerId, status]);
+  }, [students, search, centerId, status]);
 
   // ── Table columns ────────────────────────────────────────────────────────────
   const columns: Column<SAStudent>[] = [
@@ -130,8 +139,8 @@ export default function StudentsPage() {
       label: 'Actions',
       headerClassName: 'text-right',
       className: 'text-right',
-      render: () => (
-        <Button variant="ghost" size="icon" title="View student">
+      render: (_, row) => (
+        <Button variant="ghost" size="icon" title="View student" onClick={() => setViewingStudent(row)}>
           <Eye className="h-4 w-4 text-slate-500" />
         </Button>
       ),
@@ -201,6 +210,56 @@ export default function StudentsPage() {
           emptyMessage="No students match your filters."
         />
       </Card>
+
+      <Dialog open={!!viewingStudent} onOpenChange={(open) => !open && setViewingStudent(null)}>
+        <DialogContent className="max-w-sm">
+          {viewingStudent && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{viewingStudent.name}</DialogTitle>
+              </DialogHeader>
+              <DialogBody className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Avatar name={viewingStudent.name} size="md" />
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{viewingStudent.name}</p>
+                    <p className="text-xs text-slate-400">{viewingStudent.email}</p>
+                  </div>
+                </div>
+                <DetailRow label="Phone" value={viewingStudent.phone} />
+                <DetailRow label="Center" value={viewingStudent.centerName} />
+                <DetailRow label="Branch" value={viewingStudent.branchName} />
+                <DetailRow label="Group" value={viewingStudent.groupName} />
+                <DetailRow
+                  label="Enrolled"
+                  value={new Date(viewingStudent.enrolledAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                />
+                <DetailRow
+                  label="Balance"
+                  value={`${formatCurrency(Math.abs(viewingStudent.balance))}${viewingStudent.balance < 0 ? ' (credit)' : ''}`}
+                />
+                <DetailRow
+                  label="Status"
+                  value={viewingStudent.status.charAt(0).toUpperCase() + viewingStudent.status.slice(1)}
+                />
+              </DialogBody>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-slate-400">{label}</span>
+      <span className="font-medium text-slate-900">{value}</span>
     </div>
   );
 }

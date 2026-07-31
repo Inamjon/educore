@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   UserCircle,
   Mail,
@@ -19,7 +19,9 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { SA_PROFILE, SA_AUDIT_LOGS } from '@/lib/super-admin-data';
+import { SA_AUDIT_LOGS } from '@/lib/super-admin-data';
+import { useSAProfileStore } from '@/lib/store/sa-profile-store';
+import { toast } from '@/lib/store/toast-store';
 
 // ─── Info Row ─────────────────────────────────────────────────────────────────
 
@@ -48,10 +50,26 @@ function formatDate(iso: string) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+const INITIAL_SESSIONS = [
+  { id: 'sess1', device: 'Chrome on macOS', ip: '203.0.113.10', location: 'New York, USA', current: true, time: 'Now' },
+  { id: 'sess2', device: 'Safari on iPhone', ip: '203.0.113.11', location: 'New York, USA', current: false, time: '2h ago' },
+];
+
 export default function ProfilePage() {
-  const [name, setName] = useState(SA_PROFILE.name);
-  const [email, setEmail] = useState(SA_PROFILE.email);
-  const [phone, setPhone] = useState(SA_PROFILE.phone);
+  const profile = useSAProfileStore((s) => s.profile);
+  const updateProfile = useSAProfileStore((s) => s.update);
+
+  const [name, setName] = useState(profile.name);
+  const [email, setEmail] = useState(profile.email);
+  const [phone, setPhone] = useState(profile.phone);
+
+  // Re-sync once the persisted profile store finishes rehydrating from localStorage,
+  // since that happens after this component's initial useState runs.
+  useEffect(() => {
+    setName(profile.name);
+    setEmail(profile.email);
+    setPhone(profile.phone);
+  }, [profile.name, profile.email, profile.phone]);
 
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -60,6 +78,8 @@ export default function ProfilePage() {
   const [showNewPw, setShowNewPw] = useState(false);
 
   const [saved, setSaved] = useState(false);
+  const [sessions, setSessions] = useState(INITIAL_SESSIONS);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const myLogs = SA_AUDIT_LOGS.filter((l) => l.userId === 'sa1').slice(0, 6);
 
@@ -71,8 +91,46 @@ export default function ProfilePage() {
     .toUpperCase();
 
   const handleSave = () => {
+    updateProfile({ name, email, phone });
+    toast.success('Profile updated');
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleUpdatePassword = () => {
+    if (!currentPw || !newPw || !confirmPw) {
+      toast.error('Fill in all password fields');
+      return;
+    }
+    if (newPw !== confirmPw) {
+      toast.error('New password and confirmation do not match');
+      return;
+    }
+    toast.success('Password updated');
+    setCurrentPw('');
+    setNewPw('');
+    setConfirmPw('');
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateProfile({ avatar: reader.result as string });
+      toast.success('Avatar updated');
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleRevokeSession = (id: string) => {
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    toast.success('Session revoked');
   };
 
   return (
@@ -90,16 +148,35 @@ export default function ProfilePage() {
           <Card>
             <div className="flex flex-col items-center text-center gap-4">
               <div className="relative">
-                <div className="h-24 w-24 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-bold text-3xl shadow-lg">
-                  {initials}
-                </div>
-                <button className="absolute -bottom-1.5 -right-1.5 h-8 w-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center shadow-sm hover:bg-slate-50 transition-colors">
+                {profile.avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profile.avatar}
+                    alt={name}
+                    className="h-24 w-24 rounded-2xl object-cover shadow-lg"
+                  />
+                ) : (
+                  <div className="h-24 w-24 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-bold text-3xl shadow-lg">
+                    {initials}
+                  </div>
+                )}
+                <button
+                  onClick={handleAvatarClick}
+                  className="absolute -bottom-1.5 -right-1.5 h-8 w-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center shadow-sm hover:bg-slate-50 transition-colors"
+                >
                   <Camera className="h-3.5 w-3.5 text-slate-500" />
                 </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-900">{name}</h3>
-                <p className="text-sm text-slate-400 mt-0.5">{SA_PROFILE.role}</p>
+                <p className="text-sm text-slate-400 mt-0.5">{profile.role}</p>
                 <span className="inline-flex items-center gap-1.5 mt-2 rounded-full bg-violet-100 text-violet-700 text-xs font-semibold px-3 py-1">
                   <Shield className="h-3 w-3" />
                   Super Administrator
@@ -108,10 +185,10 @@ export default function ProfilePage() {
             </div>
 
             <div className="mt-6 space-y-0">
-              <InfoRow icon={Mail}    label="Email"      value={SA_PROFILE.email} />
-              <InfoRow icon={Phone}   label="Phone"      value={SA_PROFILE.phone} />
-              <InfoRow icon={Clock}   label="Last Login" value={formatDate(SA_PROFILE.lastLogin)} />
-              <InfoRow icon={UserCircle} label="Member Since" value={new Date(SA_PROFILE.joinedAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} />
+              <InfoRow icon={Mail}    label="Email"      value={profile.email} />
+              <InfoRow icon={Phone}   label="Phone"      value={profile.phone} />
+              <InfoRow icon={Clock}   label="Last Login" value={formatDate(profile.lastLogin)} />
+              <InfoRow icon={UserCircle} label="Member Since" value={new Date(profile.joinedAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} />
             </div>
           </Card>
 
@@ -167,7 +244,7 @@ export default function ProfilePage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-600">Role</label>
                 <Input
-                  value={SA_PROFILE.role}
+                  value={profile.role}
                   disabled
                   className="bg-slate-50 text-slate-400 cursor-not-allowed"
                 />
@@ -241,7 +318,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-slate-100">
-              <Button variant="secondary">
+              <Button variant="secondary" onClick={handleUpdatePassword}>
                 <Key className="h-4 w-4" />
                 Update Password
               </Button>
@@ -251,11 +328,8 @@ export default function ProfilePage() {
           {/* Active Sessions */}
           <Card title="Active Sessions" subtitle="Devices currently logged in to your account">
             <div className="space-y-3">
-              {[
-                { device: 'Chrome on macOS', ip: '203.0.113.10', location: 'New York, USA', current: true,  time: 'Now' },
-                { device: 'Safari on iPhone', ip: '203.0.113.11', location: 'New York, USA', current: false, time: '2h ago' },
-              ].map((session, i) => (
-                <div key={i} className="flex items-center gap-4 py-3 border-b border-slate-50 last:border-0">
+              {sessions.map((session) => (
+                <div key={session.id} className="flex items-center gap-4 py-3 border-b border-slate-50 last:border-0">
                   <div className="h-9 w-9 rounded-xl bg-slate-50 flex items-center justify-center flex-shrink-0">
                     <Activity className="h-4 w-4 text-slate-400" />
                   </div>
@@ -269,7 +343,12 @@ export default function ProfilePage() {
                     <p className="text-xs text-slate-400 mt-0.5">{session.ip} · {session.location} · {session.time}</p>
                   </div>
                   {!session.current && (
-                    <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                      onClick={() => handleRevokeSession(session.id)}
+                    >
                       Revoke
                     </Button>
                   )}

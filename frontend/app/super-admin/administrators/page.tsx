@@ -22,7 +22,10 @@ import { Avatar } from '@/components/ui/avatar';
 import { StatCard } from '@/components/ui/stat-card';
 import { DataTable, Column } from '@/components/ui/data-table';
 import { Input, SearchInput, Select } from '@/components/ui/input';
-import { SA_ADMINS, SA_CENTERS, SA_BRANCHES, SAAdmin, AdminRole } from '@/lib/super-admin-data';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { SA_CENTERS, SA_BRANCHES, AdminRole, AdminStatus } from '@/lib/super-admin-data';
+import { useSAAdministratorsStore, type SAAdmin } from '@/lib/store/sa-administrators-store';
+import { toast } from '@/lib/store/toast-store';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,7 +89,15 @@ function formatDate(iso: string) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdministratorsPage() {
+  const adminItems = useSAAdministratorsStore((s) => s.items);
+  const admins = adminItems.filter((a) => !a.deletedAt);
+  const addAdmin = useSAAdministratorsStore((s) => s.add);
+  const updateAdmin = useSAAdministratorsStore((s) => s.update);
+  const removeAdmin = useSAAdministratorsStore((s) => s.softDelete);
+
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingAdmin, setDeletingAdmin] = useState<SAAdmin | null>(null);
   const [form, setForm] = useState<AdminFormData>(emptyForm);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -96,18 +107,18 @@ export default function AdministratorsPage() {
 
   // ── Stats ──────────────────────────────────────────────────────────────────
 
-  const total = SA_ADMINS.length;
-  const active = SA_ADMINS.filter((a) => a.status === 'active').length;
-  const inactiveSuspended = SA_ADMINS.filter(
+  const total = admins.length;
+  const active = admins.filter((a) => a.status === 'active').length;
+  const inactiveSuspended = admins.filter(
     (a) => a.status === 'inactive' || a.status === 'suspended'
   ).length;
-  const centerAdmins = SA_ADMINS.filter((a) => a.role === 'center_admin').length;
-  const branchAdmins = SA_ADMINS.filter((a) => a.role === 'branch_admin').length;
+  const centerAdmins = admins.filter((a) => a.role === 'center_admin').length;
+  const branchAdmins = admins.filter((a) => a.role === 'branch_admin').length;
 
   // ── Filtered data ──────────────────────────────────────────────────────────
 
   const filtered = useMemo(() => {
-    return SA_ADMINS.filter((a) => {
+    return admins.filter((a) => {
       const q = search.toLowerCase();
       const matchSearch =
         !q ||
@@ -118,7 +129,7 @@ export default function AdministratorsPage() {
       const matchStatus = !filterStatus || a.status === filterStatus;
       return matchSearch && matchRole && matchStatus;
     });
-  }, [search, filterRole, filterStatus]);
+  }, [admins, search, filterRole, filterStatus]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -137,11 +148,78 @@ export default function AdministratorsPage() {
 
   const handleCancel = () => {
     setShowForm(false);
+    setEditingId(null);
     setForm(emptyForm);
   };
 
+  const handleEdit = (admin: SAAdmin) => {
+    setEditingId(admin.id);
+    setForm({
+      fullName: admin.name,
+      email: admin.email,
+      phone: admin.phone,
+      password: '',
+      confirmPassword: '',
+      centerId: admin.centerId,
+      branchId: admin.branchId,
+      role: admin.role,
+      permissions: admin.permissions,
+    });
+    setShowForm(true);
+  };
+
+  const handleSuspendToggle = (admin: SAAdmin) => {
+    const nextStatus: AdminStatus = admin.status === 'suspended' ? 'active' : 'suspended';
+    updateAdmin(admin.id, { status: nextStatus });
+    toast.success(nextStatus === 'suspended' ? 'Administrator suspended' : 'Administrator reactivated');
+  };
+
   const handleSubmit = () => {
+    if (!form.fullName.trim() || !form.email.trim() || !form.role) {
+      toast.error('Name, email, and role are required');
+      return;
+    }
+    if (!editingId || form.password) {
+      if (!form.password || form.password !== form.confirmPassword) {
+        toast.error('Passwords must match and cannot be empty');
+        return;
+      }
+    }
+    const center = SA_CENTERS.find((c) => c.id === form.centerId);
+    const branch = SA_BRANCHES.find((b) => b.id === form.branchId);
+
+    if (editingId) {
+      updateAdmin(editingId, {
+        name: form.fullName,
+        email: form.email,
+        phone: form.phone,
+        centerId: form.centerId,
+        centerName: center?.name ?? '',
+        branchId: form.branchId,
+        branchName: branch?.name ?? '',
+        role: form.role as AdminRole,
+        permissions: form.permissions,
+      });
+      toast.success('Administrator updated');
+    } else {
+      addAdmin({
+        name: form.fullName,
+        email: form.email,
+        phone: form.phone,
+        centerId: form.centerId,
+        centerName: center?.name ?? '',
+        branchId: form.branchId,
+        branchName: branch?.name ?? '',
+        role: form.role as AdminRole,
+        status: 'active',
+        lastLogin: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        permissions: form.permissions,
+      });
+      toast.success('Administrator created');
+    }
     setShowForm(false);
+    setEditingId(null);
     setForm(emptyForm);
   };
 
@@ -213,21 +291,24 @@ export default function AdministratorsPage() {
     {
       key: 'id',
       label: 'Actions',
-      render: () => (
+      render: (_, row) => (
         <div className="flex items-center gap-1">
           <button
+            onClick={() => handleEdit(row)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
             title="Edit"
           >
             <Pencil className="h-4 w-4" />
           </button>
           <button
+            onClick={() => handleSuspendToggle(row)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
-            title="Suspend"
+            title={row.status === 'suspended' ? 'Reactivate' : 'Suspend'}
           >
             <Ban className="h-4 w-4" />
           </button>
           <button
+            onClick={() => setDeletingAdmin(row)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
             title="Delete"
           >
@@ -247,7 +328,17 @@ export default function AdministratorsPage() {
         title="Administrators"
         subtitle="Manage platform administrators and their permissions"
         actions={
-          <Button onClick={() => setShowForm((v) => !v)}>
+          <Button
+            onClick={() => {
+              if (showForm) {
+                handleCancel();
+              } else {
+                setEditingId(null);
+                setForm(emptyForm);
+                setShowForm(true);
+              }
+            }}
+          >
             <Plus className="h-4 w-4" />
             Add Administrator
           </Button>
@@ -300,7 +391,9 @@ export default function AdministratorsPage() {
       {showForm && (
         <Card>
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-base font-semibold text-slate-900">Add New Administrator</h3>
+            <h3 className="text-base font-semibold text-slate-900">
+              {editingId ? 'Edit Administrator' : 'Add New Administrator'}
+            </h3>
             <button
               onClick={handleCancel}
               className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
@@ -341,7 +434,9 @@ export default function AdministratorsPage() {
 
             {/* Password */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Password</label>
+              <label className="text-xs font-medium text-slate-600">
+                Password{editingId && ' (leave blank to keep current)'}
+              </label>
               <div className="relative">
                 <Input
                   type={showPassword ? 'text' : 'password'}
@@ -452,7 +547,7 @@ export default function AdministratorsPage() {
             </Button>
             <Button onClick={handleSubmit}>
               <Plus className="h-4 w-4" />
-              Add Administrator
+              {editingId ? 'Save Changes' : 'Add Administrator'}
             </Button>
           </div>
         </Card>
@@ -509,6 +604,20 @@ export default function AdministratorsPage() {
           emptyMessage="No administrators found"
         />
       </Card>
+
+      <ConfirmDialog
+        open={!!deletingAdmin}
+        onOpenChange={(open) => !open && setDeletingAdmin(null)}
+        title="Delete administrator"
+        description={`Are you sure you want to delete "${deletingAdmin?.name}"? This can be restored later if needed.`}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (deletingAdmin) {
+            removeAdmin(deletingAdmin.id);
+            toast.success('Administrator deleted');
+          }
+        }}
+      />
     </div>
   );
 }

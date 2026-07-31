@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Building2,
   CheckCircle2,
@@ -21,7 +22,10 @@ import { Avatar } from '@/components/ui/avatar';
 import { StatCard } from '@/components/ui/stat-card';
 import { DataTable, Column } from '@/components/ui/data-table';
 import { Input, SearchInput, Select } from '@/components/ui/input';
-import { SA_CENTERS, SA_SUBSCRIPTIONS, SACenter, CenterStatus, SubscriptionTier } from '@/lib/super-admin-data';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { SA_SUBSCRIPTIONS, CenterStatus, SubscriptionTier } from '@/lib/super-admin-data';
+import { useSACentersStore, type SACenter } from '@/lib/store/sa-centers-store';
+import { toast } from '@/lib/store/toast-store';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,23 +79,37 @@ function CenterStatusBadge({ status }: { status: CenterStatus }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CentersPage() {
+  const centerItems = useSACentersStore((s) => s.items);
+  const centers = centerItems.filter((c) => !c.deletedAt);
+  const addCenter = useSACentersStore((s) => s.add);
+  const updateCenter = useSACentersStore((s) => s.update);
+  const removeCenter = useSACentersStore((s) => s.softDelete);
+
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingCenter, setDeletingCenter] = useState<SACenter | null>(null);
   const [form, setForm] = useState<CenterFormData>(emptyForm);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterSub, setFilterSub] = useState('');
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const sub = searchParams.get('subscription');
+    if (sub) setFilterSub(sub);
+  }, [searchParams]);
 
   // ── Stats ──────────────────────────────────────────────────────────────────
 
-  const total = SA_CENTERS.length;
-  const active = SA_CENTERS.filter((c) => c.status === 'active').length;
-  const suspended = SA_CENTERS.filter((c) => c.status === 'suspended').length;
-  const trial = SA_CENTERS.filter((c) => c.status === 'trial').length;
+  const total = centers.length;
+  const active = centers.filter((c) => c.status === 'active').length;
+  const suspended = centers.filter((c) => c.status === 'suspended').length;
+  const trial = centers.filter((c) => c.status === 'trial').length;
 
   // ── Filtered data ──────────────────────────────────────────────────────────
 
   const filtered = useMemo(() => {
-    return SA_CENTERS.filter((c) => {
+    return centers.filter((c) => {
       const q = search.toLowerCase();
       const matchSearch =
         !q ||
@@ -102,7 +120,7 @@ export default function CentersPage() {
       const matchSub = !filterSub || c.subscription === filterSub;
       return matchSearch && matchStatus && matchSub;
     });
-  }, [search, filterStatus, filterSub]);
+  }, [centers, search, filterStatus, filterSub]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -112,11 +130,61 @@ export default function CentersPage() {
 
   const handleCancel = () => {
     setShowForm(false);
+    setEditingId(null);
     setForm(emptyForm);
   };
 
+  const handleEdit = (center: SACenter) => {
+    setEditingId(center.id);
+    setForm({
+      name: center.name,
+      owner: center.owner,
+      city: center.city,
+      country: center.country,
+      subscription: center.subscription,
+      status: center.status,
+    });
+    setShowForm(true);
+  };
+
+  const handleSuspendToggle = (center: SACenter) => {
+    const nextStatus: CenterStatus = center.status === 'suspended' ? 'active' : 'suspended';
+    updateCenter(center.id, { status: nextStatus });
+    toast.success(nextStatus === 'suspended' ? 'Center suspended' : 'Center reactivated');
+  };
+
   const handleSubmit = () => {
+    if (!form.name.trim() || !form.owner.trim()) {
+      toast.error('Center name and owner are required');
+      return;
+    }
+    if (editingId) {
+      updateCenter(editingId, {
+        name: form.name,
+        owner: form.owner,
+        city: form.city,
+        country: form.country,
+        subscription: form.subscription as SubscriptionTier,
+        status: form.status as CenterStatus,
+      });
+      toast.success('Center updated');
+    } else {
+      addCenter({
+        name: form.name,
+        owner: form.owner,
+        city: form.city,
+        country: form.country,
+        subscription: form.subscription as SubscriptionTier,
+        status: form.status as CenterStatus,
+        branchCount: 0,
+        studentCount: 0,
+        teacherCount: 0,
+        createdAt: new Date().toISOString(),
+      });
+      toast.success('Center created');
+    }
     setShowForm(false);
+    setEditingId(null);
     setForm(emptyForm);
   };
 
@@ -182,21 +250,24 @@ export default function CentersPage() {
     {
       key: 'id',
       label: 'Actions',
-      render: () => (
+      render: (_, row) => (
         <div className="flex items-center gap-1">
           <button
+            onClick={() => handleEdit(row)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
             title="Edit"
           >
             <Pencil className="h-4 w-4" />
           </button>
           <button
+            onClick={() => handleSuspendToggle(row)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
-            title="Suspend"
+            title={row.status === 'suspended' ? 'Reactivate' : 'Suspend'}
           >
             <Ban className="h-4 w-4" />
           </button>
           <button
+            onClick={() => setDeletingCenter(row)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
             title="Delete"
           >
@@ -219,7 +290,17 @@ export default function CentersPage() {
         title="Educational Centers"
         subtitle="Manage all registered educational centers on the platform"
         actions={
-          <Button onClick={() => setShowForm((v) => !v)}>
+          <Button
+            onClick={() => {
+              if (showForm) {
+                handleCancel();
+              } else {
+                setEditingId(null);
+                setForm(emptyForm);
+                setShowForm(true);
+              }
+            }}
+          >
             <Plus className="h-4 w-4" />
             Create Center
           </Button>
@@ -258,7 +339,9 @@ export default function CentersPage() {
       {showForm && (
         <Card>
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-base font-semibold text-slate-900">Create New Educational Center</h3>
+            <h3 className="text-base font-semibold text-slate-900">
+              {editingId ? 'Edit Educational Center' : 'Create New Educational Center'}
+            </h3>
             <button
               onClick={handleCancel}
               className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
@@ -339,7 +422,7 @@ export default function CentersPage() {
             </Button>
             <Button onClick={handleSubmit}>
               <Plus className="h-4 w-4" />
-              Create Center
+              {editingId ? 'Save Changes' : 'Create Center'}
             </Button>
           </div>
         </Card>
@@ -395,6 +478,20 @@ export default function CentersPage() {
           emptyMessage="No educational centers found"
         />
       </Card>
+
+      <ConfirmDialog
+        open={!!deletingCenter}
+        onOpenChange={(open) => !open && setDeletingCenter(null)}
+        title="Delete educational center"
+        description={`Are you sure you want to delete "${deletingCenter?.name}"? This can be restored later if needed.`}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (deletingCenter) {
+            removeCenter(deletingCenter.id);
+            toast.success('Center deleted');
+          }
+        }}
+      />
     </div>
   );
 }
