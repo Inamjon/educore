@@ -4,7 +4,6 @@ import { useState } from 'react';
 import {
   Users,
   Layers,
-  Mail,
   Phone,
   BookOpen,
   ClipboardCheck,
@@ -12,12 +11,22 @@ import {
   Copy,
   Check,
   Edit3,
+  CreditCard,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
-import { STUDENT_PROFILE, STUDENT_STATS, STUDENT_COURSES } from '@/lib/student-data';
-import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+} from '@/components/ui/dialog';
+import { STUDENT_PROFILE, STUDENT_STATS, STUDENT_COURSES, STUDENT_PAYMENT } from '@/lib/student-data';
+import { toast } from '@/lib/store/toast-store';
+import { cn, formatCurrency } from '@/lib/utils';
 
 function StatMiniCard({ label, value, unit }: { label: string; value: string | number; unit?: string }) {
   return (
@@ -91,8 +100,43 @@ function CopyRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
   );
 }
 
+function PaymentMethodDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  function handleSelect(provider: 'Payme' | 'Click') {
+    toast.error(`${provider} integratsiyasi hali ulanmagan — API kalitlari qo'shilgach ishga tushadi.`);
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>To&apos;lov usulini tanlang</DialogTitle>
+        </DialogHeader>
+        <DialogBody className="space-y-3">
+          <button
+            onClick={() => handleSelect('Payme')}
+            className="w-full flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3.5 hover:border-indigo-300 hover:bg-indigo-50/50 transition-colors"
+          >
+            <span className="font-semibold text-slate-900">Payme</span>
+            <CreditCard className="h-5 w-5 text-slate-400" />
+          </button>
+          <button
+            onClick={() => handleSelect('Click')}
+            className="w-full flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3.5 hover:border-indigo-300 hover:bg-indigo-50/50 transition-colors"
+          >
+            <span className="font-semibold text-slate-900">Click</span>
+            <CreditCard className="h-5 w-5 text-slate-400" />
+          </button>
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function StudentProfilePage() {
   const p = STUDENT_PROFILE;
+  const payment = STUDENT_PAYMENT;
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -104,9 +148,12 @@ export default function StudentProfilePage() {
             <div>
               <h1 className="text-2xl font-bold text-white">{p.name}</h1>
               <p className="text-indigo-200 text-sm mt-0.5">{p.grade} &middot; {p.groupName}</p>
-              <div className="flex flex-wrap gap-2 mt-3">
-                <span className="text-xs font-medium text-white bg-white/20 rounded-full px-3 py-1">
-                  {p.studentIdNumber}
+              <div className="flex flex-wrap items-center gap-2 mt-3">
+                <span
+                  className="text-xs font-medium text-white bg-white/20 rounded-full px-3 py-1"
+                  title="Login ID"
+                >
+                  {p.loginId}
                 </span>
               </div>
             </div>
@@ -132,11 +179,7 @@ export default function StudentProfilePage() {
           <Card title="Personal Information" subtitle="Your contact and enrollment details">
             <div>
               <InfoRow label="Full Name">{p.name}</InfoRow>
-              <InfoRow label="Email">
-                <a href={`mailto:${p.email}`} className="text-indigo-600 hover:underline">
-                  {p.email}
-                </a>
-              </InfoRow>
+              <InfoRow label="Login ID">{p.loginId}</InfoRow>
               <InfoRow label="Phone">{p.phone}</InfoRow>
               <InfoRow label="Grade Level">{p.grade}</InfoRow>
               <InfoRow label="Primary Group">{p.groupName}</InfoRow>
@@ -161,6 +204,25 @@ export default function StudentProfilePage() {
 
         {/* Right column */}
         <div className="lg:col-span-2 space-y-5">
+          <Card title="Course Payment" subtitle={payment.courseName}>
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-2xl font-bold text-slate-900">{formatCurrency(payment.balance)}</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {formatCurrency(payment.paid)} of {formatCurrency(payment.amount)} paid &middot; due{' '}
+                  {new Date(payment.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </p>
+              </div>
+              <Badge label={payment.status === 'paid' ? 'Paid' : payment.status === 'overdue' ? 'Overdue' : 'Pending'} variant={payment.status === 'paid' ? 'success' : payment.status === 'overdue' ? 'danger' : 'warning'} />
+            </div>
+            <div className="pt-3">
+              <Button className="w-full justify-center" onClick={() => setPayDialogOpen(true)} disabled={payment.balance <= 0}>
+                <CreditCard className="h-4 w-4" />
+                {payment.balance > 0 ? 'Pay Now' : 'Fully Paid'}
+              </Button>
+            </div>
+          </Card>
+
           <Card title="Academic Summary" subtitle="Your performance overview">
             <div>
               <StatRow icon={Layers} label="Enrolled Courses" value={STUDENT_STATS.enrolledCourses} iconClass="bg-indigo-50 text-indigo-600" />
@@ -186,13 +248,14 @@ export default function StudentProfilePage() {
 
           <Card title="Contact & Guardian" subtitle="Quick contact information">
             <div>
-              <CopyRow icon={Mail} label="Email address" value={p.email} />
               <CopyRow icon={Phone} label="Phone number" value={p.phone} />
               <CopyRow icon={Users} label="Parent / Guardian" value={`${p.parentName} (${p.parentPhone})`} />
             </div>
           </Card>
         </div>
       </div>
+
+      <PaymentMethodDialog open={payDialogOpen} onOpenChange={setPayDialogOpen} />
     </div>
   );
 }

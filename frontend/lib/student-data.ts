@@ -3,7 +3,7 @@
 export const STUDENT_PROFILE = {
   id: "s1",
   name: "Alice Johnson",
-  email: "student@educore.com",
+  loginId: "STU-2025-0142",
   phone: "+1 555-0101",
   avatar: undefined,
   studentIdNumber: "STU-2025-0142",
@@ -14,6 +14,19 @@ export const STUDENT_PROFILE = {
   parentPhone: "+1 555-0100",
   joinedAt: "2025-09-01",
   bio: "Alice is a dedicated 10th-grade student with a strong interest in mathematics and biology. She consistently participates in class discussions and enjoys collaborative problem-solving.",
+};
+
+// ─── Course Payment ───────────────────────────────────────────────────────────
+// Real Payme/Click gateway integration is deferred until API credentials are
+// available — this is display-only mock data for now (see student/profile).
+
+export const STUDENT_PAYMENT = {
+  courseName: "Algebra Fundamentals",
+  amount: 450,
+  paid: 300,
+  balance: 150,
+  dueDate: "2026-08-05",
+  status: "pending" as "paid" | "pending" | "overdue",
 };
 
 // ─── Student Courses / Groups ─────────────────────────────────────────────────

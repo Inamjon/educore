@@ -74,7 +74,6 @@ export default function StudentSettingsPage() {
 
   const [account, setAccount] = useState({
     name: p.name,
-    email: p.email,
     phone: p.phone,
     bio: p.bio,
   });
@@ -159,8 +158,8 @@ export default function StudentSettingsPage() {
                   <Field label="Full Name">
                     <Input value={account.name} onChange={(e) => setAccount({ ...account, name: e.target.value })} />
                   </Field>
-                  <Field label="Email">
-                    <Input type="email" value={account.email} onChange={(e) => setAccount({ ...account, email: e.target.value })} />
+                  <Field label="Login ID">
+                    <Input value={p.loginId} disabled />
                   </Field>
                   <Field label="Phone">
                     <Input value={account.phone} onChange={(e) => setAccount({ ...account, phone: e.target.value })} />

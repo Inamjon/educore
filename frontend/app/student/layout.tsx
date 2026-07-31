@@ -282,7 +282,7 @@ function StudentHeader({ sidebarCollapsed }: HeaderProps) {
               <p className="text-sm font-semibold text-slate-900">
                 {STUDENT_PROFILE.name}
               </p>
-              <p className="text-xs text-slate-400">{STUDENT_PROFILE.email}</p>
+              <p className="text-xs text-slate-400">{STUDENT_PROFILE.loginId}</p>
             </div>
             <Link
               href="/student/profile"
