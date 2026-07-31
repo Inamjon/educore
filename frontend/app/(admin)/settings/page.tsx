@@ -58,7 +58,7 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState({
     firstName: "Admin",
     lastName: "User",
-    email: "admin@educore.com",
+    loginId: "EDU-100001",
     phone: "+1 555-0000",
     role: "Administrator",
   });
@@ -146,12 +146,8 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-slate-700 block mb-1.5">Email</label>
-                    <Input
-                      type="email"
-                      value={profile.email}
-                      onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                    />
+                    <label className="text-sm font-medium text-slate-700 block mb-1.5">Login ID</label>
+                    <Input value={profile.loginId} disabled />
                   </div>
                   <div>
                     <label className="text-sm font-medium text-slate-700 block mb-1.5">Phone</label>

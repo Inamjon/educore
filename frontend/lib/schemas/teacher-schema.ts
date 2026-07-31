@@ -2,7 +2,6 @@ import { z } from "zod";
 
 export const teacherSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters"),
-  email: z.string().trim().email("Enter a valid email address"),
   phone: z.string().trim().min(7, "Phone number is required"),
   gender: z.enum(["male", "female", "other"]),
   specialization: z.string().trim().min(1, "Specialization is required"),

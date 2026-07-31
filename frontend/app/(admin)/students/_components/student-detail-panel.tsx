@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, Mail, Phone, Users, DollarSign, Pencil, Trash2 } from "lucide-react";
+import { ChevronLeft, KeyRound, Phone, Users, DollarSign, Pencil, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -60,7 +60,7 @@ export function StudentDetailPanel({ student, onBack, onEdit, onDelete }: Studen
             Personal Information
           </h4>
           <div className="space-y-3">
-            <InfoRow icon={<Mail className="h-4 w-4" />} label="Email" value={student.email} />
+            <InfoRow icon={<KeyRound className="h-4 w-4" />} label="Login ID" value={student.loginId} />
             <InfoRow icon={<Phone className="h-4 w-4" />} label="Phone" value={student.phone} />
             <InfoRow icon={<Users className="h-4 w-4" />} label="Group" value={student.groupName} />
             <InfoRow icon={<Users className="h-4 w-4" />} label="Parent" value={student.parentName} />

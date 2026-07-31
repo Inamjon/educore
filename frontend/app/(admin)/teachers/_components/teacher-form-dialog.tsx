@@ -14,6 +14,7 @@ import { Input, Select } from "@/components/ui/input";
 import { useTeachersStore } from "@/lib/store/teachers-store";
 import { toast } from "@/lib/store/toast-store";
 import { teacherSchema, type TeacherFormValues } from "@/lib/schemas/teacher-schema";
+import { generateLoginId } from "@/lib/utils";
 import type { Teacher } from "@/types";
 
 const GENDER_OPTIONS = [
@@ -31,7 +32,6 @@ const STATUS_OPTIONS = [
 
 const EMPTY_VALUES: TeacherFormValues = {
   name: "",
-  email: "",
   phone: "",
   gender: "male",
   specialization: "",
@@ -78,6 +78,9 @@ function TeacherFormFields({
   );
   const [subjectsInput, setSubjectsInput] = useState(() => (teacher ? teacher.subjects.join(", ") : ""));
   const [errors, setErrors] = useState<Partial<Record<keyof TeacherFormValues, string>>>({});
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | undefined>();
 
   const mode = teacher ? "edit" : "create";
 
@@ -104,7 +107,22 @@ function TeacherFormFields({
     }
 
     if (mode === "create") {
-      addTeacher({ ...result.data, groupCount: 0, studentCount: 0, joinedAt: new Date().toISOString().slice(0, 10), rating: 0 });
+      if (!password || password.length < 6) {
+        setPasswordError("Password must be at least 6 characters");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setPasswordError("Passwords do not match");
+        return;
+      }
+      addTeacher({
+        ...result.data,
+        loginId: generateLoginId("TCH"),
+        groupCount: 0,
+        studentCount: 0,
+        joinedAt: new Date().toISOString().slice(0, 10),
+        rating: 0,
+      });
       toast.success("Teacher created");
     } else if (teacher) {
       updateTeacher(teacher.id, result.data);
@@ -123,12 +141,6 @@ function TeacherFormFields({
             onChange={(e) => setField("name", e.target.value)}
             error={errors.name}
             className="col-span-2"
-          />
-          <Input
-            placeholder="Email"
-            value={values.email}
-            onChange={(e) => setField("email", e.target.value)}
-            error={errors.email}
           />
           <Input
             placeholder="Phone"
@@ -166,6 +178,31 @@ function TeacherFormFields({
             value={values.status}
             onChange={(e) => setField("status", e.target.value as TeacherFormValues["status"])}
           />
+
+          {mode === "edit" && teacher && (
+            <Input value={teacher.loginId} disabled placeholder="Login ID" className="col-span-2" />
+          )}
+
+          {mode === "create" && (
+            <>
+              <Input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setPasswordError(undefined); }}
+                error={passwordError}
+              />
+              <Input
+                type="password"
+                placeholder="Confirm password"
+                value={confirmPassword}
+                onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(undefined); }}
+              />
+              <p className="col-span-2 -mt-2 text-xs text-slate-400">
+                A Login ID will be generated automatically after creation.
+              </p>
+            </>
+          )}
         </div>
       </DialogBody>
       <DialogFooter>

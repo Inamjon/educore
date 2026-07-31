@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { ChevronLeft, Mail, Phone, Star, Pencil, Trash2 } from "lucide-react";
+import { ChevronLeft, KeyRound, Phone, Star, Pencil, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -55,7 +55,7 @@ export function TeacherDetailPanel({ teacher, onBack, onEdit, onDelete }: Teache
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Contact Information</h4>
           <div className="space-y-3">
-            <InfoRow icon={<Mail className="h-4 w-4" />} label="Email" value={teacher.email} />
+            <InfoRow icon={<KeyRound className="h-4 w-4" />} label="Login ID" value={teacher.loginId} />
             <InfoRow icon={<Phone className="h-4 w-4" />} label="Phone" value={teacher.phone} />
             <InfoRow icon={<Star className="h-4 w-4" />} label="Rating" value={`${teacher.rating}`} />
             <InfoRow icon={<Star className="h-4 w-4" />} label="Monthly Salary" value={formatCurrency(teacher.salary)} />

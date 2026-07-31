@@ -9,7 +9,7 @@ export type Role = "admin" | "teacher" | "student" | "parent";
 export interface User {
   id: string;
   name: string;
-  email: string;
+  loginId: string;
   phone: string;
   avatar?: string;
   role: Role;
@@ -22,7 +22,7 @@ export interface User {
 export interface Student {
   id: string;
   name: string;
-  email: string;
+  loginId: string;
   phone: string;
   avatar?: string;
   gender: Gender;
@@ -44,7 +44,7 @@ export interface Student {
 export interface Teacher {
   id: string;
   name: string;
-  email: string;
+  loginId: string;
   phone: string;
   avatar?: string;
   gender: Gender;

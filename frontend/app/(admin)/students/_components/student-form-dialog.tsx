@@ -15,6 +15,7 @@ import { useStudentsStore } from "@/lib/store/students-store";
 import { useGroupsStore } from "@/lib/store/groups-store";
 import { toast } from "@/lib/store/toast-store";
 import { studentSchema, type StudentFormValues } from "@/lib/schemas/student-schema";
+import { generateLoginId } from "@/lib/utils";
 import type { Student } from "@/types";
 
 const GENDER_OPTIONS = [
@@ -32,7 +33,6 @@ const STATUS_OPTIONS = [
 
 const EMPTY_VALUES: StudentFormValues = {
   name: "",
-  email: "",
   phone: "",
   gender: "male",
   dateOfBirth: "",
@@ -83,6 +83,9 @@ function StudentFormFields({
     student ? { ...EMPTY_VALUES, ...student } : EMPTY_VALUES
   );
   const [errors, setErrors] = useState<Partial<Record<keyof StudentFormValues, string>>>({});
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | undefined>();
 
   const mode = student ? "edit" : "create";
 
@@ -110,7 +113,21 @@ function StudentFormFields({
     }
 
     if (mode === "create") {
-      addStudent({ ...result.data, enrolledAt: new Date().toISOString().slice(0, 10), attendanceRate: 0, balance: 0 });
+      if (!password || password.length < 6) {
+        setPasswordError("Password must be at least 6 characters");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setPasswordError("Passwords do not match");
+        return;
+      }
+      addStudent({
+        ...result.data,
+        loginId: generateLoginId("STU"),
+        enrolledAt: new Date().toISOString().slice(0, 10),
+        attendanceRate: 0,
+        balance: 0,
+      });
       toast.success("Student created");
     } else if (student) {
       updateStudent(student.id, result.data);
@@ -129,12 +146,6 @@ function StudentFormFields({
             onChange={(e) => setField("name", e.target.value)}
             error={errors.name}
             className="col-span-2"
-          />
-          <Input
-            placeholder="Email"
-            value={values.email}
-            onChange={(e) => setField("email", e.target.value)}
-            error={errors.email}
           />
           <Input
             placeholder="Phone"
@@ -186,6 +197,31 @@ function StudentFormFields({
             onChange={(e) => setField("status", e.target.value as StudentFormValues["status"])}
             className="col-span-2"
           />
+
+          {mode === "edit" && student && (
+            <Input value={student.loginId} disabled placeholder="Login ID" className="col-span-2" />
+          )}
+
+          {mode === "create" && (
+            <>
+              <Input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setPasswordError(undefined); }}
+                error={passwordError}
+              />
+              <Input
+                type="password"
+                placeholder="Confirm password"
+                value={confirmPassword}
+                onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(undefined); }}
+              />
+              <p className="col-span-2 -mt-2 text-xs text-slate-400">
+                A Login ID will be generated automatically after creation.
+              </p>
+            </>
+          )}
         </div>
       </DialogBody>
       <DialogFooter>

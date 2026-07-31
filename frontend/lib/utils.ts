@@ -42,3 +42,11 @@ export function getInitials(name: string) {
 export function capitalize(str: string) {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
+
+/** Mock login ID generator (e.g. "STU-4821") — stands in for the backend's
+ * sequence-based login_id generation (see backend/foundation/managers.py)
+ * until real account creation is wired up. */
+export function generateLoginId(prefix: string) {
+  const random = Math.floor(1000 + Math.random() * 9000);
+  return `${prefix}-${random}`;
+}

@@ -47,7 +47,7 @@ export default function StudentsPage() {
     const matchesSearch =
       !search ||
       s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.email.toLowerCase().includes(search.toLowerCase()) ||
+      s.loginId.toLowerCase().includes(search.toLowerCase()) ||
       s.groupName.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = !statusFilter || s.status === statusFilter;
     const matchesGender = !genderFilter || s.gender === genderFilter;
@@ -72,7 +72,7 @@ export default function StudentsPage() {
           <Avatar name={row.name} size="sm" />
           <div>
             <p className="font-medium text-slate-900">{row.name}</p>
-            <p className="text-xs text-slate-400">{row.email}</p>
+            <p className="text-xs text-slate-400">{row.loginId}</p>
           </div>
         </div>
       ),
