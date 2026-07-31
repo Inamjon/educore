@@ -365,7 +365,7 @@ export type AdminStatus = "active" | "inactive" | "suspended";
 export interface SAAdmin {
   id: string;
   name: string;
-  email: string;
+  loginId: string;
   phone: string;
   centerId: string;
   centerName: string;
@@ -382,7 +382,7 @@ export const SA_ADMINS: SAAdmin[] = [
   {
     id: "a1",
     name: "Rachel Kim",
-    email: "rachel.kim@brightfuture.edu",
+    loginId: "EDU-3001",
     phone: "+1 212-555-1001",
     centerId: "c1",
     centerName: "Bright Future Academy",
@@ -397,7 +397,7 @@ export const SA_ADMINS: SAAdmin[] = [
   {
     id: "a2",
     name: "Marcus Davis",
-    email: "marcus.davis@brightfuture.edu",
+    loginId: "EDU-3002",
     phone: "+1 718-555-1002",
     centerId: "c1",
     centerName: "Bright Future Academy",
@@ -412,7 +412,7 @@ export const SA_ADMINS: SAAdmin[] = [
   {
     id: "a3",
     name: "Oliver Hughes",
-    email: "oliver.hughes@novalearn.co.uk",
+    loginId: "EDU-3003",
     phone: "+44 20-555-1003",
     centerId: "c2",
     centerName: "Nova Learning Hub",
@@ -427,7 +427,7 @@ export const SA_ADMINS: SAAdmin[] = [
   {
     id: "a4",
     name: "Ana García",
-    email: "ana.garcia@edustar.es",
+    loginId: "EDU-3004",
     phone: "+34 91-555-1004",
     centerId: "c3",
     centerName: "EduStar Institute",
@@ -442,7 +442,7 @@ export const SA_ADMINS: SAAdmin[] = [
   {
     id: "a5",
     name: "Khalid Al-Mansouri",
-    email: "khalid@pinnacle.ae",
+    loginId: "EDU-3005",
     phone: "+971 4-555-1005",
     centerId: "c4",
     centerName: "Pinnacle Education Center",
@@ -457,7 +457,7 @@ export const SA_ADMINS: SAAdmin[] = [
   {
     id: "a6",
     name: "Nour Khalil",
-    email: "nour.khalil@pinnacle.ae",
+    loginId: "EDU-3006",
     phone: "+971 4-555-1006",
     centerId: "c4",
     centerName: "Pinnacle Education Center",
@@ -472,7 +472,7 @@ export const SA_ADMINS: SAAdmin[] = [
   {
     id: "a7",
     name: "Chen Mei Ling",
-    email: "meiling@horizonacademy.sg",
+    loginId: "EDU-3007",
     phone: "+65 6555-1007",
     centerId: "c5",
     centerName: "Horizon Academy",
@@ -487,7 +487,7 @@ export const SA_ADMINS: SAAdmin[] = [
   {
     id: "a8",
     name: "Isabelle Côté",
-    email: "isabelle@mapleleaf.ca",
+    loginId: "EDU-3008",
     phone: "+1 416-555-1008",
     centerId: "c6",
     centerName: "Maple Leaf Learning",
@@ -502,7 +502,7 @@ export const SA_ADMINS: SAAdmin[] = [
   {
     id: "a9",
     name: "Deepika Joshi",
-    email: "deepika@summitskills.in",
+    loginId: "EDU-3009",
     phone: "+91 22-555-1009",
     centerId: "c7",
     centerName: "Summit Skills Institute",
@@ -517,7 +517,7 @@ export const SA_ADMINS: SAAdmin[] = [
   {
     id: "a10",
     name: "Liam O'Brien",
-    email: "liam@coastalkids.com.au",
+    loginId: "EDU-3010",
     phone: "+61 2-555-1010",
     centerId: "c8",
     centerName: "Coastal Kids Academy",
@@ -538,7 +538,7 @@ export type TeacherStatus = "active" | "inactive";
 export interface SATeacher {
   id: string;
   name: string;
-  email: string;
+  loginId: string;
   phone: string;
   centerId: string;
   centerName: string;
@@ -553,7 +553,7 @@ export const SA_TEACHERS: SATeacher[] = [
   {
     id: "t1",
     name: "Dr. Sarah Connor",
-    email: "sarah.connor@brightfuture.edu",
+    loginId: "TCH-4001",
     phone: "+1 212-555-2001",
     centerId: "c1",
     centerName: "Bright Future Academy",
@@ -566,7 +566,7 @@ export const SA_TEACHERS: SATeacher[] = [
   {
     id: "t2",
     name: "Prof. Henry Walsh",
-    email: "henry.walsh@brightfuture.edu",
+    loginId: "TCH-4002",
     phone: "+1 718-555-2002",
     centerId: "c1",
     centerName: "Bright Future Academy",
@@ -579,7 +579,7 @@ export const SA_TEACHERS: SATeacher[] = [
   {
     id: "t3",
     name: "Ms. Priya Nair",
-    email: "priya.nair@novalearn.co.uk",
+    loginId: "TCH-4003",
     phone: "+44 20-555-2003",
     centerId: "c2",
     centerName: "Nova Learning Hub",
@@ -592,7 +592,7 @@ export const SA_TEACHERS: SATeacher[] = [
   {
     id: "t4",
     name: "Mr. Diego Ruiz",
-    email: "diego.ruiz@edustar.es",
+    loginId: "TCH-4004",
     phone: "+34 91-555-2004",
     centerId: "c3",
     centerName: "EduStar Institute",
@@ -605,7 +605,7 @@ export const SA_TEACHERS: SATeacher[] = [
   {
     id: "t5",
     name: "Dr. Layla Hassan",
-    email: "layla.hassan@pinnacle.ae",
+    loginId: "TCH-4005",
     phone: "+971 4-555-2005",
     centerId: "c4",
     centerName: "Pinnacle Education Center",
@@ -618,7 +618,7 @@ export const SA_TEACHERS: SATeacher[] = [
   {
     id: "t6",
     name: "Mr. Tan Jia Wei",
-    email: "jiawei@horizonacademy.sg",
+    loginId: "TCH-4006",
     phone: "+65 6555-2006",
     centerId: "c5",
     centerName: "Horizon Academy",
@@ -631,7 +631,7 @@ export const SA_TEACHERS: SATeacher[] = [
   {
     id: "t7",
     name: "Ms. Claire Bouchard",
-    email: "claire@mapleleaf.ca",
+    loginId: "TCH-4007",
     phone: "+1 416-555-2007",
     centerId: "c6",
     centerName: "Maple Leaf Learning",
@@ -644,7 +644,7 @@ export const SA_TEACHERS: SATeacher[] = [
   {
     id: "t8",
     name: "Mr. Arjun Mehta",
-    email: "arjun.mehta@summitskills.in",
+    loginId: "TCH-4008",
     phone: "+91 22-555-2008",
     centerId: "c7",
     centerName: "Summit Skills Institute",
@@ -657,7 +657,7 @@ export const SA_TEACHERS: SATeacher[] = [
   {
     id: "t9",
     name: "Ms. Emma Collins",
-    email: "emma@coastalkids.com.au",
+    loginId: "TCH-4009",
     phone: "+61 2-555-2009",
     centerId: "c8",
     centerName: "Coastal Kids Academy",
@@ -670,7 +670,7 @@ export const SA_TEACHERS: SATeacher[] = [
   {
     id: "t10",
     name: "Dr. Yusuf Al-Rashid",
-    email: "yusuf@pinnacle.ae",
+    loginId: "TCH-4010",
     phone: "+971 4-555-2010",
     centerId: "c4",
     centerName: "Pinnacle Education Center",
@@ -689,7 +689,7 @@ export type StudentStatus = "active" | "inactive" | "suspended";
 export interface SAStudent {
   id: string;
   name: string;
-  email: string;
+  loginId: string;
   phone: string;
   centerId: string;
   centerName: string;
@@ -704,7 +704,7 @@ export const SA_STUDENTS: SAStudent[] = [
   {
     id: "s1",
     name: "Emily Johnson",
-    email: "emily.j@student.brightfuture.edu",
+    loginId: "STU-4001",
     phone: "+1 212-555-3001",
     centerId: "c1",
     centerName: "Bright Future Academy",
@@ -717,7 +717,7 @@ export const SA_STUDENTS: SAStudent[] = [
   {
     id: "s2",
     name: "Noah Williams",
-    email: "noah.w@student.brightfuture.edu",
+    loginId: "STU-4002",
     phone: "+1 718-555-3002",
     centerId: "c1",
     centerName: "Bright Future Academy",
@@ -730,7 +730,7 @@ export const SA_STUDENTS: SAStudent[] = [
   {
     id: "s3",
     name: "Sophia Brown",
-    email: "sophia.b@student.novalearn.co.uk",
+    loginId: "STU-4003",
     phone: "+44 20-555-3003",
     centerId: "c2",
     centerName: "Nova Learning Hub",
@@ -743,7 +743,7 @@ export const SA_STUDENTS: SAStudent[] = [
   {
     id: "s4",
     name: "Luca Fernández",
-    email: "luca.f@student.edustar.es",
+    loginId: "STU-4004",
     phone: "+34 91-555-3004",
     centerId: "c3",
     centerName: "EduStar Institute",
@@ -756,7 +756,7 @@ export const SA_STUDENTS: SAStudent[] = [
   {
     id: "s5",
     name: "Mariam Al-Farsi",
-    email: "mariam.f@student.pinnacle.ae",
+    loginId: "STU-4005",
     phone: "+971 4-555-3005",
     centerId: "c4",
     centerName: "Pinnacle Education Center",
@@ -769,7 +769,7 @@ export const SA_STUDENTS: SAStudent[] = [
   {
     id: "s6",
     name: "Kai Tanaka",
-    email: "kai.t@student.horizonacademy.sg",
+    loginId: "STU-4006",
     phone: "+65 6555-3006",
     centerId: "c5",
     centerName: "Horizon Academy",
@@ -782,7 +782,7 @@ export const SA_STUDENTS: SAStudent[] = [
   {
     id: "s7",
     name: "Zoe Tremblay",
-    email: "zoe.t@student.mapleleaf.ca",
+    loginId: "STU-4007",
     phone: "+1 416-555-3007",
     centerId: "c6",
     centerName: "Maple Leaf Learning",
@@ -795,7 +795,7 @@ export const SA_STUDENTS: SAStudent[] = [
   {
     id: "s8",
     name: "Rohan Kapoor",
-    email: "rohan.k@student.summitskills.in",
+    loginId: "STU-4008",
     phone: "+91 22-555-3008",
     centerId: "c7",
     centerName: "Summit Skills Institute",
@@ -808,7 +808,7 @@ export const SA_STUDENTS: SAStudent[] = [
   {
     id: "s9",
     name: "Ava Thompson",
-    email: "ava.t@student.coastalkids.com.au",
+    loginId: "STU-4009",
     phone: "+61 2-555-3009",
     centerId: "c8",
     centerName: "Coastal Kids Academy",
@@ -821,7 +821,7 @@ export const SA_STUDENTS: SAStudent[] = [
   {
     id: "s10",
     name: "Omar Al-Sayed",
-    email: "omar.s@student.pinnacle.ae",
+    loginId: "STU-4010",
     phone: "+971 4-555-3010",
     centerId: "c4",
     centerName: "Pinnacle Education Center",
@@ -834,7 +834,7 @@ export const SA_STUDENTS: SAStudent[] = [
   {
     id: "s11",
     name: "Isabella Rossi",
-    email: "isabella.r@student.novalearn.co.uk",
+    loginId: "STU-4011",
     phone: "+44 20-555-3011",
     centerId: "c2",
     centerName: "Nova Learning Hub",
@@ -847,7 +847,7 @@ export const SA_STUDENTS: SAStudent[] = [
   {
     id: "s12",
     name: "Ethan Park",
-    email: "ethan.p@student.horizonacademy.sg",
+    loginId: "STU-4012",
     phone: "+65 6555-3012",
     centerId: "c5",
     centerName: "Horizon Academy",
@@ -1023,7 +1023,7 @@ export interface SAAuditLog {
 
 export const SA_AUDIT_LOGS: SAAuditLog[] = [
   { id: "al1",  action: "CENTER_CREATED",       entity: "Center",  entityName: "Coastal Kids Academy",          user: "Alex Rivera",    userId: "sa1", ip: "203.0.113.10",  date: "2026-07-04T13:05:00Z", details: "New center registered by super admin.",                  severity: "info"     },
-  { id: "al2",  action: "LOGIN_FAILED",          entity: "User",    entityName: "deepika@summitskills.in",       user: "Deepika Joshi",  userId: "a9",  ip: "198.51.100.42", date: "2026-07-04T12:45:00Z", details: "5 consecutive failed login attempts detected.",           severity: "critical" },
+  { id: "al2",  action: "LOGIN_FAILED",          entity: "User",    entityName: "EDU-3009",                      user: "Deepika Joshi",  userId: "a9",  ip: "198.51.100.42", date: "2026-07-04T12:45:00Z", details: "5 consecutive failed login attempts detected.",           severity: "critical" },
   { id: "al3",  action: "SUBSCRIPTION_UPGRADED", entity: "Center",  entityName: "Bright Future Academy",         user: "Alex Rivera",    userId: "sa1", ip: "203.0.113.10",  date: "2026-07-04T10:05:00Z", details: "Plan changed from Pro to Enterprise.",                    severity: "info"     },
   { id: "al4",  action: "BRANCH_SUSPENDED",      entity: "Branch",  entityName: "Mumbai Andheri Branch",         user: "Alex Rivera",    userId: "sa1", ip: "203.0.113.10",  date: "2026-07-03T16:05:00Z", details: "Branch suspended due to compliance violation.",           severity: "warning"  },
   { id: "al5",  action: "PAYMENT_RECEIVED",      entity: "Payment", entityName: "INV-2026-0703",                 user: "System",         userId: "sys", ip: "10.0.0.1",      date: "2026-07-03T14:02:00Z", details: "Enterprise plan payment of $599 processed successfully.",  severity: "info"     },
@@ -1033,7 +1033,7 @@ export const SA_AUDIT_LOGS: SAAuditLog[] = [
   { id: "al9",  action: "PAYMENT_RECEIVED",      entity: "Payment", entityName: "INV-2026-0701",                 user: "System",         userId: "sys", ip: "10.0.0.1",      date: "2026-07-01T08:15:00Z", details: "Enterprise plan renewal for Bright Future Academy.",       severity: "info"     },
   { id: "al10", action: "CENTER_CREATED",        entity: "Center",  entityName: "Maple Leaf Learning",           user: "Alex Rivera",    userId: "sa1", ip: "203.0.113.10",  date: "2026-03-18T10:00:00Z", details: "New center onboarded with Basic subscription.",           severity: "info"     },
   { id: "al11", action: "SUBSCRIPTION_UPGRADED", entity: "Center",  entityName: "Horizon Academy",               user: "Alex Rivera",    userId: "sa1", ip: "203.0.113.10",  date: "2026-03-01T11:00:00Z", details: "Plan changed from Basic to Pro.",                         severity: "info"     },
-  { id: "al12", action: "LOGIN_FAILED",          entity: "User",    entityName: "arjun.mehta@summitskills.in",   user: "Arjun Mehta",    userId: "t8",  ip: "192.168.1.55",  date: "2026-06-28T07:20:00Z", details: "Invalid credentials used from new device.",               severity: "warning"  },
+  { id: "al12", action: "LOGIN_FAILED",          entity: "User",    entityName: "TCH-4008",                      user: "Arjun Mehta",    userId: "t8",  ip: "192.168.1.55",  date: "2026-06-28T07:20:00Z", details: "Invalid credentials used from new device.",               severity: "warning"  },
   { id: "al13", action: "BRANCH_SUSPENDED",      entity: "Branch",  entityName: "Jurong West Branch",            user: "Alex Rivera",    userId: "sa1", ip: "203.0.113.10",  date: "2026-06-20T14:00:00Z", details: "Branch set to inactive pending review.",                  severity: "warning"  },
   { id: "al14", action: "ADMIN_ADDED",           entity: "Admin",   entityName: "Nour Khalil",                   user: "Alex Rivera",    userId: "sa1", ip: "203.0.113.10",  date: "2026-10-01T09:00:00Z", details: "Branch admin assigned to Downtown Dubai Branch.",         severity: "info"     },
   { id: "al15", action: "PAYMENT_RECEIVED",      entity: "Payment", entityName: "INV-2026-0501",                 user: "System",         userId: "sys", ip: "10.0.0.1",      date: "2026-05-31T12:00:00Z", details: "Pro plan payment received from Summit Skills Institute.",  severity: "info"     },
@@ -1088,7 +1088,7 @@ export const BRANCH_GROWTH_SA: { name: string; branches: number }[] = [
 
 export const SA_PROFILE = {
   name: "Alex Rivera",
-  email: "superadmin@educore.com",
+  loginId: "EDU-900001",
   phone: "+1 555-0001",
   role: "Super Administrator",
   joinedAt: "2023-01-01",

@@ -4,7 +4,7 @@ import { SA_PROFILE } from "@/lib/super-admin-data";
 
 export interface SAProfile {
   name: string;
-  email: string;
+  loginId: string;
   phone: string;
   role: string;
   joinedAt: string;

@@ -26,12 +26,12 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { SA_CENTERS, SA_BRANCHES, AdminRole, AdminStatus } from '@/lib/super-admin-data';
 import { useSAAdministratorsStore, type SAAdmin } from '@/lib/store/sa-administrators-store';
 import { toast } from '@/lib/store/toast-store';
+import { generateLoginId } from '@/lib/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface AdminFormData {
   fullName: string;
-  email: string;
   phone: string;
   password: string;
   confirmPassword: string;
@@ -54,7 +54,6 @@ const ALL_PERMISSIONS = [
 
 const emptyForm: AdminFormData = {
   fullName: '',
-  email: '',
   phone: '',
   password: '',
   confirmPassword: '',
@@ -123,7 +122,7 @@ export default function AdministratorsPage() {
       const matchSearch =
         !q ||
         a.name.toLowerCase().includes(q) ||
-        a.email.toLowerCase().includes(q) ||
+        a.loginId.toLowerCase().includes(q) ||
         a.centerName.toLowerCase().includes(q);
       const matchRole = !filterRole || a.role === filterRole;
       const matchStatus = !filterStatus || a.status === filterStatus;
@@ -156,7 +155,6 @@ export default function AdministratorsPage() {
     setEditingId(admin.id);
     setForm({
       fullName: admin.name,
-      email: admin.email,
       phone: admin.phone,
       password: '',
       confirmPassword: '',
@@ -175,8 +173,8 @@ export default function AdministratorsPage() {
   };
 
   const handleSubmit = () => {
-    if (!form.fullName.trim() || !form.email.trim() || !form.role) {
-      toast.error('Name, email, and role are required');
+    if (!form.fullName.trim() || !form.role) {
+      toast.error('Name and role are required');
       return;
     }
     if (!editingId || form.password) {
@@ -191,7 +189,6 @@ export default function AdministratorsPage() {
     if (editingId) {
       updateAdmin(editingId, {
         name: form.fullName,
-        email: form.email,
         phone: form.phone,
         centerId: form.centerId,
         centerName: center?.name ?? '',
@@ -204,7 +201,7 @@ export default function AdministratorsPage() {
     } else {
       addAdmin({
         name: form.fullName,
-        email: form.email,
+        loginId: generateLoginId('EDU'),
         phone: form.phone,
         centerId: form.centerId,
         centerName: center?.name ?? '',
@@ -244,10 +241,10 @@ export default function AdministratorsPage() {
       ),
     },
     {
-      key: 'email',
-      label: 'Email',
+      key: 'loginId',
+      label: 'Login ID',
       render: (_, row) => (
-        <span className="text-slate-600 text-xs">{row.email}</span>
+        <span className="text-slate-600 text-xs">{row.loginId}</span>
       ),
     },
     {
@@ -413,15 +410,17 @@ export default function AdministratorsPage() {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Email</label>
-              <Input
-                type="email"
-                placeholder="admin@example.com"
-                value={form.email}
-                onChange={(e) => handleFormChange('email', e.target.value)}
-              />
-            </div>
+            {editingId ? (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-600">Login ID</label>
+                <Input value={admins.find((a) => a.id === editingId)?.loginId ?? ''} disabled />
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-600">Login ID</label>
+                <Input value="Generated automatically" disabled />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-600">Phone</label>

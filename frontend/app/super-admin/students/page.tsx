@@ -52,7 +52,7 @@ export default function StudentsPage() {
       const matchesSearch =
         !q ||
         s.name.toLowerCase().includes(q) ||
-        s.email.toLowerCase().includes(q) ||
+        s.loginId.toLowerCase().includes(q) ||
         s.groupName.toLowerCase().includes(q);
       const matchesCenter = !centerId || s.centerId === centerId;
       const matchesStatus = !status || s.status === status;
@@ -73,10 +73,10 @@ export default function StudentsPage() {
       ),
     },
     {
-      key: 'email',
-      label: 'Email',
+      key: 'loginId',
+      label: 'Login ID',
       render: (_, row) => (
-        <span className="text-slate-500 text-xs">{row.email}</span>
+        <span className="text-slate-500 text-xs">{row.loginId}</span>
       ),
     },
     {
@@ -223,7 +223,7 @@ export default function StudentsPage() {
                   <Avatar name={viewingStudent.name} size="md" />
                   <div>
                     <p className="text-sm font-medium text-slate-900">{viewingStudent.name}</p>
-                    <p className="text-xs text-slate-400">{viewingStudent.email}</p>
+                    <p className="text-xs text-slate-400">{viewingStudent.loginId}</p>
                   </div>
                 </div>
                 <DetailRow label="Phone" value={viewingStudent.phone} />

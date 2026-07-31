@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   UserCircle,
-  Mail,
+  KeyRound,
   Phone,
   Shield,
   Clock,
@@ -60,16 +60,14 @@ export default function ProfilePage() {
   const updateProfile = useSAProfileStore((s) => s.update);
 
   const [name, setName] = useState(profile.name);
-  const [email, setEmail] = useState(profile.email);
   const [phone, setPhone] = useState(profile.phone);
 
   // Re-sync once the persisted profile store finishes rehydrating from localStorage,
   // since that happens after this component's initial useState runs.
   useEffect(() => {
     setName(profile.name);
-    setEmail(profile.email);
     setPhone(profile.phone);
-  }, [profile.name, profile.email, profile.phone]);
+  }, [profile.name, profile.phone]);
 
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -91,7 +89,7 @@ export default function ProfilePage() {
     .toUpperCase();
 
   const handleSave = () => {
-    updateProfile({ name, email, phone });
+    updateProfile({ name, phone });
     toast.success('Profile updated');
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -185,7 +183,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="mt-6 space-y-0">
-              <InfoRow icon={Mail}    label="Email"      value={profile.email} />
+              <InfoRow icon={KeyRound} label="Login ID"   value={profile.loginId} />
               <InfoRow icon={Phone}   label="Phone"      value={profile.phone} />
               <InfoRow icon={Clock}   label="Last Login" value={formatDate(profile.lastLogin)} />
               <InfoRow icon={UserCircle} label="Member Since" value={new Date(profile.joinedAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} />
@@ -225,12 +223,11 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-600">Email Address</label>
+                <label className="text-xs font-medium text-slate-600">Login ID</label>
                 <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  value={profile.loginId}
+                  disabled
+                  className="bg-slate-50 text-slate-400 cursor-not-allowed"
                 />
               </div>
               <div className="space-y-1.5">

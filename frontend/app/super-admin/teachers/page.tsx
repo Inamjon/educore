@@ -72,7 +72,7 @@ export default function TeachersPage() {
       const matchesSearch =
         !q ||
         t.name.toLowerCase().includes(q) ||
-        t.email.toLowerCase().includes(q) ||
+        t.loginId.toLowerCase().includes(q) ||
         t.subject.toLowerCase().includes(q);
       const matchesCenter = !centerId || t.centerId === centerId;
       const matchesStatus = !status || t.status === status;
@@ -100,7 +100,7 @@ export default function TeachersPage() {
           <Avatar name={row.name} size="sm" />
           <div>
             <p className="font-medium text-slate-900">{row.name}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{row.email}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{row.loginId}</p>
           </div>
         </div>
       ),
@@ -275,7 +275,7 @@ export default function TeachersPage() {
                   <Avatar name={viewingTeacher.name} size="md" />
                   <div>
                     <p className="text-sm font-medium text-slate-900">{viewingTeacher.name}</p>
-                    <p className="text-xs text-slate-400">{viewingTeacher.email}</p>
+                    <p className="text-xs text-slate-400">{viewingTeacher.loginId}</p>
                   </div>
                 </div>
                 <DetailRow label="Phone" value={viewingTeacher.phone} />
