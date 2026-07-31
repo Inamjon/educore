@@ -563,7 +563,7 @@ export const TEACHER_EXAMS = [
     totalStudents: 15,
     status: "completed" as const,
     avgScore: 81,
-    maxScore: 50,
+    maxScore: 100,
     questions: 20,
   },
   {
@@ -578,7 +578,7 @@ export const TEACHER_EXAMS = [
     totalStudents: 13,
     status: "completed" as const,
     avgScore: 87,
-    maxScore: 50,
+    maxScore: 100,
     questions: 15,
   },
 ];

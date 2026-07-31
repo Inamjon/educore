@@ -23,8 +23,9 @@ import {
   ChevronDown,
   LogOut,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 import { TEACHER_STATS } from "@/lib/teacher-data";
+import { useTeacherProfileStore } from "@/lib/store/teacher-profile-store";
 
 // ─── Nav Config ───────────────────────────────────────────────────────────────
 
@@ -193,6 +194,7 @@ interface HeaderProps {
 
 function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
   const pathname = usePathname();
+  const profile = useTeacherProfileStore((s) => s.profile);
   const title = PAGE_TITLES[pathname] ?? "Teacher Portal";
   const unreadCount = TEACHER_STATS.unreadMessages;
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -268,13 +270,13 @@ function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
           aria-haspopup="true"
         >
           <div className="h-8 w-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-            SC
+            {getInitials(profile.name)}
           </div>
           <div className="hidden sm:block text-left">
             <p className="text-sm font-medium text-slate-900 leading-none">
-              Dr. Sarah Connor
+              {profile.name}
             </p>
-            <p className="text-xs text-slate-400 mt-0.5">Mathematics Teacher</p>
+            <p className="text-xs text-slate-400 mt-0.5">{profile.subject} Teacher</p>
           </div>
           <ChevronDown
             className={cn(
@@ -288,9 +290,9 @@ function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
           <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-lg border border-slate-100 py-1.5 z-50">
             <div className="px-4 py-2.5 border-b border-slate-50">
               <p className="text-sm font-semibold text-slate-900">
-                Dr. Sarah Connor
+                {profile.name}
               </p>
-              <p className="text-xs text-slate-400">sarah@educore.com</p>
+              <p className="text-xs text-slate-400">{profile.email}</p>
             </div>
             <Link
               href="/teacher/profile"

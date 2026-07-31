@@ -7,19 +7,19 @@ import {
   Star,
   Mail,
   Phone,
-  Calendar,
-  BookOpen,
-  Award,
   Clock,
   Copy,
   Check,
   Edit3,
+  Save,
+  X,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
-import { TEACHER_PROFILE } from '@/lib/teacher-data';
+import { Input } from '@/components/ui/input';
+import { useTeacherProfileStore } from '@/lib/store/teacher-profile-store';
+import { toast } from '@/lib/store/toast-store';
 import { cn } from '@/lib/utils';
 
 function StatMiniCard({
@@ -106,10 +106,39 @@ function CopyRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
   );
 }
 
+interface ProfileFormValues {
+  name: string;
+  phone: string;
+  subject: string;
+  specialization: string;
+  bio: string;
+}
+
 export default function ProfilePage() {
-  const p = TEACHER_PROFILE;
+  const p = useTeacherProfileStore((s) => s.profile);
+  const updateProfile = useTeacherProfileStore((s) => s.update);
   const subjects = p.specialization.split(' & ').concat([p.subject]).filter(Boolean);
   const uniqueSubjects = [...new Set(subjects)];
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [form, setForm] = useState<ProfileFormValues>({
+    name: p.name,
+    phone: p.phone,
+    subject: p.subject,
+    specialization: p.specialization,
+    bio: p.bio,
+  });
+
+  function startEdit() {
+    setForm({ name: p.name, phone: p.phone, subject: p.subject, specialization: p.specialization, bio: p.bio });
+    setIsEditing(true);
+  }
+
+  function handleSave() {
+    updateProfile(form);
+    toast.success('Profile updated');
+    setIsEditing(false);
+  }
 
   return (
     <div className="space-y-6">
@@ -146,13 +175,16 @@ export default function ProfilePage() {
               <StatMiniCard label="Groups" value={p.totalGroups} />
               <StatMiniCard label="Rating" value={p.rating} unit="/5" />
             </div>
-            <Button
-              className="bg-white text-indigo-700 hover:bg-indigo-50 shadow-none"
-              variant="outline"
-            >
-              <Edit3 className="h-4 w-4" />
-              Edit Profile
-            </Button>
+            {!isEditing && (
+              <Button
+                className="bg-white text-indigo-700 hover:bg-indigo-50 shadow-none"
+                variant="outline"
+                onClick={startEdit}
+              >
+                <Edit3 className="h-4 w-4" />
+                Edit Profile
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -162,33 +194,77 @@ export default function ProfilePage() {
         {/* Left: Personal Information */}
         <div className="lg:col-span-3">
           <Card title="Personal Information" subtitle="Your professional and contact details">
-            <div>
-              <InfoRow label="Full Name">{p.name}</InfoRow>
-              <InfoRow label="Email">
-                <a href={`mailto:${p.email}`} className="text-indigo-600 hover:underline">
-                  {p.email}
-                </a>
-              </InfoRow>
-              <InfoRow label="Phone">{p.phone}</InfoRow>
-              <InfoRow label="Specialization">{p.specialization}</InfoRow>
-              <InfoRow label="Subjects">{p.subject}</InfoRow>
-              <InfoRow label="Joined">
-                {new Date(p.joinedAt).toLocaleDateString('en-US', {
-                  month: 'long',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </InfoRow>
-              <InfoRow label="Bio">
-                <span className="text-slate-600 leading-relaxed">{p.bio}</span>
-              </InfoRow>
-            </div>
-            <div className="pt-4">
-              <Button variant="outline" size="sm">
-                <Edit3 className="h-3.5 w-3.5" />
-                Edit Information
-              </Button>
-            </div>
+            {isEditing ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 block mb-1.5">Full Name</label>
+                    <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 block mb-1.5">Phone</label>
+                    <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 block mb-1.5">Subject</label>
+                    <Input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 block mb-1.5">Specialization</label>
+                    <Input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 block mb-1.5">Bio</label>
+                  <textarea
+                    value={form.bio}
+                    onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                    rows={4}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="secondary" size="sm" onClick={() => setIsEditing(false)}>
+                    <X className="h-3.5 w-3.5" />
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={handleSave} disabled={!form.name.trim()}>
+                    <Save className="h-3.5 w-3.5" />
+                    Save Changes
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <InfoRow label="Full Name">{p.name}</InfoRow>
+                  <InfoRow label="Email">
+                    <a href={`mailto:${p.email}`} className="text-indigo-600 hover:underline">
+                      {p.email}
+                    </a>
+                  </InfoRow>
+                  <InfoRow label="Phone">{p.phone}</InfoRow>
+                  <InfoRow label="Specialization">{p.specialization}</InfoRow>
+                  <InfoRow label="Subjects">{p.subject}</InfoRow>
+                  <InfoRow label="Joined">
+                    {new Date(p.joinedAt).toLocaleDateString('en-US', {
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </InfoRow>
+                  <InfoRow label="Bio">
+                    <span className="text-slate-600 leading-relaxed">{p.bio}</span>
+                  </InfoRow>
+                </div>
+                <div className="pt-4">
+                  <Button variant="outline" size="sm" onClick={startEdit}>
+                    <Edit3 className="h-3.5 w-3.5" />
+                    Edit Information
+                  </Button>
+                </div>
+              </>
+            )}
           </Card>
         </div>
 

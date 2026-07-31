@@ -7,13 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
-import { TEACHER_MESSAGES } from '@/lib/teacher-data';
+import { useTeacherMessagesStore, type Conversation, type ChatMessage } from '@/lib/store/teacher-messages-store';
 import { cn } from '@/lib/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Conversation = (typeof TEACHER_MESSAGES)[number];
-type Message = Conversation['messages'][number];
+type Message = ChatMessage;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -122,14 +121,17 @@ function MessageBubble({ message }: { message: Message }) {
 // ─── Page Component ───────────────────────────────────────────────────────────
 
 export default function MessagesPage() {
+  const conversations = useTeacherMessagesStore((s) => s.conversations);
+  const sendMessage = useTeacherMessagesStore((s) => s.sendMessage);
+
   const [convSearch, setConvSearch] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const activeConv = TEACHER_MESSAGES.find((m) => m.id === activeId) ?? null;
+  const activeConv = conversations.find((m) => m.id === activeId) ?? null;
 
-  const filteredConvs = TEACHER_MESSAGES.filter((c) =>
+  const filteredConvs = conversations.filter((c) =>
     !convSearch ||
     c.participantName.toLowerCase().includes(convSearch.toLowerCase()) ||
     c.lastMessage.toLowerCase().includes(convSearch.toLowerCase())
@@ -138,11 +140,11 @@ export default function MessagesPage() {
   // Scroll to bottom when conversation changes or new message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeId]);
+  }, [activeId, activeConv?.messages.length]);
 
   const handleSend = () => {
-    if (!inputText.trim()) return;
-    // In a real app this would send the message; here we just clear input
+    if (!inputText.trim() || !activeId) return;
+    sendMessage(activeId, inputText.trim());
     setInputText('');
   };
 

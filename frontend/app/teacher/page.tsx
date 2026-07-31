@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import Link from 'next/link';
 import {
   BarChart,
   Bar,
@@ -33,11 +33,12 @@ import { Button } from '@/components/ui/button';
 import {
   TEACHER_STATS,
   TEACHER_SCHEDULE,
-  TEACHER_NOTIFICATIONS,
   TEACHER_EXAMS,
   WEEKLY_ATTENDANCE_DATA,
   GRADE_DISTRIBUTION_DATA,
 } from '@/lib/teacher-data';
+import { useTeacherNotificationsStore } from '@/lib/store/teacher-notifications-store';
+import { useTeacherProfileStore } from '@/lib/store/teacher-profile-store';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -146,7 +147,8 @@ function ScheduleItem({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TeacherDashboardPage() {
-  const [_refresh, setRefresh] = useState(0);
+  const profile = useTeacherProfileStore((s) => s.profile);
+  const notifications = useTeacherNotificationsStore((s) => s.items);
 
   const todayLabel = new Date('2026-07-04T00:00:00').toLocaleDateString('en-US', {
     weekday: 'long',
@@ -161,7 +163,7 @@ export default function TeacherDashboardPage() {
       <div className="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl p-6 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold">Good morning, Dr. Sarah Connor 👋</h2>
+            <h2 className="text-2xl font-bold">Good morning, {profile.name} 👋</h2>
             <p className="text-indigo-100 text-sm mt-1">{todayLabel}</p>
             <p className="text-white/90 mt-2 text-base font-medium">
               You have {TEACHER_STATS.todayClasses} class{TEACHER_STATS.todayClasses !== 1 ? 'es' : ''} today
@@ -169,7 +171,7 @@ export default function TeacherDashboardPage() {
           </div>
           <div className="hidden sm:flex flex-col items-end gap-1 text-right">
             <div className="bg-white/20 rounded-xl px-4 py-2 text-sm font-medium backdrop-blur-sm">
-              Rating: ⭐ 4.9
+              Rating: ⭐ {profile.rating}
             </div>
             <div className="bg-white/20 rounded-xl px-4 py-2 text-sm font-medium backdrop-blur-sm">
               {TEACHER_STATS.totalStudents} students
@@ -210,16 +212,16 @@ export default function TeacherDashboardPage() {
       <Card title="Quick Actions">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {QUICK_ACTIONS.map((action) => (
-            <div
+            <Link
               key={action.label}
-              onClick={() => setRefresh((r) => r + 1)}
+              href={action.href}
               className="flex flex-col items-center gap-3 p-4 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors border border-slate-100 hover:border-slate-200 hover:shadow-sm"
             >
               <div className={`p-3 rounded-xl ${action.iconBg}`}>{action.icon}</div>
               <span className="text-xs font-medium text-slate-700 text-center leading-tight">
                 {action.label}
               </span>
-            </div>
+            </Link>
           ))}
         </div>
       </Card>
@@ -344,7 +346,7 @@ export default function TeacherDashboardPage() {
         <div className="lg:col-span-2">
           <Card title="Recent Activity" subtitle="Latest notifications">
             <div className="space-y-4">
-              {TEACHER_NOTIFICATIONS.slice(0, 5).map((notif) => (
+              {notifications.slice(0, 5).map((notif) => (
                 <div key={notif.id} className="flex items-start gap-3">
                   <div className="mt-1.5 flex-shrink-0">
                     <span

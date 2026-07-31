@@ -14,7 +14,9 @@ import { StatCard } from '@/components/ui/stat-card';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/input';
-import { TEACHER_ATTENDANCE, TEACHER_GROUPS } from '@/lib/teacher-data';
+import { TEACHER_GROUPS } from '@/lib/teacher-data';
+import { useTeacherAttendanceStore } from '@/lib/store/teacher-attendance-store';
+import { toast } from '@/lib/store/toast-store';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -106,8 +108,11 @@ function formatDate(iso: string): string {
   });
 }
 
-function getDayQuality(date: string): 'great' | 'ok' | 'poor' | 'none' {
-  const records = TEACHER_ATTENDANCE.filter((r) => r.date === date);
+function getDayQuality(
+  date: string,
+  attendanceRecords: { date: string; status: string }[]
+): 'great' | 'ok' | 'poor' | 'none' {
+  const records = attendanceRecords.filter((r) => r.date === date);
   if (records.length === 0) return 'none';
   const present = records.filter((r) => r.status === 'present').length;
   const rate = present / records.length;
@@ -120,6 +125,9 @@ function getDayQuality(date: string): 'great' | 'ok' | 'poor' | 'none' {
 
 export default function TeacherAttendancePage() {
   const today = '2026-07-04';
+
+  const attendanceRecords = useTeacherAttendanceStore((s) => s.records);
+  const recordSession = useTeacherAttendanceStore((s) => s.recordSession);
 
   // Header filters
   const [headerGroupId, setHeaderGroupId] = useState(TEACHER_GROUPS[0].id);
@@ -164,7 +172,19 @@ export default function TeacherAttendancePage() {
   }
 
   function handleSave() {
+    recordSession(
+      activeGroup.id,
+      activeGroup.name,
+      today,
+      students.map((s) => ({
+        studentId: s.id,
+        studentName: s.name,
+        status: attendanceState[s.id]?.status ?? 'present',
+        note: attendanceState[s.id]?.note,
+      }))
+    );
     setSaved(true);
+    toast.success('Attendance saved');
   }
 
   // Summary for the active group
@@ -177,13 +197,13 @@ export default function TeacherAttendancePage() {
     return counts;
   }, [students, attendanceState]);
 
-  // Global stats from TEACHER_ATTENDANCE
+  // Global stats from recorded attendance
   const globalStats = useMemo(() => ({
-    present: TEACHER_ATTENDANCE.filter((r) => r.status === 'present').length,
-    absent: TEACHER_ATTENDANCE.filter((r) => r.status === 'absent').length,
-    late: TEACHER_ATTENDANCE.filter((r) => r.status === 'late').length,
-    excused: TEACHER_ATTENDANCE.filter((r) => r.status === 'excused').length,
-  }), []);
+    present: attendanceRecords.filter((r) => r.status === 'present').length,
+    absent: attendanceRecords.filter((r) => r.status === 'absent').length,
+    late: attendanceRecords.filter((r) => r.status === 'late').length,
+    excused: attendanceRecords.filter((r) => r.status === 'excused').length,
+  }), [attendanceRecords]);
 
   // Right panel: per-student attendance rate for active group's students
   const studentRates = useMemo(() => {
@@ -443,9 +463,9 @@ export default function TeacherAttendancePage() {
           <Card title="This Week" subtitle="Mon–Sun, Jul 2026">
             <div className="space-y-2">
               {WEEK_DAYS.map(({ date, label }) => {
-                const quality = getDayQuality(date);
+                const quality = getDayQuality(date, attendanceRecords);
                 const isToday = date === today;
-                const records = TEACHER_ATTENDANCE.filter((r) => r.date === date);
+                const records = attendanceRecords.filter((r) => r.date === date);
                 const hasClass = records.length > 0;
 
                 const dotColor =

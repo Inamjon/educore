@@ -10,7 +10,11 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
-import { TEACHER_NOTIFICATIONS } from '@/lib/teacher-data';
+import {
+  useTeacherNotificationsStore,
+  markAllTeacherNotificationsRead,
+  markTeacherNotificationRead,
+} from '@/lib/store/teacher-notifications-store';
 import { cn } from '@/lib/utils';
 
 type NotificationCategory = 'all' | 'class' | 'assignment' | 'exam' | 'message' | 'admin';
@@ -82,7 +86,7 @@ function formatTime(isoString: string): string {
 
 export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState<NotificationCategory>('all');
-  const [notifications, setNotifications] = useState<Notification[]>(TEACHER_NOTIFICATIONS);
+  const notifications = useTeacherNotificationsStore((s) => s.items) as Notification[];
 
   const filtered = notifications.filter(
     (n) => activeTab === 'all' || n.category === activeTab
@@ -91,13 +95,11 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   function markRead(id: string) {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+    markTeacherNotificationRead(id);
   }
 
   function markAllRead() {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    markAllTeacherNotificationsRead();
   }
 
   return (

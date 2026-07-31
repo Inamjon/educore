@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TEACHER_SCHEDULE } from '@/lib/teacher-data';
+import { LessonDetailDialog } from './_components/lesson-detail-dialog';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,15 @@ const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Formats a Date as a YYYY-MM-DD string using its local calendar date (not toISOString, which
+ * converts to UTC and shifts the date backward a day in timezones ahead of UTC). */
+function toLocalIso(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 /** Returns the Monday of the week containing a given date */
 function getMondayOf(date: Date): Date {
   const d = new Date(date);
@@ -51,7 +61,7 @@ function buildWeek(monday: Date): string[] {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    return d.toISOString().split('T')[0];
+    return toLocalIso(d);
   });
 }
 
@@ -101,6 +111,7 @@ function formatDateBadge(iso: string): string {
 export default function TeacherSchedulePage() {
   const todayIso = '2026-07-04';
   const [weekOffset, setWeekOffset] = useState(0); // 0 = current week
+  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
 
   const currentMonday = useMemo(() => {
     const base = getMondayOf(new Date(todayIso + 'T12:00:00'));
@@ -261,6 +272,7 @@ export default function TeacherSchedulePage() {
                     return (
                       <div
                         key={lesson.id}
+                        onClick={() => setSelectedLesson(lesson)}
                         className={`absolute left-1 right-1 rounded-lg px-2 py-1 overflow-hidden cursor-pointer transition-opacity ${
                           isCancelled ? 'opacity-50' : 'hover:opacity-90'
                         }`}
@@ -326,7 +338,11 @@ export default function TeacherSchedulePage() {
           ) : (
             <ol className="space-y-3">
               {todayLessons.map((lesson, i) => (
-                <li key={lesson.id} className="flex items-start gap-3">
+                <li
+                  key={lesson.id}
+                  onClick={() => setSelectedLesson(lesson)}
+                  className="flex items-start gap-3 cursor-pointer hover:bg-slate-50 rounded-xl -mx-2 px-2 py-1 transition-colors"
+                >
                   {/* Number */}
                   <span
                     className="h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5"
@@ -378,7 +394,8 @@ export default function TeacherSchedulePage() {
               {upcomingLessons.map((lesson) => (
                 <div
                   key={lesson.id}
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors"
+                  onClick={() => setSelectedLesson(lesson)}
+                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
                 >
                   {/* Colored left accent */}
                   <div
@@ -438,6 +455,8 @@ export default function TeacherSchedulePage() {
           )}
         </Card>
       </div>
+
+      <LessonDetailDialog lesson={selectedLesson} onOpenChange={(open) => !open && setSelectedLesson(null)} />
     </div>
   );
 }

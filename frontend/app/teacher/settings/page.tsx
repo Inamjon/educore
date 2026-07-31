@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   User,
   Bell,
@@ -18,8 +18,9 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { TEACHER_PROFILE } from '@/lib/teacher-data';
-import { cn } from '@/lib/utils';
+import { useTeacherProfileStore } from '@/lib/store/teacher-profile-store';
+import { toast } from '@/lib/store/toast-store';
+import { cn, getInitials } from '@/lib/utils';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -70,7 +71,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function TeacherSettingsPage() {
-  const p = TEACHER_PROFILE;
+  const p = useTeacherProfileStore((s) => s.profile);
+  const updateProfile = useTeacherProfileStore((s) => s.update);
 
   // Active tab
   const [activeTab, setActiveTab] = useState<TabId>('account');
@@ -84,6 +86,12 @@ export default function TeacherSettingsPage() {
     subject: p.subject,
   });
 
+  // Re-sync once the persisted profile store finishes rehydrating from localStorage,
+  // since that happens after this component's initial useState runs.
+  useEffect(() => {
+    setAccount({ name: p.name, email: p.email, phone: p.phone, bio: p.bio, subject: p.subject });
+  }, [p.name, p.email, p.phone, p.bio, p.subject]);
+
   // Security form
   const [passwords, setPasswords] = useState({
     current: '',
@@ -91,6 +99,24 @@ export default function TeacherSettingsPage() {
     confirm: '',
   });
   const [twoFAEnabled, setTwoFAEnabled] = useState(false);
+
+  function handleSaveAccount() {
+    updateProfile(account);
+    toast.success('Profile updated');
+  }
+
+  function handleUpdatePassword() {
+    if (!passwords.current || !passwords.next || !passwords.confirm) {
+      toast.error('Fill in all password fields');
+      return;
+    }
+    if (passwords.next !== passwords.confirm) {
+      toast.error('New password and confirmation do not match');
+      return;
+    }
+    toast.success('Password updated');
+    setPasswords({ current: '', next: '', confirm: '' });
+  }
 
   // Notifications
   const [notifToggles, setNotifToggles] = useState({
@@ -176,7 +202,7 @@ export default function TeacherSettingsPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-5 pb-4 border-b border-slate-50">
                   <div className="h-16 w-16 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-2xl">
-                    SC
+                    {getInitials(account.name)}
                   </div>
                   <div>
                     <Button variant="outline" size="sm">Change Photo</Button>
@@ -222,7 +248,7 @@ export default function TeacherSettingsPage() {
                 </div>
 
                 <div className="flex justify-end pt-2">
-                  <Button>
+                  <Button onClick={handleSaveAccount}>
                     <Save className="h-4 w-4" />
                     Save Changes
                   </Button>
@@ -261,7 +287,7 @@ export default function TeacherSettingsPage() {
                     />
                   </Field>
                   <div className="flex justify-end pt-2">
-                    <Button>
+                    <Button onClick={handleUpdatePassword}>
                       <Lock className="h-4 w-4" />
                       Update Password
                     </Button>
@@ -365,7 +391,7 @@ export default function TeacherSettingsPage() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button>
+                  <Button onClick={() => toast.success('Appearance preferences saved')}>
                     <Save className="h-4 w-4" />
                     Save Preferences
                   </Button>
@@ -426,7 +452,7 @@ export default function TeacherSettingsPage() {
                 </Field>
 
                 <div className="flex justify-end pt-2">
-                  <Button>
+                  <Button onClick={() => toast.success('Language & region settings saved')}>
                     <Save className="h-4 w-4" />
                     Save Settings
                   </Button>

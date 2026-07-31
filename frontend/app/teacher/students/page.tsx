@@ -18,11 +18,13 @@ import { Badge, StatusBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { SearchInput, Select } from '@/components/ui/input';
-import { TEACHER_STUDENTS, TEACHER_GROUPS, TEACHER_ATTENDANCE, TEACHER_GRADES } from '@/lib/teacher-data';
+import { TEACHER_GROUPS, TEACHER_ATTENDANCE, TEACHER_GRADES } from '@/lib/teacher-data';
+import { useTeacherStudentsStore, type TeacherStudentRecord } from '@/lib/store/teacher-students-store';
+import { toast } from '@/lib/store/toast-store';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Student = (typeof TEACHER_STUDENTS)[number];
+type Student = TeacherStudentRecord;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -122,10 +124,13 @@ function StudentCard({
 function StudentDetailPanel({
   student,
   onBack,
+  onSaveNotes,
 }: {
   student: Student;
   onBack: () => void;
+  onSaveNotes: (id: string, notes: string) => void;
 }) {
+  const [notes, setNotes] = useState(student.notes);
   const attendance = TEACHER_ATTENDANCE.filter((a) => a.studentId === student.id);
   const grades = TEACHER_GRADES.filter((g) => g.studentId === student.id);
 
@@ -180,10 +185,21 @@ function StudentDetailPanel({
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1.5">Notes</label>
             <textarea
-              defaultValue={student.notes}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
               rows={3}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
             />
+            <div className="flex justify-end mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={notes === student.notes}
+                onClick={() => onSaveNotes(student.id, notes)}
+              >
+                Save Notes
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -315,12 +331,16 @@ function MiniStat({
 // ─── Page Component ───────────────────────────────────────────────────────────
 
 export default function StudentsPage() {
+  const studentItems = useTeacherStudentsStore((s) => s.items);
+  const students = studentItems.filter((s) => !s.deletedAt);
+  const updateStudent = useTeacherStudentsStore((s) => s.update);
+
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
-    return TEACHER_STUDENTS.filter((s) => {
+    return students.filter((s) => {
       const matchSearch =
         !search ||
         s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -328,25 +348,32 @@ export default function StudentsPage() {
       const matchGroup = !groupFilter || s.groupId === groupFilter;
       return matchSearch && matchGroup;
     });
-  }, [search, groupFilter]);
+  }, [students, search, groupFilter]);
+
+  const selectedStudent = students.find((s) => s.id === selectedId) ?? null;
 
   // Stats
-  const totalStudents = TEACHER_STUDENTS.length;
+  const totalStudents = students.length;
   const avgAttendance = Math.round(
-    TEACHER_STUDENTS.reduce((s, st) => s + st.attendanceRate, 0) / totalStudents
+    students.reduce((s, st) => s + st.attendanceRate, 0) / totalStudents
   );
   const avgGrade = Math.round(
-    TEACHER_STUDENTS.reduce((s, st) => s + st.avgGrade, 0) / totalStudents
+    students.reduce((s, st) => s + st.avgGrade, 0) / totalStudents
   );
 
   const groupOptions = TEACHER_GROUPS.map((g) => ({ value: g.id, label: g.name }));
 
   const handleViewProfile = (student: Student) => {
-    setSelectedStudent(student);
+    setSelectedId(student.id);
     // Scroll to detail panel
     setTimeout(() => {
       document.getElementById('student-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
+  };
+
+  const handleSaveNotes = (id: string, notes: string) => {
+    updateStudent(id, { notes });
+    toast.success('Notes saved');
   };
 
   return (
@@ -416,8 +443,10 @@ export default function StudentsPage() {
       {selectedStudent && (
         <div id="student-detail">
           <StudentDetailPanel
+            key={selectedStudent.id}
             student={selectedStudent}
-            onBack={() => setSelectedStudent(null)}
+            onBack={() => setSelectedId(null)}
+            onSaveNotes={handleSaveNotes}
           />
         </div>
       )}

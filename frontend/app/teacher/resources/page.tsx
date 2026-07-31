@@ -17,23 +17,13 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input, SearchInput, Select } from '@/components/ui/input';
-import { TEACHER_RESOURCES, TEACHER_GROUPS } from '@/lib/teacher-data';
+import { TEACHER_GROUPS } from '@/lib/teacher-data';
+import { useTeacherResourcesStore, type TeacherResource } from '@/lib/store/teacher-resources-store';
+import { toast } from '@/lib/store/toast-store';
 import { cn } from '@/lib/utils';
 
 type ResourceType = 'pdf' | 'video' | 'document' | 'image' | 'link';
-
-interface Resource {
-  id: string;
-  title: string;
-  subject: string;
-  type: ResourceType;
-  size: string;
-  uploadedAt: string;
-  groupId?: string;
-  groupName?: string;
-  downloads: number;
-  shared: boolean;
-}
+type Resource = TeacherResource;
 
 const TYPE_CONFIG: Record<
   ResourceType,
@@ -66,7 +56,15 @@ const GROUP_OPTIONS = [
   ...TEACHER_GROUPS.map((g) => ({ value: g.id, label: g.name })),
 ];
 
-function ResourceCard({ resource }: { resource: Resource }) {
+function ResourceCard({
+  resource,
+  onShare,
+  onDelete,
+}: {
+  resource: Resource;
+  onShare: (id: string, shared: boolean) => void;
+  onDelete: (id: string) => void;
+}) {
   const config = TYPE_CONFIG[resource.type];
   const Icon = config.Icon;
 
@@ -110,18 +108,28 @@ function ResourceCard({ resource }: { resource: Resource }) {
 
       {/* Footer */}
       <div className="px-4 py-3 border-t border-slate-50 flex items-center gap-1">
-        <Button variant="ghost" size="sm" className="flex-1 justify-center">
+        <a
+          href="#"
+          onClick={(e) => e.preventDefault()}
+          className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+        >
           <Download className="h-3.5 w-3.5" />
           Download
-        </Button>
-        <Button variant="ghost" size="sm" className="flex-1 justify-center">
+        </a>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="flex-1 justify-center"
+          onClick={() => onShare(resource.id, !resource.shared)}
+        >
           <Share2 className="h-3.5 w-3.5" />
-          Share
+          {resource.shared ? 'Unshare' : 'Share'}
         </Button>
         <Button
           variant="ghost"
           size="sm"
           className="flex-1 justify-center text-red-500 hover:bg-red-50 hover:text-red-600"
+          onClick={() => onDelete(resource.id)}
         >
           <Trash2 className="h-3.5 w-3.5" />
           Delete
@@ -132,10 +140,15 @@ function ResourceCard({ resource }: { resource: Resource }) {
 }
 
 export default function ResourcesPage() {
+  const resourceItems = useTeacherResourcesStore((s) => s.items);
+  const resources = resourceItems.filter((r) => !r.deletedAt);
+  const addResource = useTeacherResourcesStore((s) => s.add);
+  const updateResource = useTeacherResourcesStore((s) => s.update);
+  const removeResource = useTeacherResourcesStore((s) => s.softDelete);
+
   const [search, setSearch] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('');
   const [showUploadForm, setShowUploadForm] = useState(false);
-  const [resources, setResources] = useState<Resource[]>(TEACHER_RESOURCES);
 
   // Upload form state
   const [uploadTitle, setUploadTitle] = useState('');
@@ -156,8 +169,7 @@ export default function ResourcesPage() {
   function handleUpload() {
     if (!uploadTitle.trim() || !uploadSubject.trim()) return;
     const group = TEACHER_GROUPS.find((g) => g.id === uploadGroup);
-    const newResource: Resource = {
-      id: `res${Date.now()}`,
+    addResource({
       title: uploadTitle,
       subject: uploadSubject,
       type: uploadType,
@@ -167,14 +179,24 @@ export default function ResourcesPage() {
       groupName: group?.name,
       downloads: 0,
       shared: uploadShared,
-    };
-    setResources([newResource, ...resources]);
+    });
+    toast.success('Resource uploaded');
     setUploadTitle('');
     setUploadSubject('');
     setUploadGroup('');
     setUploadType('pdf');
     setUploadShared(false);
     setShowUploadForm(false);
+  }
+
+  function handleShare(id: string, shared: boolean) {
+    updateResource(id, { shared });
+    toast.success(shared ? 'Resource shared with students' : 'Resource unshared');
+  }
+
+  function handleDelete(id: string) {
+    removeResource(id);
+    toast.success('Resource deleted');
   }
 
   return (
@@ -291,7 +313,7 @@ export default function ResourcesPage() {
       {filtered.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((resource) => (
-            <ResourceCard key={resource.id} resource={resource} />
+            <ResourceCard key={resource.id} resource={resource} onShare={handleShare} onDelete={handleDelete} />
           ))}
         </div>
       ) : (
