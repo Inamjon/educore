@@ -59,7 +59,7 @@ cd backend
 uv sync
 cp .env.example .env   # fill in DB credentials for the two roles above
 uv run python manage.py migrate
-uv run python manage.py create_super_admin --first-name Alex --last-name Rivera
+uv run python manage.py create_super_admin --first-name Alex --last-name Rivera --phone +998901234567
 uv run python manage.py runserver
 ```
 
@@ -67,18 +67,24 @@ uv run python manage.py runserver
 that, plus the password you're prompted for, is what the frontend's existing
 "Login" field (not email — see below) authenticates with.
 
-## Why no email/username login
+## Why no email/username login, and no email field at all
 
-`foundation.users` allows the same email across different organizations
-(a teacher at two centers, for example), which makes email unusable as a
-login identifier without an organization picker the frontend doesn't have.
-Every user instead gets a system-generated, globally-unique `login_id` at
+`foundation.users` has no `email` column — login is by `login_id`, never
+email, and no code path ever read a user's email for anything else either
+(no email verification flow is wired up; phone +
+`auth_custom.PhoneVerification` is the one real contact/verification
+channel). Reserving schema/index space for a field nothing uses isn't a
+safety margin, so it was removed rather than left "just in case". Every
+user instead gets a system-generated, globally-unique `login_id` at
 creation (`foundation/managers.py`) — this is what the frontend's login page
 already expects (`autoComplete="username"`, generic "Login" label, not
-"Email" — no frontend changes needed for this). A separate `member_code` is
-also generated per user, reserved for the future Finance module's invoices
-— deliberately a different value from `login_id` so login credentials and
-financial records never share an identifier.
+"Email"). A separate `member_code` is also generated per user, reserved for
+the future Finance module's invoices — deliberately a different value from
+`login_id` so login credentials and financial records never share an
+identifier.
+
+Organizations and Branches keep their own `email` field — that's org/branch
+contact info, unrelated to how an individual user logs in.
 
 ## Verifying the setup
 

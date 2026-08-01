@@ -111,7 +111,7 @@ class UserViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [HasModulePermission]
     filterset_class = UserFilter
-    search_fields = ["first_name", "last_name", "email", "login_id"]
+    search_fields = ["first_name", "last_name", "phone", "login_id"]
     entity_type = "user"
     permission_map = {
         "list": ("administrators", "view"),

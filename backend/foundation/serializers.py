@@ -56,7 +56,7 @@ class RoleSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     """Covers the "Administrators" surface on the Super-Admin frontend:
-    name/email/phone/center/branch/role/status. Password is write-only and
+    name/phone/center/branch/role/status. Password is write-only and
     optional on update (blank means "keep current", matching the frontend
     form's "leave blank to keep current" pattern already built).
     """
@@ -72,7 +72,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "organization", "branch", "login_id", "member_code",
-            "first_name", "last_name", "middle_name", "full_name", "email", "phone",
+            "first_name", "last_name", "middle_name", "full_name", "phone",
             "password", "avatar_url", "gender", "date_of_birth", "status", "language",
             "role_ids", "roles", "created_at", "updated_at",
         ]

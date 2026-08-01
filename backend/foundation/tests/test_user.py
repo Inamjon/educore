@@ -16,11 +16,11 @@ def test_login_id_and_member_code_are_generated_and_unique():
     org = _make_org()
     user1 = User.objects.create_user(
         organization=org, first_name="Alice", last_name="Doe", password="s3cret-pass",
-        email="alice.doe@test-academy.example",
+        phone="+998901234567",
     )
     user2 = User.objects.create_user(
         organization=org, first_name="Bob", last_name="Roe", password="s3cret-pass",
-        email="bob.roe@test-academy.example",
+        phone="+998901234568",
     )
 
     assert user1.login_id and user2.login_id
@@ -33,7 +33,7 @@ def test_password_is_hashed_not_plaintext():
     org = _make_org()
     user = User.objects.create_user(
         organization=org, first_name="Alice", last_name="Doe", password="s3cret-pass",
-        email="alice.doe@test-academy.example",
+        phone="+998901234567",
     )
 
     assert user.password != "s3cret-pass"
@@ -45,7 +45,7 @@ def test_soft_delete_never_hard_deletes():
     org = _make_org()
     user = User.objects.create_user(
         organization=org, first_name="Alice", last_name="Doe", password="s3cret-pass",
-        email="alice.doe@test-academy.example",
+        phone="+998901234567",
     )
     user_id = user.id
 
@@ -56,10 +56,11 @@ def test_soft_delete_never_hard_deletes():
     assert User.all_objects.get(id=user_id).deleted_at is not None
 
 
-def test_email_and_phone_both_optional_but_not_both_null():
+def test_phone_is_required():
+    """foundation.User has no email field at all — phone is the sole
+    contact/verification channel, so it can't be null."""
     org = _make_org()
     with pytest.raises(Exception):
         User.objects.create_user(
-            organization=org, first_name="No", last_name="Contact", password="s3cret-pass",
-            email=None, phone=None,
+            organization=org, first_name="No", last_name="Contact", password="s3cret-pass", phone=None,
         )

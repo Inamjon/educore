@@ -17,7 +17,7 @@ def _make_org(**kwargs):
 def _make_teacher(org, **kwargs):
     user = User.objects.create_user(
         organization=org, first_name="Sarah", last_name="Connor", password="pw123456",
-        email="sarah.connor@test-academy.example",
+        phone="+998901234520",
     )
     kwargs.setdefault("teacher_code", f"TCH-{TeacherProfile.objects.count() + 1}")
     return TeacherProfile.objects.create(organization=org, user=user, **kwargs)
@@ -29,7 +29,7 @@ def test_teacher_code_unique_per_organization():
 
     other_user = User.objects.create_user(
         organization=org, first_name="Henry", last_name="Walsh", password="pw123456",
-        email="henry.walsh@test-academy.example",
+        phone="+998901234521",
     )
     with pytest.raises(IntegrityError):
         TeacherProfile.objects.create(organization=org, user=other_user, teacher_code="TCH-0001")
@@ -39,7 +39,7 @@ def test_experience_years_out_of_range_is_rejected():
     org = _make_org()
     user = User.objects.create_user(
         organization=org, first_name="Sarah", last_name="Connor", password="pw123456",
-        email="sarah.connor@test-academy.example",
+        phone="+998901234520",
     )
     with pytest.raises(IntegrityError):
         TeacherProfile.objects.create(organization=org, user=user, teacher_code="TCH-0002", experience_years=99)

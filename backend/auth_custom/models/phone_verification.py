@@ -2,7 +2,13 @@ from django.db import models
 
 from common.db import schema_table
 from common.models import CreatedAtMixin, UUIDPrimaryKeyMixin
-from auth_custom.models.email_verification import VERIFICATION_STATUS_CHOICES
+
+VERIFICATION_STATUS_CHOICES = [
+    ("pending", "Pending"),
+    ("verified", "Verified"),
+    ("expired", "Expired"),
+    ("failed", "Failed"),
+]
 
 
 class PhoneVerification(UUIDPrimaryKeyMixin, CreatedAtMixin):

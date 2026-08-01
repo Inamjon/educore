@@ -40,10 +40,13 @@ class User(
     )
 
     # Globally unique, system-generated — see foundation/managers.py. This
-    # (not email) is what a user actually types into the "Login" field on
-    # the frontend; email stays an optional contact field, never unique or
-    # used to authenticate, which is what lets the same email exist across
-    # multiple organizations without any login ambiguity.
+    # is what a user actually types into the "Login" field on the frontend.
+    # No email field exists on this model at all: login is by login_id, not
+    # email, and phone is the sole real-world contact/verification channel
+    # (see auth_custom.PhoneVerification) — there was never a code path that
+    # read User.email for anything, so it cost real schema/index space for
+    # zero functionality. Organization/Branch keep their own `email` field —
+    # that's org contact info, unrelated to how a user logs in.
     login_id = models.CharField(max_length=32, unique=True, editable=False)
 
     # Also globally unique, also system-generated, but deliberately a
@@ -55,8 +58,7 @@ class User(
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     middle_name = models.CharField(max_length=100, blank=True, null=True)
-    email = models.EmailField(blank=True, null=True)
-    phone = models.CharField(max_length=20, blank=True, null=True)
+    phone = models.CharField(max_length=20)
     password = models.CharField(max_length=255, db_column="password_hash")
     avatar_url = models.TextField(blank=True, null=True)
     gender = models.CharField(max_length=20, choices=GENDER_CHOICES, blank=True, null=True)
@@ -67,22 +69,15 @@ class User(
     # the DDL's `last_login_at` column and made non-editable — Django's own
     # login-signal machinery still updates it via the `last_login` attribute).
     last_login = models.DateTimeField(null=True, blank=True, db_column="last_login_at")
-    email_verified_at = models.DateTimeField(null=True, blank=True)
     phone_verified_at = models.DateTimeField(null=True, blank=True)
 
     objects = UserManager()
 
     USERNAME_FIELD = "login_id"
-    REQUIRED_FIELDS = ["first_name", "last_name"]
+    REQUIRED_FIELDS = ["first_name", "last_name", "phone"]
 
     class Meta:
         db_table = schema_table("foundation", "users")
-        constraints = [
-            models.CheckConstraint(
-                condition=models.Q(email__isnull=False) | models.Q(phone__isnull=False),
-                name="chk_users_email_or_phone",
-            ),
-        ]
         indexes = [
             models.Index(
                 fields=["organization"],

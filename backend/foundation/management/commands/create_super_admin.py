@@ -19,8 +19,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--first-name", required=True)
         parser.add_argument("--last-name", required=True)
-        parser.add_argument("--email", required=False, help="Optional contact email (not used for login).")
-        parser.add_argument("--phone", required=False)
+        parser.add_argument("--phone", required=True, help="foundation.User has no email field — phone is required.")
         parser.add_argument(
             "--password", required=False, help="If omitted, you'll be prompted (recommended: don't pass via CLI)."
         )
@@ -51,8 +50,7 @@ class Command(BaseCommand):
             organization=platform_org,
             first_name=options["first_name"],
             last_name=options["last_name"],
-            email=options.get("email") or None,
-            phone=options.get("phone") or None,
+            phone=options["phone"],
             status="active",
             password=password,
         )

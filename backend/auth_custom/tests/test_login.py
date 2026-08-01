@@ -30,7 +30,7 @@ def user():
     org = Organization.objects.create(name="Org", slug=f"org-login-test-{uuid.uuid4().hex[:8]}", email="a@example.com")
     return User.objects.create_user(
         organization=org, first_name="Alice", last_name="Doe", password="s3cret-pass", status="active",
-        email="alice.doe@example.com",
+        phone="+998901234567",
     )
 
 
