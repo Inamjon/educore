@@ -6,12 +6,14 @@ from student.models import EmergencyContact, StudentDocument, StudentParent, Stu
 class StudentProfileSerializer(serializers.ModelSerializer):
     user_full_name = serializers.CharField(source="user.get_full_name", read_only=True)
     user_login_id = serializers.CharField(source="user.login_id", read_only=True)
+    user_phone = serializers.CharField(source="user.phone", read_only=True)
     branch_name = serializers.CharField(source="branch.name", read_only=True, default=None)
 
     class Meta:
         model = StudentProfile
         fields = [
-            "id", "organization", "user", "user_full_name", "user_login_id", "branch", "branch_name",
+            "id", "organization", "user", "user_full_name", "user_login_id", "user_phone",
+            "branch", "branch_name",
             "student_code", "status", "enrollment_date", "graduation_date", "education_level",
             "school_name", "previous_institution", "medical_notes", "allergies", "blood_type",
             "notes", "metadata", "created_at", "updated_at",
