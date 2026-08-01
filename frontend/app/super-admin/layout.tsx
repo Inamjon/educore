@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Building2,
@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useSANotificationsStore } from "@/lib/store/sa-notifications-store";
 import { useSAProfileStore } from "@/lib/store/sa-profile-store";
+import { useLogout } from "@/lib/hooks/use-logout";
 
 // ─── Nav Config ───────────────────────────────────────────────────────────────
 
@@ -192,17 +193,13 @@ interface HeaderProps {
 
 function SuperAdminHeader({ sidebarCollapsed }: HeaderProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const title = PAGE_TITLES[pathname] ?? "Super Admin";
   const notifications = useSANotificationsStore((s) => s.items);
   const unreadCount = notifications.filter((n) => !n.read).length;
   const profile = useSAProfileStore((s) => s.profile);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  function handleSignOut() {
-    router.push("/login");
-  }
+  const handleSignOut = useLogout();
 
   // Derive initials from profile name
   const initials = profile.name

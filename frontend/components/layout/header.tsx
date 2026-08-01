@@ -5,6 +5,7 @@ import { Bell, Search, Menu, ChevronDown, Settings, LogOut, User } from "lucide-
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { NOTIFICATIONS } from "@/lib/data";
+import { useLogout } from "@/lib/hooks/use-logout";
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Dashboard",
@@ -30,6 +31,7 @@ export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
   const unreadCount = NOTIFICATIONS.filter((n) => !n.read).length;
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const handleLogout = useLogout();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -126,7 +128,10 @@ export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
               Settings
             </Link>
             <div className="border-t border-slate-50 mt-1 pt-1">
-              <button className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full">
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full"
+              >
                 <LogOut className="h-4 w-4" />
                 Sign Out
               </button>

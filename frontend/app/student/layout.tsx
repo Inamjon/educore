@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { STUDENT_STATS, STUDENT_PROFILE } from "@/lib/student-data";
+import { useLogout } from "@/lib/hooks/use-logout";
 
 // ─── Nav Config ───────────────────────────────────────────────────────────────
 
@@ -189,6 +190,7 @@ function StudentHeader({ sidebarCollapsed }: HeaderProps) {
   const unreadCount = STUDENT_STATS.unreadMessages;
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const handleLogout = useLogout();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -301,13 +303,13 @@ function StudentHeader({ sidebarCollapsed }: HeaderProps) {
               Settings
             </Link>
             <div className="border-t border-slate-50 mt-1 pt-1">
-              <Link
-                href="/login"
+              <button
+                onClick={handleLogout}
                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full"
               >
                 <LogOut className="h-4 w-4" />
                 Sign Out
-              </Link>
+              </button>
             </div>
           </div>
         )}

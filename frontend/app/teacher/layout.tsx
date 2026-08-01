@@ -26,6 +26,7 @@ import {
 import { cn, getInitials } from "@/lib/utils";
 import { TEACHER_STATS } from "@/lib/teacher-data";
 import { useTeacherProfileStore } from "@/lib/store/teacher-profile-store";
+import { useLogout } from "@/lib/hooks/use-logout";
 
 // ─── Nav Config ───────────────────────────────────────────────────────────────
 
@@ -199,6 +200,7 @@ function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
   const unreadCount = TEACHER_STATS.unreadMessages;
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const handleLogout = useLogout();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -311,7 +313,10 @@ function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
               Settings
             </Link>
             <div className="border-t border-slate-50 mt-1 pt-1">
-              <button className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full">
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full"
+              >
                 <LogOut className="h-4 w-4" />
                 Sign Out
               </button>

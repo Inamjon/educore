@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Zap,
   Eye,
@@ -14,18 +15,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { login as loginRequest } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
+import { useAuthStore } from "@/lib/store/auth-store";
 
-// ─── Demo accounts (role assigned server-side in production) ─────────────────
+// ─── Role → portal routing ─────────────────────────────────────────────────────
 
-const DEMO_ACCOUNTS: Record<string, { role: string; redirect: string }> = {
-  "admin@educore.com":   { role: "admin",   redirect: "/" },
-  "sarah@educore.com":   { role: "teacher", redirect: "/teacher" },
-  "student@educore.com": { role: "student", redirect: "/student" },
+const ROLE_PORTAL_MAP: Record<string, string> = {
+  super_admin: "/super-admin",
+  center_admin: "/",
+  admin: "/",
+  teacher: "/teacher",
+  student: "/student",
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function LoginPage() {
+  const router = useRouter();
+  const setUser = useAuthStore((s) => s.setUser);
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -38,7 +46,6 @@ export default function LoginPage() {
     const errs: typeof errors = {};
     if (!login.trim()) errs.login = "Login is required.";
     if (!password) errs.password = "Password is required.";
-    else if (password.length < 6) errs.password = "Password must be at least 6 characters.";
     return errs;
   }
 
@@ -48,15 +55,23 @@ export default function LoginPage() {
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    const account = DEMO_ACCOUNTS[login.toLowerCase().trim()];
-    if (!account || password.length < 6) {
-      setErrors({ general: "Invalid credentials. Please check your login and password." });
-      return;
+
+    try {
+      const user = await loginRequest(login.trim(), password);
+      const portal = user.role ? ROLE_PORTAL_MAP[user.role] : undefined;
+      if (!portal) {
+        setErrors({ general: "Your account has no portal access yet. Contact your administrator." });
+        return;
+      }
+      setUser(user);
+      setSuccess(true);
+      setTimeout(() => router.push(portal), 500);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : "Something went wrong. Please try again.";
+      setErrors({ general: message });
+    } finally {
+      setLoading(false);
     }
-    setSuccess(true);
-    setTimeout(() => { window.location.href = account.redirect; }, 700);
   }
 
   return (
@@ -180,11 +195,6 @@ export default function LoginPage() {
             </Button>
           </form>
         </div>
-
-        {/* Demo hint */}
-        <p className="mt-5 text-center text-xs text-slate-400">
-          Demo — login as admin@educore.com or sarah@educore.com, any password 6+ characters.
-        </p>
       </div>
     </div>
   );
