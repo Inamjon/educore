@@ -47,8 +47,7 @@ export default function StudentsPage() {
     const matchesSearch =
       !search ||
       s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.loginId.toLowerCase().includes(search.toLowerCase()) ||
-      s.groupName.toLowerCase().includes(search.toLowerCase());
+      s.loginId.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = !statusFilter || s.status === statusFilter;
     const matchesGender = !genderFilter || s.gender === genderFilter;
     return matchesSearch && matchesStatus && matchesGender;
@@ -77,29 +76,7 @@ export default function StudentsPage() {
         </div>
       ),
     },
-    { key: "groupName", label: "Group" },
     { key: "phone", label: "Phone" },
-    {
-      key: "attendanceRate",
-      label: "Attendance",
-      render: (val) => (
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-1.5 bg-slate-100 rounded-full w-16">
-            <div className="h-full rounded-full bg-indigo-500" style={{ width: `${val}%` }} />
-          </div>
-          <span className="text-sm text-slate-600">{String(val)}%</span>
-        </div>
-      ),
-    },
-    {
-      key: "balance",
-      label: "Balance",
-      render: (val) => (
-        <span className={Number(val) > 0 ? "text-red-500 font-medium" : "text-emerald-600 font-medium"}>
-          {Number(val) > 0 ? `-$${val}` : "Paid"}
-        </span>
-      ),
-    },
     {
       key: "status",
       label: "Status",

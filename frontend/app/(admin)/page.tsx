@@ -176,7 +176,7 @@ export default function DashboardPage() {
                 <Avatar name={student.name} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-800 truncate">{student.name}</p>
-                  <p className="text-xs text-slate-400">{student.groupName}</p>
+                  <p className="text-xs text-slate-400">{student.loginId}</p>
                 </div>
                 <StatusBadge status={student.status} />
               </div>

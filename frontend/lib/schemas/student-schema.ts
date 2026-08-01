@@ -6,8 +6,6 @@ export const studentSchema = z.object({
   gender: z.enum(["male", "female", "other"]),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
   address: z.string().trim().min(1, "Address is required"),
-  groupId: z.string().min(1, "Group is required"),
-  groupName: z.string().min(1),
   parentName: z.string().trim().min(1, "Parent name is required"),
   parentPhone: z.string().trim().min(7, "Parent phone is required"),
   status: z.enum(["active", "inactive", "pending", "suspended"]),

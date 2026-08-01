@@ -75,12 +75,18 @@ export default function AttendancePage() {
   const total = ATTENDANCE_RECORDS.length;
   const attendanceRate = Math.round((stats.present / total) * 100);
 
-  // Per-student attendance rate
-  const studentRates = STUDENTS.map((s) => ({
-    id: s.id,
-    name: s.name,
-    rate: s.attendanceRate,
-  })).sort((a, b) => a.rate - b.rate).slice(0, 5);
+  // Per-student attendance rate, derived from actual records rather than a
+  // stored field — no group/attendance backend exists yet to keep such a
+  // field in sync with, so it's computed here instead.
+  const studentRates = STUDENTS.map((s) => {
+    const records = ATTENDANCE_RECORDS.filter((r) => r.studentId === s.id);
+    const presentCount = records.filter((r) => r.status === "present").length;
+    return {
+      id: s.id,
+      name: s.name,
+      rate: records.length > 0 ? Math.round((presentCount / records.length) * 100) : 0,
+    };
+  }).sort((a, b) => a.rate - b.rate).slice(0, 5);
 
   return (
     <div className="space-y-6">

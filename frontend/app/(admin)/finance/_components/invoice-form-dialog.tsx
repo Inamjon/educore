@@ -57,7 +57,7 @@ function InvoiceFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => 
 
   function handleStudentChange(studentId: string) {
     const student = students.find((s) => s.id === studentId);
-    setValues((v) => ({ ...v, studentId, studentName: student?.name ?? "", groupName: student?.groupName ?? "" }));
+    setValues((v) => ({ ...v, studentId, studentName: student?.name ?? "" }));
     setErrors((e) => ({ ...e, studentId: undefined }));
   }
 

@@ -26,6 +26,7 @@ interface StudentDetailPanelProps {
 export function StudentDetailPanel({ student, onBack, onEdit, onDelete }: StudentDetailPanelProps) {
   const attendance = ATTENDANCE_RECORDS.filter((a) => a.studentId === student.id);
   const invoices = INVOICES.filter((i) => i.studentId === student.id);
+  const balance = invoices.reduce((sum, inv) => sum + inv.balance, 0);
 
   return (
     <Card noPadding>
@@ -38,7 +39,7 @@ export function StudentDetailPanel({ student, onBack, onEdit, onDelete }: Studen
           <Avatar name={student.name} size="md" />
           <div>
             <p className="font-semibold text-slate-900">{student.name}</p>
-            <p className="text-xs text-slate-500">{student.groupName}</p>
+            <p className="text-xs text-slate-500">{student.loginId}</p>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -62,10 +63,9 @@ export function StudentDetailPanel({ student, onBack, onEdit, onDelete }: Studen
           <div className="space-y-3">
             <InfoRow icon={<KeyRound className="h-4 w-4" />} label="Login ID" value={student.loginId} />
             <InfoRow icon={<Phone className="h-4 w-4" />} label="Phone" value={student.phone} />
-            <InfoRow icon={<Users className="h-4 w-4" />} label="Group" value={student.groupName} />
             <InfoRow icon={<Users className="h-4 w-4" />} label="Parent" value={student.parentName} />
             <InfoRow icon={<Phone className="h-4 w-4" />} label="Parent Phone" value={student.parentPhone} />
-            <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Balance" value={student.balance > 0 ? `-$${student.balance}` : "Paid"} />
+            <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Balance" value={balance > 0 ? `-$${balance}` : "Paid"} />
           </div>
         </div>
 

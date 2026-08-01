@@ -28,14 +28,10 @@ export interface Student {
   gender: Gender;
   dateOfBirth: string;
   address: string;
-  groupId: string;
-  groupName: string;
   parentName: string;
   parentPhone: string;
   status: Status;
   enrolledAt: string;
-  attendanceRate: number;
-  balance: number;
   deletedAt?: string | null;
 }
 

@@ -1,13 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
 import { ChevronLeft, Users, Clock, MapPin, Pencil, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/badge";
-import { useStudentsStore } from "@/lib/store/students-store";
-import type { Group } from "@/types";
+import type { Group, Student } from "@/types";
 
 interface GroupDetailPanelProps {
   group: Group;
@@ -17,11 +15,10 @@ interface GroupDetailPanelProps {
 }
 
 export function GroupDetailPanel({ group, onBack, onEdit, onDelete }: GroupDetailPanelProps) {
-  const studentItems = useStudentsStore((s) => s.items);
-  const students = useMemo(
-    () => studentItems.filter((st) => !st.deletedAt && st.groupId === group.id),
-    [studentItems, group.id]
-  );
+  // Student no longer carries a groupId (no group/enrollment backend exists
+  // yet to keep it in sync with — see types/index.ts::Student) so group
+  // membership can't be derived here anymore.
+  const students: Student[] = [];
 
   return (
     <Card noPadding>

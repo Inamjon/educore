@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { useStudentsStore } from "@/lib/store/students-store";
-import { useGroupsStore } from "@/lib/store/groups-store";
 import { toast } from "@/lib/store/toast-store";
 import { studentSchema, type StudentFormValues } from "@/lib/schemas/student-schema";
 import { generateLoginId } from "@/lib/utils";
@@ -37,8 +36,6 @@ const EMPTY_VALUES: StudentFormValues = {
   gender: "male",
   dateOfBirth: "",
   address: "",
-  groupId: "",
-  groupName: "",
   parentName: "",
   parentPhone: "",
   status: "active",
@@ -76,8 +73,6 @@ function StudentFormFields({
 }) {
   const addStudent = useStudentsStore((s) => s.add);
   const updateStudent = useStudentsStore((s) => s.update);
-  const groupItems = useGroupsStore((s) => s.items);
-  const groups = useMemo(() => groupItems.filter((g) => !g.deletedAt), [groupItems]);
 
   const [values, setValues] = useState<StudentFormValues>(() =>
     student ? { ...EMPTY_VALUES, ...student } : EMPTY_VALUES
@@ -92,12 +87,6 @@ function StudentFormFields({
   function setField<K extends keyof StudentFormValues>(key: K, value: StudentFormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined }));
-  }
-
-  function handleGroupChange(groupId: string) {
-    const group = groups.find((g) => g.id === groupId);
-    setValues((v) => ({ ...v, groupId, groupName: group?.name ?? "" }));
-    setErrors((e) => ({ ...e, groupId: undefined }));
   }
 
   function handleSubmit() {
@@ -125,8 +114,6 @@ function StudentFormFields({
         ...result.data,
         loginId: generateLoginId("STU"),
         enrolledAt: new Date().toISOString().slice(0, 10),
-        attendanceRate: 0,
-        balance: 0,
       });
       toast.success("Student created");
     } else if (student) {
@@ -171,14 +158,6 @@ function StudentFormFields({
             error={errors.address}
             className="col-span-2"
           />
-          <Select
-            placeholder="Select group"
-            options={groups.map((g) => ({ value: g.id, label: g.name }))}
-            value={values.groupId}
-            onChange={(e) => handleGroupChange(e.target.value)}
-            className="col-span-2"
-          />
-          {errors.groupId && <p className="col-span-2 -mt-2 text-xs text-red-500">{errors.groupId}</p>}
           <Input
             placeholder="Parent name"
             value={values.parentName}
