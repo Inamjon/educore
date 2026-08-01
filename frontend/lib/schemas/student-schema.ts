@@ -1,14 +1,15 @@
 import { z } from "zod";
 
 export const studentSchema = z.object({
-  name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  firstName: z.string().trim().min(1, "First name is required"),
+  lastName: z.string().trim().min(1, "Last name is required"),
   phone: z.string().trim().min(7, "Phone number is required"),
   gender: z.enum(["male", "female", "other"]),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
-  address: z.string().trim().min(1, "Address is required"),
+  studentCode: z.string().trim().min(1, "Student code is required"),
+  status: z.enum(["active", "inactive", "graduated", "expelled", "transferred", "on_leave", "pending"]),
   parentName: z.string().trim().min(1, "Parent name is required"),
   parentPhone: z.string().trim().min(7, "Parent phone is required"),
-  status: z.enum(["active", "inactive", "pending", "suspended"]),
 });
 
 export type StudentFormValues = z.infer<typeof studentSchema>;

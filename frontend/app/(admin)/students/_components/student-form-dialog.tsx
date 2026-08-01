@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,11 +11,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
-import { useStudentsStore } from "@/lib/store/students-store";
 import { toast } from "@/lib/store/toast-store";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { studentSchema, type StudentFormValues } from "@/lib/schemas/student-schema";
-import { generateLoginId } from "@/lib/utils";
-import type { Student } from "@/types";
+import { useCreateStudentMutation, useStudentRoleQuery, useUpdateStudentMutation, useUserQuery } from "@/lib/queries/students";
+import { ApiError } from "@/lib/api/client";
+import type { StudentProfile } from "@/lib/api/students";
 
 const GENDER_OPTIONS = [
   { value: "male", label: "Male" },
@@ -25,26 +26,30 @@ const GENDER_OPTIONS = [
 
 const STATUS_OPTIONS = [
   { value: "active", label: "Active" },
+  { value: "on_leave", label: "On Leave" },
+  { value: "transferred", label: "Transferred" },
+  { value: "graduated", label: "Graduated" },
+  { value: "expelled", label: "Expelled" },
   { value: "inactive", label: "Inactive" },
   { value: "pending", label: "Pending" },
-  { value: "suspended", label: "Suspended" },
 ];
 
 const EMPTY_VALUES: StudentFormValues = {
-  name: "",
+  firstName: "",
+  lastName: "",
   phone: "",
   gender: "male",
   dateOfBirth: "",
-  address: "",
+  studentCode: "",
+  status: "active",
   parentName: "",
   parentPhone: "",
-  status: "active",
 };
 
 interface StudentFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  student?: Student | null;
+  student?: StudentProfile | null;
 }
 
 export function StudentFormDialog({ open, onOpenChange, student }: StudentFormDialogProps) {
@@ -68,29 +73,50 @@ function StudentFormFields({
   student,
   onOpenChange,
 }: {
-  student?: Student | null;
+  student?: StudentProfile | null;
   onOpenChange: (open: boolean) => void;
 }) {
-  const addStudent = useStudentsStore((s) => s.add);
-  const updateStudent = useStudentsStore((s) => s.update);
+  const mode = student ? "edit" : "create";
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
 
-  const [values, setValues] = useState<StudentFormValues>(() =>
-    student ? { ...EMPTY_VALUES, ...student } : EMPTY_VALUES
-  );
+  const { data: studentRole } = useStudentRoleQuery(organizationId);
+  const { data: userRecord, isLoading: userLoading } = useUserQuery(student?.user ?? null);
+  const createMutation = useCreateStudentMutation();
+  const updateMutation = useUpdateStudentMutation();
+
+  const [values, setValues] = useState<StudentFormValues>(EMPTY_VALUES);
+  const [initialized, setInitialized] = useState(mode === "create");
   const [errors, setErrors] = useState<Partial<Record<keyof StudentFormValues, string>>>({});
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState<string | undefined>();
+  const [submitting, setSubmitting] = useState(false);
 
-  const mode = student ? "edit" : "create";
+  useEffect(() => {
+    if (mode === "edit" && !initialized && userRecord && student) {
+      setValues({
+        firstName: userRecord.first_name,
+        lastName: userRecord.last_name,
+        phone: userRecord.phone,
+        gender: userRecord.gender ?? "male",
+        dateOfBirth: userRecord.date_of_birth ?? "",
+        studentCode: student.student_code,
+        status: student.status,
+        parentName: "",
+        parentPhone: "",
+      });
+      setInitialized(true);
+    }
+  }, [mode, initialized, userRecord, student]);
 
   function setField<K extends keyof StudentFormValues>(key: K, value: StudentFormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined }));
   }
 
-  function handleSubmit() {
-    const result = studentSchema.safeParse(values);
+  async function handleSubmit() {
+    const schema = mode === "create" ? studentSchema : studentSchema.omit({ parentName: true, parentPhone: true });
+    const result = schema.safeParse(values);
     if (!result.success) {
       const fieldErrors: Partial<Record<keyof StudentFormValues, string>> = {};
       for (const issue of result.error.issues) {
@@ -110,17 +136,66 @@ function StudentFormFields({
         setPasswordError("Passwords do not match");
         return;
       }
-      addStudent({
-        ...result.data,
-        loginId: generateLoginId("STU"),
-        enrolledAt: new Date().toISOString().slice(0, 10),
-      });
-      toast.success("Student created");
+      if (!organizationId || !studentRole) {
+        toast.error("Student role isn't set up for this organization yet.");
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        await createMutation.mutateAsync({
+          organizationId,
+          studentRoleId: studentRole.id,
+          firstName: values.firstName,
+          lastName: values.lastName,
+          phone: values.phone,
+          gender: values.gender,
+          dateOfBirth: values.dateOfBirth,
+          password,
+          studentCode: values.studentCode,
+          status: values.status,
+          parentName: values.parentName,
+          parentPhone: values.parentPhone,
+        });
+        toast.success("Student created");
+        onOpenChange(false);
+      } catch (err) {
+        applyServerErrors(err, setErrors);
+      } finally {
+        setSubmitting(false);
+      }
     } else if (student) {
-      updateStudent(student.id, result.data);
-      toast.success("Student updated");
+      setSubmitting(true);
+      try {
+        await updateMutation.mutateAsync({
+          profileId: student.id,
+          input: {
+            userId: student.user,
+            firstName: values.firstName,
+            lastName: values.lastName,
+            phone: values.phone,
+            gender: values.gender,
+            dateOfBirth: values.dateOfBirth,
+            studentCode: values.studentCode,
+            status: values.status,
+          },
+        });
+        toast.success("Student updated");
+        onOpenChange(false);
+      } catch (err) {
+        applyServerErrors(err, setErrors);
+      } finally {
+        setSubmitting(false);
+      }
     }
-    onOpenChange(false);
+  }
+
+  if (mode === "edit" && (userLoading || !initialized)) {
+    return (
+      <DialogBody>
+        <p className="text-sm text-slate-400 py-8 text-center">Loading student…</p>
+      </DialogBody>
+    );
   }
 
   return (
@@ -128,11 +203,16 @@ function StudentFormFields({
       <DialogBody>
         <div className="grid grid-cols-2 gap-3">
           <Input
-            placeholder="Full name"
-            value={values.name}
-            onChange={(e) => setField("name", e.target.value)}
-            error={errors.name}
-            className="col-span-2"
+            placeholder="First name"
+            value={values.firstName}
+            onChange={(e) => setField("firstName", e.target.value)}
+            error={errors.firstName}
+          />
+          <Input
+            placeholder="Last name"
+            value={values.lastName}
+            onChange={(e) => setField("lastName", e.target.value)}
+            error={errors.lastName}
           />
           <Input
             placeholder="Phone"
@@ -152,23 +232,10 @@ function StudentFormFields({
             error={errors.dateOfBirth}
           />
           <Input
-            placeholder="Address"
-            value={values.address}
-            onChange={(e) => setField("address", e.target.value)}
-            error={errors.address}
-            className="col-span-2"
-          />
-          <Input
-            placeholder="Parent name"
-            value={values.parentName}
-            onChange={(e) => setField("parentName", e.target.value)}
-            error={errors.parentName}
-          />
-          <Input
-            placeholder="Parent phone"
-            value={values.parentPhone}
-            onChange={(e) => setField("parentPhone", e.target.value)}
-            error={errors.parentPhone}
+            placeholder="Student code"
+            value={values.studentCode}
+            onChange={(e) => setField("studentCode", e.target.value)}
+            error={errors.studentCode}
           />
           <Select
             options={STATUS_OPTIONS}
@@ -178,11 +245,23 @@ function StudentFormFields({
           />
 
           {mode === "edit" && student && (
-            <Input value={student.loginId} disabled placeholder="Login ID" className="col-span-2" />
+            <Input value={student.user_login_id} disabled placeholder="Login ID" className="col-span-2" />
           )}
 
           {mode === "create" && (
             <>
+              <Input
+                placeholder="Parent name"
+                value={values.parentName}
+                onChange={(e) => setField("parentName", e.target.value)}
+                error={errors.parentName}
+              />
+              <Input
+                placeholder="Parent phone"
+                value={values.parentPhone}
+                onChange={(e) => setField("parentPhone", e.target.value)}
+                error={errors.parentPhone}
+              />
               <Input
                 type="password"
                 placeholder="Password"
@@ -204,11 +283,30 @@ function StudentFormFields({
         </div>
       </DialogBody>
       <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
           Cancel
         </Button>
-        <Button onClick={handleSubmit}>{mode === "create" ? "Create" : "Save"}</Button>
+        <Button onClick={handleSubmit} loading={submitting}>
+          {mode === "create" ? "Create" : "Save"}
+        </Button>
       </DialogFooter>
     </>
   );
+}
+
+function applyServerErrors(
+  err: unknown,
+  setErrors: React.Dispatch<React.SetStateAction<Partial<Record<keyof StudentFormValues, string>>>>
+) {
+  if (err instanceof ApiError && err.fieldErrors) {
+    const mapped: Partial<Record<keyof StudentFormValues, string>> = {};
+    for (const [key, messages] of Object.entries(err.fieldErrors)) {
+      const field = key === "student_code" ? "studentCode" : (key as keyof StudentFormValues);
+      mapped[field] = messages[0];
+    }
+    setErrors(mapped);
+    toast.error("Please fix the highlighted fields.");
+  } else {
+    toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+  }
 }

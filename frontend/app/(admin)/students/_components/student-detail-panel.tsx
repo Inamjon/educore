@@ -7,7 +7,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/badge";
 import { ATTENDANCE_RECORDS, INVOICES } from "@/lib/data";
 import { formatDate, formatCurrency } from "@/lib/utils";
-import type { Student } from "@/types";
+import { useStudentParentsQuery } from "@/lib/queries/students";
+import type { StudentProfile } from "@/lib/api/students";
 
 const ATTENDANCE_COLORS: Record<string, string> = {
   present: "bg-emerald-100 text-emerald-700",
@@ -17,16 +18,23 @@ const ATTENDANCE_COLORS: Record<string, string> = {
 };
 
 interface StudentDetailPanelProps {
-  student: Student;
+  student: StudentProfile;
   onBack: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }
 
 export function StudentDetailPanel({ student, onBack, onEdit, onDelete }: StudentDetailPanelProps) {
+  // Attendance/Invoices are still mock-only (no backend app exists yet — see
+  // types/index.ts) and keyed by mock student ids, so these will always be
+  // empty for real students. That's an honest reflection of reality, not a
+  // bug: neither subsystem exists to have real data yet.
   const attendance = ATTENDANCE_RECORDS.filter((a) => a.studentId === student.id);
   const invoices = INVOICES.filter((i) => i.studentId === student.id);
   const balance = invoices.reduce((sum, inv) => sum + inv.balance, 0);
+
+  const { data: parents } = useStudentParentsQuery(student.id);
+  const primaryParent = parents?.find((p) => p.is_primary_contact) ?? parents?.[0];
 
   return (
     <Card noPadding>
@@ -36,10 +44,10 @@ export function StudentDetailPanel({ student, onBack, onEdit, onDelete }: Studen
           Back
         </Button>
         <div className="flex items-center gap-3">
-          <Avatar name={student.name} size="md" />
+          <Avatar name={student.user_full_name} size="md" />
           <div>
-            <p className="font-semibold text-slate-900">{student.name}</p>
-            <p className="text-xs text-slate-500">{student.loginId}</p>
+            <p className="font-semibold text-slate-900">{student.user_full_name}</p>
+            <p className="text-xs text-slate-500">{student.user_login_id}</p>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -61,10 +69,21 @@ export function StudentDetailPanel({ student, onBack, onEdit, onDelete }: Studen
             Personal Information
           </h4>
           <div className="space-y-3">
-            <InfoRow icon={<KeyRound className="h-4 w-4" />} label="Login ID" value={student.loginId} />
-            <InfoRow icon={<Phone className="h-4 w-4" />} label="Phone" value={student.phone} />
-            <InfoRow icon={<Users className="h-4 w-4" />} label="Parent" value={student.parentName} />
-            <InfoRow icon={<Phone className="h-4 w-4" />} label="Parent Phone" value={student.parentPhone} />
+            <InfoRow icon={<KeyRound className="h-4 w-4" />} label="Login ID" value={student.user_login_id} />
+            <InfoRow icon={<Phone className="h-4 w-4" />} label="Phone" value={student.user_phone} />
+            <InfoRow icon={<KeyRound className="h-4 w-4" />} label="Student Code" value={student.student_code} />
+            {primaryParent && (
+              <>
+                <InfoRow
+                  icon={<Users className="h-4 w-4" />}
+                  label="Parent"
+                  value={`${primaryParent.first_name} ${primaryParent.last_name}`.trim()}
+                />
+                {primaryParent.phone && (
+                  <InfoRow icon={<Phone className="h-4 w-4" />} label="Parent Phone" value={primaryParent.phone} />
+                )}
+              </>
+            )}
             <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Balance" value={balance > 0 ? `-$${balance}` : "Paid"} />
           </div>
         </div>

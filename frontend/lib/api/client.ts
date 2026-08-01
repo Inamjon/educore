@@ -6,14 +6,27 @@ interface Envelope<T> {
   data: T;
 }
 
+/** Backend field-validation errors, e.g. `{"student_code": ["This field is required."]}`. */
+export type FieldErrors = Record<string, string[]>;
+
 export class ApiError extends Error {
   status: number;
+  /** Set only for genuine per-field serializer validation errors — null for
+   * everything else (401/403/404, or a generic error string), matching
+   * common/exceptions.py::envelope_exception_handler's data shape. */
+  fieldErrors: FieldErrors | null;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, fieldErrors: FieldErrors | null = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.fieldErrors = fieldErrors;
   }
+}
+
+function extractFieldErrors(data: unknown): FieldErrors | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  return data as FieldErrors;
 }
 
 /**
@@ -34,7 +47,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   const body = (await response.json().catch(() => null)) as Envelope<T> | null;
 
   if (!response.ok || !body || !body.success) {
-    throw new ApiError(body?.message ?? "Request failed.", response.status);
+    throw new ApiError(body?.message ?? "Request failed.", response.status, extractFieldErrors(body?.data));
   }
 
   return body.data;

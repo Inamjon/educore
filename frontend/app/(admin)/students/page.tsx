@@ -1,6 +1,6 @@
 "use client";
-import { useMemo, useState } from "react";
-import { UserPlus, Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { UserPlus, Pencil, Trash2, Loader2, AlertCircle } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { DataTable, Column } from "@/components/ui/data-table";
@@ -10,9 +10,11 @@ import { Button } from "@/components/ui/button";
 import { SearchInput, Select } from "@/components/ui/input";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useStudentsStore } from "@/lib/store/students-store";
 import { toast } from "@/lib/store/toast-store";
-import type { Student } from "@/types";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { useDeleteStudentMutation, useStudentsQuery } from "@/lib/queries/students";
+import type { StudentProfile, StudentStatus } from "@/lib/api/students";
+import { ApiError } from "@/lib/api/client";
 import { Users, UserCheck, UserX, Clock } from "lucide-react";
 import { StudentFormDialog } from "./_components/student-form-dialog";
 import { StudentDetailPanel } from "./_components/student-detail-panel";
@@ -20,70 +22,67 @@ import { StudentDetailPanel } from "./_components/student-detail-panel";
 const STATUS_OPTIONS = [
   { value: "", label: "All Status" },
   { value: "active", label: "Active" },
+  { value: "on_leave", label: "On Leave" },
+  { value: "transferred", label: "Transferred" },
+  { value: "graduated", label: "Graduated" },
+  { value: "expelled", label: "Expelled" },
   { value: "inactive", label: "Inactive" },
   { value: "pending", label: "Pending" },
-  { value: "suspended", label: "Suspended" },
-];
-
-const GENDER_OPTIONS = [
-  { value: "", label: "All Genders" },
-  { value: "male", label: "Male" },
-  { value: "female", label: "Female" },
 ];
 
 export default function StudentsPage() {
-  const studentItems = useStudentsStore((s) => s.items);
-  const students = useMemo(() => studentItems.filter((s) => !s.deletedAt), [studentItems]);
-
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [genderFilter, setGenderFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StudentStatus | "">("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [deletingStudent, setDeletingStudent] = useState<Student | null>(null);
+  const [editingStudent, setEditingStudent] = useState<StudentProfile | null>(null);
+  const [deletingStudent, setDeletingStudent] = useState<StudentProfile | null>(null);
 
-  const filtered = students.filter((s) => {
-    const matchesSearch =
-      !search ||
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.loginId.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = !statusFilter || s.status === statusFilter;
-    const matchesGender = !genderFilter || s.gender === genderFilter;
-    return matchesSearch && matchesStatus && matchesGender;
+  const {
+    data: students,
+    isLoading,
+    isError,
+    error,
+  } = useStudentsQuery({
+    organizationId: organizationId ?? "",
+    status: statusFilter || undefined,
+    search: search || undefined,
   });
+  const deleteMutation = useDeleteStudentMutation();
 
-  const selectedStudent = students.find((s) => s.id === selectedId) ?? null;
+  const list = students ?? [];
+  const selectedStudent = list.find((s) => s.id === selectedId) ?? null;
 
   const stats = {
-    total: students.length,
-    active: students.filter((s) => s.status === "active").length,
-    inactive: students.filter((s) => s.status === "inactive" || s.status === "suspended").length,
-    pending: students.filter((s) => s.status === "pending").length,
+    total: list.length,
+    active: list.filter((s) => s.status === "active").length,
+    inactive: list.filter((s) => s.status === "inactive" || s.status === "on_leave").length,
+    pending: list.filter((s) => s.status === "pending").length,
   };
 
-  const COLUMNS: Column<Student>[] = [
+  const COLUMNS: Column<StudentProfile>[] = [
     {
-      key: "name",
+      key: "user_full_name",
       label: "Student",
       render: (_, row) => (
         <div className="flex items-center gap-3">
-          <Avatar name={row.name} size="sm" />
+          <Avatar name={row.user_full_name} size="sm" />
           <div>
-            <p className="font-medium text-slate-900">{row.name}</p>
-            <p className="text-xs text-slate-400">{row.loginId}</p>
+            <p className="font-medium text-slate-900">{row.user_full_name}</p>
+            <p className="text-xs text-slate-400">{row.user_login_id}</p>
           </div>
         </div>
       ),
     },
-    { key: "phone", label: "Phone" },
+    { key: "user_phone", label: "Phone" },
     {
       key: "status",
       label: "Status",
       render: (val) => <StatusBadge status={String(val)} />,
     },
     {
-      key: "enrolledAt",
+      key: "enrollment_date",
       label: "Enrolled",
       render: (val) => new Date(String(val)).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
     },
@@ -138,22 +137,38 @@ export default function StudentsPage() {
       <Card
         noPadding
         title="All Students"
-        subtitle={`Showing ${filtered.length} of ${students.length} students`}
+        subtitle={`Showing ${list.length} students`}
         actions={
           <div className="flex items-center gap-2">
             <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search students..." />
-            <Select options={STATUS_OPTIONS} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-36" />
-            <Select options={GENDER_OPTIONS} value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)} className="w-32" />
+            <Select
+              options={STATUS_OPTIONS}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StudentStatus | "")}
+              className="w-36"
+            />
           </div>
         }
       >
-        <DataTable
-          columns={COLUMNS}
-          data={filtered}
-          keyField="id"
-          emptyMessage="No students found"
-          onRowClick={(row) => setSelectedId(row.id)}
-        />
+        {isError ? (
+          <div className="flex items-center gap-2 px-6 py-8 text-sm text-red-500">
+            <AlertCircle className="h-4 w-4" />
+            {error instanceof ApiError ? error.message : "Failed to load students."}
+          </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-slate-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading students…
+          </div>
+        ) : (
+          <DataTable
+            columns={COLUMNS}
+            data={list}
+            keyField="id"
+            emptyMessage="No students found"
+            onRowClick={(row) => setSelectedId(row.id)}
+          />
+        )}
       </Card>
 
       {selectedStudent && (
@@ -174,13 +189,16 @@ export default function StudentsPage() {
         open={!!deletingStudent}
         onOpenChange={(open) => !open && setDeletingStudent(null)}
         title="Delete student"
-        description={`Are you sure you want to remove ${deletingStudent?.name}? This can be restored later from the database if needed.`}
+        description={`Are you sure you want to remove ${deletingStudent?.user_full_name}? This can be restored later from the database if needed.`}
         confirmLabel="Delete"
-        onConfirm={() => {
-          if (deletingStudent) {
-            useStudentsStore.getState().softDelete(deletingStudent.id);
+        onConfirm={async () => {
+          if (!deletingStudent) return;
+          try {
+            await deleteMutation.mutateAsync(deletingStudent.id);
             toast.success("Student removed");
             if (selectedId === deletingStudent.id) setSelectedId(null);
+          } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to delete student.");
           }
         }}
       />
