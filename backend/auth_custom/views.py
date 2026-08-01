@@ -6,11 +6,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from auth_custom.models import LoginAttempt, Session
-from auth_custom.serializers import LoginSerializer, RefreshRequestSerializer, SessionSerializer
+from auth_custom.serializers import LoginSerializer, SessionSerializer
 from auth_custom.services import token_service
 from auth_custom.services.session_service import BYPASS_ALIAS, revoke_session
 from common.audit import audit_log
+from common.cookies import REFRESH_COOKIE, clear_auth_cookies, set_auth_cookies
 from foundation.models import User
+from foundation.services import primary_role_slug
 
 
 class LoginView(APIView):
@@ -52,22 +54,24 @@ class LoginView(APIView):
         self._log_attempt(request, login_id, user, "success", None)
         audit_log(request, action="login", entity_type="user", entity_id=str(user.id), user=user, using=BYPASS_ALIAS)
 
-        return Response(
+        response = Response(
             {
                 "success": True,
                 "message": "Logged in",
                 "data": {
-                    **tokens,
                     "user": {
                         "id": str(user.id),
                         "login_id": user.login_id,
                         "full_name": user.get_full_name(),
                         "organization_id": str(user.organization_id),
                         "status": user.status,
+                        "role": primary_role_slug(user, using=BYPASS_ALIAS),
                     },
                 },
             }
         )
+        set_auth_cookies(response, access=tokens["access"], refresh=tokens["refresh"])
+        return response
 
     @staticmethod
     def _log_attempt(request, login_id: str, user, status_value: str, reason: str | None) -> None:
@@ -98,34 +102,50 @@ class RefreshView(APIView):
         return "Bearer"
 
     def post(self, request):
-        serializer = RefreshRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        raw_refresh = serializer.validated_data["refresh"]
+        raw_refresh = request.COOKIES.get(REFRESH_COOKIE)
+        if not raw_refresh:
+            raise AuthenticationFailed("No refresh token cookie present.")
 
         try:
             tokens = token_service.rotate_tokens(raw_refresh_token=raw_refresh, request=request)
         except ValueError as exc:
             raise AuthenticationFailed(str(exc)) from exc
 
-        return Response({"success": True, "message": "", "data": tokens})
+        response = Response({"success": True, "message": "", "data": None})
+        set_auth_cookies(response, access=tokens["access"], refresh=tokens["refresh"])
+        return response
 
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        raw_refresh = request.data.get("refresh")
+        raw_refresh = request.COOKIES.get(REFRESH_COOKIE)
         if raw_refresh:
             token_service.revoke_refresh_token(raw_refresh, reason="logout")
 
         session_id = request.auth.get("session_id") if request.auth else None
         if session_id:
-            session = Session.objects.using(BYPASS_ALIAS).filter(pk=session_id).first()
+            # Deliberately the default (RLS, non-bypass) connection, not
+            # BYPASS_ALIAS: by this point the request is already
+            # authenticated and org-scoped, so RLS's own-org policy already
+            # covers it. Using BYPASS_ALIAS here previously deadlocked —
+            # SessionValidatingJWTAuthentication's last_activity_at UPDATE
+            # on this exact row (via `default`, inside the request-wide
+            # transaction.atomic() from OrganizationContextMiddleware) holds
+            # a row lock until the request finishes, and a second UPDATE on
+            # the SAME row from a second, separate connection (BYPASS_ALIAS)
+            # then blocks waiting for a commit that can't happen until that
+            # second UPDATE itself returns — a guaranteed self-deadlock on
+            # every logout call.
+            session = Session.objects.filter(pk=session_id).first()
             if session:
                 revoke_session(session, reason="logout")
 
         audit_log(request, action="logout", entity_type="user", entity_id=str(request.user.id))
-        return Response({"success": True, "message": "Logged out", "data": None})
+        response = Response({"success": True, "message": "Logged out", "data": None})
+        clear_auth_cookies(response)
+        return response
 
 
 class SessionListView(APIView):

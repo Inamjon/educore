@@ -34,6 +34,7 @@ from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import UntypedToken
 
 from common.context import set_current_org_id, set_current_user_id
+from common.cookies import ACCESS_COOKIE
 
 
 class OrganizationContextMiddleware:
@@ -62,10 +63,18 @@ class OrganizationContextMiddleware:
 
     @staticmethod
     def _claims_from_request(request) -> tuple[str | None, str | None]:
-        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
-        if not auth_header.startswith("Bearer "):
-            return None, None
-        raw_token = auth_header.removeprefix("Bearer ").strip()
+        # The frontend never holds the raw JWT (httpOnly cookie only), so the
+        # access token normally arrives via the `access_token` cookie —
+        # checked first, with the Authorization header kept as a fallback
+        # for tooling/tests that authenticate the old way. Must match
+        # common.authentication.SessionValidatingJWTAuthentication's lookup
+        # order, since that's what actually authenticates the request later.
+        raw_token = request.COOKIES.get(ACCESS_COOKIE)
+        if raw_token is None:
+            auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+            if not auth_header.startswith("Bearer "):
+                return None, None
+            raw_token = auth_header.removeprefix("Bearer ").strip()
         try:
             token = UntypedToken(raw_token)  # signature + exp check only, no DB hit
         except (InvalidToken, TokenError):

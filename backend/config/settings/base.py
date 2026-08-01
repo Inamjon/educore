@@ -43,6 +43,7 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS: list[str] = []  # overridden per-environment
+CORS_ALLOW_CREDENTIALS = True  # frontend sends/receives the httpOnly auth cookies cross-port
 
 ROOT_URLCONF = "config.urls"
 

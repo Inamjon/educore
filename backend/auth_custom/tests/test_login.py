@@ -43,7 +43,9 @@ def test_login_with_correct_credentials_returns_tokens(user):
     assert response.status_code == 200
     body = response.json()
     assert body["success"] is True
-    assert "access" in body["data"] and "refresh" in body["data"]
+    assert "access_token" in response.cookies and "refresh_token" in response.cookies
+    assert response.cookies["access_token"]["httponly"]
+    assert "access" not in body["data"] and "refresh" not in body["data"]
 
 
 def test_login_with_wrong_password_is_rejected(user):
@@ -73,12 +75,34 @@ def test_authenticated_request_can_list_own_sessions(user):
     login_response = client.post(
         "/api/v1/auth/login/", {"login_id": user.login_id, "password": "s3cret-pass"}, format="json"
     )
-    access = login_response.json()["data"]["access"]
+    assert login_response.status_code == 200
 
-    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+    # APIClient carries cookies between calls on the same instance, same as
+    # a real browser — no manual Authorization header needed.
     response = client.get("/api/v1/auth/sessions/")
 
     assert response.status_code == 200
     sessions = response.json()["data"]
     assert len(sessions) == 1
     assert sessions[0]["current"] is True
+
+
+def test_logout_revokes_current_session(user):
+    """Regression test: LogoutView revoking request.auth's own session row
+    used to deadlock — SessionValidatingJWTAuthentication's last_activity_at
+    UPDATE (via `default`) held a lock the logout revoke's UPDATE (via
+    BYPASS_ALIAS, a second connection) then blocked on, inside the same
+    request-wide transaction.atomic() from OrganizationContextMiddleware.
+    """
+    client = APIClient()
+    login_response = client.post(
+        "/api/v1/auth/login/", {"login_id": user.login_id, "password": "s3cret-pass"}, format="json"
+    )
+    assert login_response.status_code == 200
+
+    logout_response = client.post("/api/v1/auth/logout/")
+    assert logout_response.status_code == 200
+    assert logout_response.json()["success"] is True
+
+    response = client.get("/api/v1/auth/sessions/")
+    assert response.status_code == 401

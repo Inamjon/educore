@@ -8,10 +8,6 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(trim_whitespace=False)
 
 
-class RefreshRequestSerializer(serializers.Serializer):
-    refresh = serializers.CharField()
-
-
 class SessionSerializer(serializers.ModelSerializer):
     current = serializers.SerializerMethodField()
 
