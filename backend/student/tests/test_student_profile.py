@@ -18,7 +18,8 @@ def _make_org(**kwargs):
 
 def _make_student(org, **kwargs):
     user = User.objects.create_user(
-        organization=org, first_name="Alice", last_name="Doe", password="pw123456"
+        organization=org, first_name="Alice", last_name="Doe", password="pw123456",
+        email="alice.doe@test-academy.example",
     )
     kwargs.setdefault("student_code", f"STU-{StudentProfile.objects.count() + 1}")
     return StudentProfile.objects.create(organization=org, user=user, **kwargs)
@@ -28,14 +29,20 @@ def test_student_code_unique_per_organization():
     org = _make_org()
     _make_student(org, student_code="STU-0001")
 
-    other_user = User.objects.create_user(organization=org, first_name="Bob", last_name="Roe", password="pw123456")
+    other_user = User.objects.create_user(
+        organization=org, first_name="Bob", last_name="Roe", password="pw123456",
+        email="bob.roe@test-academy.example",
+    )
     with pytest.raises(IntegrityError):
         StudentProfile.objects.create(organization=org, user=other_user, student_code="STU-0001")
 
 
 def test_graduation_date_before_enrollment_date_is_rejected():
     org = _make_org()
-    user = User.objects.create_user(organization=org, first_name="Alice", last_name="Doe", password="pw123456")
+    user = User.objects.create_user(
+        organization=org, first_name="Alice", last_name="Doe", password="pw123456",
+        email="alice.doe@test-academy.example",
+    )
     with pytest.raises(IntegrityError):
         StudentProfile.objects.create(
             organization=org,

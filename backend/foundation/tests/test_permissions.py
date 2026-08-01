@@ -8,7 +8,9 @@ pytestmark = pytest.mark.django_db
 
 def test_org_scoped_role_grants_only_its_own_permissions():
     org = Organization.objects.create(name="Org", slug="org-1", email="a@example.com")
-    user = User.objects.create_user(organization=org, first_name="A", last_name="B", password="pw123456")
+    user = User.objects.create_user(
+        organization=org, first_name="A", last_name="B", password="pw123456", email="a.b@example.com"
+    )
 
     role = Role.objects.create(organization=org, name="Center Admin", slug="center_admin")
     perm = Permission.objects.create(module="students", action="create")
@@ -21,7 +23,9 @@ def test_org_scoped_role_grants_only_its_own_permissions():
 
 def test_system_level_role_grants_everything():
     org = Organization.objects.create(name="Platform", slug="platform-1", email="a@example.com")
-    user = User.objects.create_user(organization=org, first_name="Super", last_name="Admin", password="pw123456")
+    user = User.objects.create_user(
+        organization=org, first_name="Super", last_name="Admin", password="pw123456", email="super.admin@example.com"
+    )
 
     system_role = Role.objects.create(organization=None, name="Super Admin", slug="super_admin", is_system=True)
     UserRole.objects.create(user=user, role=system_role, organization=org)

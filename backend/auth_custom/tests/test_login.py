@@ -3,19 +3,34 @@ already exist on whatever server runs the test suite (the latter needs
 BYPASSRLS) — same roles a real deployment needs, see .env.example.
 """
 
+import uuid
+
 import pytest
 from rest_framework.test import APIClient
 
 from foundation.models import Organization, User
 
-pytestmark = pytest.mark.django_db
+# transaction=True: LoginView reads/writes via the separate `auth_bypass_rls`
+# connection alias. Under the default wrapped-transaction test isolation,
+# that connection is a genuinely different DB session and can't see rows the
+# `user` fixture inserted (but never committed) via `default` — Postgres
+# MVCC hides uncommitted work from other sessions regardless of MIRROR/same
+# physical DB. transaction=True makes fixtures actually commit (cleaned up
+# via truncation after the test), so the bypass connection can see them.
+pytestmark = pytest.mark.django_db(databases=["default", "auth_bypass_rls"], transaction=True)
 
 
 @pytest.fixture
 def user():
-    org = Organization.objects.create(name="Org", slug="org-login-test", email="a@example.com")
+    # Unique slug per call, not a fixed literal: transaction=True's post-test
+    # flush truncates via Django's introspected table list, which only sees
+    # the default (unqualified) search_path — our tables live in named
+    # schemas (foundation, auth, ...) outside it, so they never actually get
+    # truncated between tests and a fixed slug would collide.
+    org = Organization.objects.create(name="Org", slug=f"org-login-test-{uuid.uuid4().hex[:8]}", email="a@example.com")
     return User.objects.create_user(
-        organization=org, first_name="Alice", last_name="Doe", password="s3cret-pass", status="active"
+        organization=org, first_name="Alice", last_name="Doe", password="s3cret-pass", status="active",
+        email="alice.doe@example.com",
     )
 
 
