@@ -23,6 +23,13 @@ class LoginView(APIView):
     authentication_classes: list = []
     permission_classes = [AllowAny]
 
+    def get_authenticate_header(self, request):
+        # With authentication_classes=[], DRF's default exception handler
+        # has no WWW-Authenticate header to report and silently downgrades
+        # AuthenticationFailed (bad login_id/password, suspended account)
+        # from 401 to 403 — this restores the correct 401.
+        return "Bearer"
+
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -84,6 +91,11 @@ class RefreshView(APIView):
 
     authentication_classes: list = []
     permission_classes = [AllowAny]
+
+    def get_authenticate_header(self, request):
+        # Same fix as LoginView.get_authenticate_header — otherwise an
+        # invalid/expired refresh token would 403 instead of 401.
+        return "Bearer"
 
     def post(self, request):
         serializer = RefreshRequestSerializer(data=request.data)
