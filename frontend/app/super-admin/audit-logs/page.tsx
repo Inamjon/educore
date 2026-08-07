@@ -3,231 +3,237 @@
 import { useState, useMemo } from 'react';
 import {
   ScrollText,
-  Building2,
-  ShieldCheck,
+  PlusCircle,
+  Pencil,
   Trash2,
-  Settings,
-  CreditCard,
   LogIn,
-  TrendingUp,
-  X,
-  AlertTriangle,
+  LogOut,
+  Download,
+  Upload,
+  Eye,
   Info,
-  AlertOctagon,
+  AlertCircle,
+  Loader2,
+  X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui/stat-card';
-import { SearchInput, Select } from '@/components/ui/input';
+import { Select } from '@/components/ui/input';
 import { DataTable, Column } from '@/components/ui/data-table';
-import { SA_AUDIT_LOGS, SAAuditLog, AuditSeverity } from '@/lib/super-admin-data';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+} from '@/components/ui/dialog';
+import { useOrganizationsQuery } from '@/lib/queries/organizations';
+import { useAuditLogsQuery } from '@/lib/queries/audit-logs';
+import type { AuditLog, AuditAction } from '@/lib/api/audit-logs';
+import { ApiError } from '@/lib/api/client';
 import { cn } from '@/lib/utils';
 
-// ─── Action Config ────────────────────────────────────────────────────────────
+// ─── Action Config ──────────────────────────────────────────────────────────
+// Mirrors backend/foundation/models/audit_log.py::AUDIT_ACTION_CHOICES —
+// every value the API can actually return, nothing invented.
 
-function actionConfig(action: string): { icon: React.ReactNode; variant: 'success' | 'danger' | 'warning' | 'purple' | 'info' | 'secondary' | 'default'; label: string } {
-  const map: Record<string, { icon: React.ReactNode; variant: 'success' | 'danger' | 'warning' | 'purple' | 'info' | 'secondary' | 'default'; label: string }> = {
-    CENTER_CREATED:       { icon: <Building2 className="h-3.5 w-3.5" />,   variant: 'success',   label: 'Center Created' },
-    ADMIN_ADDED:          { icon: <ShieldCheck className="h-3.5 w-3.5" />, variant: 'success',   label: 'Admin Added' },
-    SUBSCRIPTION_UPGRADED:{ icon: <TrendingUp className="h-3.5 w-3.5" />,  variant: 'purple',    label: 'Subscription Upgraded' },
-    BRANCH_SUSPENDED:     { icon: <AlertTriangle className="h-3.5 w-3.5" />,variant: 'warning',  label: 'Branch Suspended' },
-    PAYMENT_RECEIVED:     { icon: <CreditCard className="h-3.5 w-3.5" />,  variant: 'info',      label: 'Payment Received' },
-    LOGIN_FAILED:         { icon: <LogIn className="h-3.5 w-3.5" />,       variant: 'danger',    label: 'Login Failed' },
-    SETTINGS_UPDATED:     { icon: <Settings className="h-3.5 w-3.5" />,    variant: 'secondary', label: 'Settings Updated' },
-    USER_DELETED:         { icon: <Trash2 className="h-3.5 w-3.5" />,      variant: 'danger',    label: 'User Deleted' },
-  };
-  return map[action] ?? { icon: <Info className="h-3.5 w-3.5" />, variant: 'default', label: action.replace(/_/g, ' ') };
-}
+const ACTION_CONFIG: Record<AuditAction, { icon: React.ReactNode; variant: 'success' | 'danger' | 'warning' | 'purple' | 'info' | 'secondary' | 'default'; label: string }> = {
+  create: { icon: <PlusCircle className="h-3.5 w-3.5" />, variant: 'success', label: 'Create' },
+  update: { icon: <Pencil className="h-3.5 w-3.5" />, variant: 'info', label: 'Update' },
+  delete: { icon: <Trash2 className="h-3.5 w-3.5" />, variant: 'danger', label: 'Delete' },
+  login: { icon: <LogIn className="h-3.5 w-3.5" />, variant: 'purple', label: 'Login' },
+  logout: { icon: <LogOut className="h-3.5 w-3.5" />, variant: 'secondary', label: 'Logout' },
+  export: { icon: <Download className="h-3.5 w-3.5" />, variant: 'warning', label: 'Export' },
+  import: { icon: <Upload className="h-3.5 w-3.5" />, variant: 'warning', label: 'Import' },
+  read: { icon: <Eye className="h-3.5 w-3.5" />, variant: 'default', label: 'Read' },
+};
 
-// ─── Severity Badge ───────────────────────────────────────────────────────────
-
-function SeverityBadge({ severity }: { severity: AuditSeverity }) {
-  const map: Record<AuditSeverity, { Icon: React.ElementType; className: string; label: string }> = {
-    info:     { Icon: Info,          className: 'text-blue-600 bg-blue-50',   label: 'Info' },
-    warning:  { Icon: AlertTriangle, className: 'text-amber-600 bg-amber-50', label: 'Warning' },
-    critical: { Icon: AlertOctagon,  className: 'text-red-600 bg-red-50',     label: 'Critical' },
-  };
-  const cfg = map[severity];
+function ActionBadge({ action }: { action: AuditAction }) {
+  const cfg = ACTION_CONFIG[action] ?? { icon: <Info className="h-3.5 w-3.5" />, variant: 'default' as const, label: action };
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium', cfg.className)}>
-      <cfg.Icon className="h-3 w-3" />
-      {cfg.label}
+    <span className="inline-flex">
+      <Badge label={cfg.label} variant={cfg.variant} />
     </span>
   );
 }
 
-// ─── Derived stats ─────────────────────────────────────────────────────────────
+function formatEntityType(entityType: string) {
+  return entityType
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
 
-const totalLogs = SA_AUDIT_LOGS.length;
-const criticalCount = SA_AUDIT_LOGS.filter((l) => l.severity === 'critical').length;
-const warningCount  = SA_AUDIT_LOGS.filter((l) => l.severity === 'warning').length;
-const infoCount     = SA_AUDIT_LOGS.filter((l) => l.severity === 'info').length;
+// Every entity_type currently written by @audited()/audit_log() call sites
+// across the backend — see grep of `entity_type=` in views.py files.
+const ENTITY_TYPE_OPTIONS = [
+  { value: '', label: 'All Entities' },
+  ...[
+    'organization', 'branch', 'user', 'invoice', 'payment', 'notification',
+    'assignment', 'submission', 'lesson', 'group', 'student_profile',
+    'course', 'session', 'attendance', 'teacher_profile',
+  ].map((v) => ({ value: v, label: formatEntityType(v) })),
+];
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+const ACTION_OPTIONS = [
+  { value: '', label: 'All Actions' },
+  ...(Object.keys(ACTION_CONFIG) as AuditAction[]).map((a) => ({ value: a, label: ACTION_CONFIG[a].label })),
+];
+
+function formatDateTime(iso: string) {
+  const d = new Date(iso);
+  return {
+    date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    time: d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+  };
+}
+
+// ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function AuditLogsPage() {
-  const [search, setSearch] = useState('');
-  const [filterAction, setFilterAction] = useState('');
-  const [filterSeverity, setFilterSeverity] = useState('');
+  const [organizationId, setOrganizationId] = useState('');
+  const [action, setAction] = useState<AuditAction | ''>('');
+  const [entityType, setEntityType] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [viewingLog, setViewingLog] = useState<AuditLog | null>(null);
 
-  // ── Filtered data ──────────────────────────────────────────────────────────
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return SA_AUDIT_LOGS.filter((log) => {
-      const matchSearch =
-        !q ||
-        log.entityName.toLowerCase().includes(q) ||
-        log.user.toLowerCase().includes(q) ||
-        log.ip.includes(q) ||
-        log.action.toLowerCase().includes(q);
-      const matchAction = !filterAction || log.action === filterAction;
-      const matchSeverity = !filterSeverity || log.severity === filterSeverity;
-      return matchSearch && matchAction && matchSeverity;
-    });
-  }, [search, filterAction, filterSeverity]);
+  const { data: centers } = useOrganizationsQuery();
+  const { data: logs, isLoading, isError, error } = useAuditLogsQuery({
+    organizationId: organizationId || undefined,
+    action: action || undefined,
+    entityType: entityType || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+  });
 
-  // ── Columns ────────────────────────────────────────────────────────────────
+  const centerOptions = [{ value: '', label: 'All Centers' }, ...(centers ?? []).map((c) => ({ value: c.id, label: c.name }))];
 
-  const columns: Column<SAAuditLog>[] = [
-    {
-      key: 'date',
-      label: 'Date & Time',
-      render: (_, row) => (
-        <div className="whitespace-nowrap">
-          <p className="text-sm text-slate-800 font-medium">
-            {new Date(row.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          </p>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {new Date(row.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: 'action',
-      label: 'Action',
-      render: (_, row) => {
-        const cfg = actionConfig(row.action);
-        return (
-          <Badge label={cfg.label} variant={cfg.variant} />
-        );
+  const list = logs ?? [];
+  const totalLogs = list.length;
+  const createCount = list.filter((l) => l.action === 'create').length;
+  const updateCount = list.filter((l) => l.action === 'update').length;
+  const deleteCount = list.filter((l) => l.action === 'delete').length;
+
+  const hasFilters = !!(organizationId || action || entityType || dateFrom || dateTo);
+
+  const columns: Column<AuditLog>[] = useMemo(
+    () => [
+      {
+        key: 'created_at',
+        label: 'Date & Time',
+        render: (_, row) => {
+          const { date, time } = formatDateTime(row.created_at);
+          return (
+            <div className="whitespace-nowrap">
+              <p className="text-sm text-slate-800 font-medium">{date}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{time}</p>
+            </div>
+          );
+        },
       },
-    },
-    {
-      key: 'entityName',
-      label: 'Target',
-      render: (_, row) => (
-        <div>
-          <p className="text-sm font-medium text-slate-800">{row.entityName}</p>
-          <p className="text-xs text-slate-400 mt-0.5">{row.entity}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'user',
-      label: 'Performed By',
-      render: (_, row) => (
-        <div>
-          <p className="text-sm text-slate-800">{row.user}</p>
-          <p className="text-xs text-slate-400 mt-0.5 font-mono">{row.ip}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'details',
-      label: 'Details',
-      render: (_, row) => (
-        <p className="text-xs text-slate-500 max-w-[260px] leading-snug">{row.details}</p>
-      ),
-    },
-    {
-      key: 'severity',
-      label: 'Severity',
-      render: (_, row) => <SeverityBadge severity={row.severity} />,
-    },
-  ];
+      {
+        key: 'action',
+        label: 'Action',
+        render: (_, row) => <ActionBadge action={row.action} />,
+      },
+      {
+        key: 'entity_type',
+        label: 'Entity',
+        render: (_, row) => (
+          <div>
+            <p className="text-sm font-medium text-slate-800">{formatEntityType(row.entity_type)}</p>
+            {row.entity_id && <p className="text-xs text-slate-400 mt-0.5 font-mono">{row.entity_id.slice(0, 8)}…</p>}
+          </div>
+        ),
+      },
+      {
+        key: 'user_name',
+        label: 'Performed By',
+        render: (_, row) => (
+          <div>
+            <p className="text-sm text-slate-800">{row.user_name ?? 'System'}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{row.user_login_id ?? '—'}</p>
+          </div>
+        ),
+      },
+      {
+        key: 'organization_name',
+        label: 'Center',
+        render: (_, row) => <span className="text-sm text-slate-600 whitespace-nowrap">{row.organization_name ?? '—'}</span>,
+      },
+      {
+        key: 'ip_address',
+        label: 'IP Address',
+        render: (_, row) => <span className="text-xs text-slate-400 font-mono">{row.ip_address ?? '—'}</span>,
+      },
+      {
+        key: 'id',
+        label: 'Details',
+        headerClassName: 'text-right',
+        className: 'text-right',
+        render: (_, row) => (
+          <button
+            onClick={() => setViewingLog(row)}
+            className="text-slate-400 hover:text-slate-600 inline-flex items-center"
+            title="View details"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <div className="space-y-6">
-      {/* ── Page Header ──────────────────────────────────────────────────────── */}
+      {/* ── Page Header ──────────────────────────────────────────────────── */}
       <PageHeader
         title="Audit Logs"
-        subtitle="Immutable record of all important platform actions and events"
+        subtitle="Immutable record of authentication, payment, role-change and deletion events across the platform"
       />
 
-      {/* ── Stats Row ────────────────────────────────────────────────────────── */}
+      {/* ── Stats Row ────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Total Events"
-          value={totalLogs}
-          icon={<ScrollText className="h-5 w-5 text-indigo-600" />}
-          iconBg="bg-indigo-50"
-        />
-        <StatCard
-          label="Info"
-          value={infoCount}
-          icon={<Info className="h-5 w-5 text-blue-600" />}
-          iconBg="bg-blue-50"
-        />
-        <StatCard
-          label="Warning"
-          value={warningCount}
-          icon={<AlertTriangle className="h-5 w-5 text-amber-600" />}
-          iconBg="bg-amber-50"
-        />
-        <StatCard
-          label="Critical"
-          value={criticalCount}
-          icon={<AlertOctagon className="h-5 w-5 text-red-500" />}
-          iconBg="bg-red-50"
-        />
+        <StatCard label="Total Events" value={totalLogs} icon={<ScrollText className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label="Created" value={createCount} icon={<PlusCircle className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label="Updated" value={updateCount} icon={<Pencil className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
+        <StatCard label="Deleted" value={deleteCount} icon={<Trash2 className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
       </div>
 
-      {/* ── Table Card ───────────────────────────────────────────────────────── */}
+      {/* ── Table Card ───────────────────────────────────────────────────── */}
       <Card
         noPadding
         title="Event Log"
-        subtitle={`${filtered.length} of ${totalLogs} events`}
+        subtitle={`${totalLogs} events`}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
-            <SearchInput
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search logs…"
-              className="w-52"
+            <Select value={organizationId} onChange={(e) => setOrganizationId(e.target.value)} options={centerOptions} />
+            <Select value={action} onChange={(e) => setAction(e.target.value as AuditAction | '')} options={ACTION_OPTIONS} />
+            <Select value={entityType} onChange={(e) => setEntityType(e.target.value)} options={ENTITY_TYPE_OPTIONS} />
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-9 rounded-lg border border-slate-200 px-3 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
             />
-            <Select
-              value={filterAction}
-              onChange={(e) => setFilterAction(e.target.value)}
-              options={[
-                { value: '', label: 'All Actions' },
-                { value: 'CENTER_CREATED', label: 'Center Created' },
-                { value: 'ADMIN_ADDED', label: 'Admin Added' },
-                { value: 'USER_DELETED', label: 'User Deleted' },
-                { value: 'SETTINGS_UPDATED', label: 'Settings Updated' },
-                { value: 'SUBSCRIPTION_UPGRADED', label: 'Sub Upgraded' },
-                { value: 'BRANCH_SUSPENDED', label: 'Branch Suspended' },
-                { value: 'PAYMENT_RECEIVED', label: 'Payment Received' },
-                { value: 'LOGIN_FAILED', label: 'Login Failed' },
-              ]}
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-9 rounded-lg border border-slate-200 px-3 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
             />
-            <Select
-              value={filterSeverity}
-              onChange={(e) => setFilterSeverity(e.target.value)}
-              options={[
-                { value: '', label: 'All Severities' },
-                { value: 'info', label: 'Info' },
-                { value: 'warning', label: 'Warning' },
-                { value: 'critical', label: 'Critical' },
-              ]}
-            />
-            {(search || filterAction || filterSeverity) && (
+            {hasFilters && (
               <button
                 onClick={() => {
-                  setSearch('');
-                  setFilterAction('');
-                  setFilterSeverity('');
+                  setOrganizationId('');
+                  setAction('');
+                  setEntityType('');
+                  setDateFrom('');
+                  setDateTo('');
                 }}
                 className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
               >
@@ -237,13 +243,72 @@ export default function AuditLogsPage() {
           </div>
         }
       >
-        <DataTable<SAAuditLog>
-          columns={columns}
-          data={filtered}
-          keyField="id"
-          emptyMessage="No audit logs match your filters."
-        />
+        {isError ? (
+          <div className="flex items-center gap-2 px-6 py-8 text-sm text-red-500">
+            <AlertCircle className="h-4 w-4" />
+            {error instanceof ApiError ? error.message : 'Failed to load audit logs.'}
+          </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-slate-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading audit logs…
+          </div>
+        ) : (
+          <DataTable<AuditLog> columns={columns} data={list} keyField="id" emptyMessage="No audit logs match your filters." />
+        )}
       </Card>
+
+      {/* ── Detail Dialog ────────────────────────────────────────────────── */}
+      <Dialog open={!!viewingLog} onOpenChange={(open) => !open && setViewingLog(null)}>
+        <DialogContent className="max-w-md">
+          {viewingLog && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Event Details</DialogTitle>
+              </DialogHeader>
+              <DialogBody className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <ActionBadge action={viewingLog.action} />
+                  <span className="text-sm font-medium text-slate-800">{formatEntityType(viewingLog.entity_type)}</span>
+                </div>
+                <DetailRow label="Performed By" value={viewingLog.user_name ?? 'System'} />
+                <DetailRow label="Login ID" value={viewingLog.user_login_id ?? '—'} />
+                <DetailRow label="Center" value={viewingLog.organization_name ?? '—'} />
+                <DetailRow label="Entity ID" value={viewingLog.entity_id ?? '—'} mono />
+                <DetailRow label="IP Address" value={viewingLog.ip_address ?? '—'} mono />
+                <DetailRow label="Timestamp" value={new Date(viewingLog.created_at).toLocaleString('en-US')} />
+                {viewingLog.old_values && (
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Old Values</p>
+                    <pre className="text-xs bg-slate-50 rounded-lg p-2 overflow-x-auto text-slate-600">{JSON.stringify(viewingLog.old_values, null, 2)}</pre>
+                  </div>
+                )}
+                {viewingLog.new_values && (
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">New Values</p>
+                    <pre className="text-xs bg-slate-50 rounded-lg p-2 overflow-x-auto text-slate-600">{JSON.stringify(viewingLog.new_values, null, 2)}</pre>
+                  </div>
+                )}
+                {viewingLog.metadata && Object.keys(viewingLog.metadata).length > 0 && (
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Metadata</p>
+                    <pre className="text-xs bg-slate-50 rounded-lg p-2 overflow-x-auto text-slate-600">{JSON.stringify(viewingLog.metadata, null, 2)}</pre>
+                  </div>
+                )}
+              </DialogBody>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex items-center justify-between text-sm gap-4">
+      <span className="text-slate-400 shrink-0">{label}</span>
+      <span className={cn('font-medium text-slate-900 text-right truncate', mono && 'font-mono text-xs')}>{value}</span>
     </div>
   );
 }
