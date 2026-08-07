@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { getUser } from "@/lib/api/users";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { changePassword, getUser, updateSelf, type UpdateSelfInput } from "@/lib/api/users";
 
 /** Shared across every feature that needs a live foundation.User record —
  * Students and Teachers both flatten only a partial view of the user onto
@@ -10,5 +10,22 @@ export function useUserQuery(userId: string | null) {
     queryKey: ["user", userId],
     queryFn: () => getUser(userId as string),
     enabled: !!userId,
+  });
+}
+
+export function useUpdateSelfMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, input }: { userId: string; input: UpdateSelfInput }) => updateSelf(userId, input),
+    onSuccess: (_, { userId }) => {
+      queryClient.invalidateQueries({ queryKey: ["user", userId] });
+    },
+  });
+}
+
+export function useChangePasswordMutation() {
+  return useMutation({
+    mutationFn: ({ userId, currentPassword, newPassword }: { userId: string; currentPassword: string; newPassword: string }) =>
+      changePassword(userId, currentPassword, newPassword),
   });
 }
