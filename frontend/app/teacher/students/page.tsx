@@ -1,118 +1,73 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import {
-  Users,
-  ClipboardCheck,
-  BarChart2,
-  KeyRound,
-  Phone,
-  ChevronLeft,
-  BookOpen,
-  FileText,
-} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Users, ClipboardCheck, KeyRound, Phone, ChevronLeft, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
-import { Badge, StatusBadge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { SearchInput, Select } from '@/components/ui/input';
-import { TEACHER_GROUPS, TEACHER_ATTENDANCE, TEACHER_GRADES } from '@/lib/teacher-data';
-import { useTeacherStudentsStore, type TeacherStudentRecord } from '@/lib/store/teacher-students-store';
-import { toast } from '@/lib/store/toast-store';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type Student = TeacherStudentRecord;
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+import { useAuthStore } from '@/lib/store/auth-store';
+import { useMyTeacherProfileQuery } from '@/lib/queries/teachers';
+import { useGroupsQuery, useMyRosterQuery } from '@/lib/queries/groups';
+import { useAttendanceForGroupsQuery } from '@/lib/queries/attendance';
+import type { GroupMember } from '@/lib/api/groups';
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function getGroupColor(groupId: string): string {
-  const colors: Record<string, string> = {
-    g1: 'bg-indigo-50 text-indigo-700',
-    g2: 'bg-violet-50 text-violet-700',
-    g3: 'bg-cyan-50 text-cyan-700',
-  };
-  return colors[groupId] ?? 'bg-slate-100 text-slate-700';
-}
-
 // ─── Student Card ─────────────────────────────────────────────────────────────
 
 function StudentCard({
-  student,
+  member,
+  attendanceRate,
   onViewProfile,
 }: {
-  student: Student;
-  onViewProfile: (s: Student) => void;
+  member: GroupMember;
+  attendanceRate: number;
+  onViewProfile: (m: GroupMember) => void;
 }) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col items-center text-center gap-3">
-      {/* Avatar */}
-      <Avatar name={student.name} size="xl" />
+      <Avatar name={member.student_name} size="xl" />
 
-      {/* Name + badges */}
       <div className="space-y-1.5">
-        <p className="font-semibold text-slate-900 text-base">{student.name}</p>
+        <p className="font-semibold text-slate-900 text-base">{member.student_name}</p>
         <div className="flex items-center justify-center gap-2 flex-wrap">
-          <span
-            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getGroupColor(student.groupId)}`}
-          >
-            {student.groupName}
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-indigo-50 text-indigo-700">
+            {member.group_name}
           </span>
-          <StatusBadge status={student.status} />
+          <StatusBadge status={member.status} />
         </div>
       </div>
 
-      {/* Stats */}
       <div className="w-full space-y-2 text-left">
-        {/* Attendance with progress bar */}
         <div>
           <div className="flex justify-between text-xs text-slate-500 mb-1">
             <span>Attendance</span>
-            <span className="font-medium text-slate-700">{student.attendanceRate}%</span>
+            <span className="font-medium text-slate-700">{attendanceRate}%</span>
           </div>
           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className="h-1.5 rounded-full bg-indigo-500 transition-all duration-500"
-              style={{ width: `${student.attendanceRate}%` }}
-            />
+            <div className="h-1.5 rounded-full bg-indigo-500 transition-all duration-500" style={{ width: `${attendanceRate}%` }} />
           </div>
-        </div>
-
-        <div className="flex justify-between text-xs">
-          <span className="text-slate-500">Avg Grade</span>
-          <span className="font-semibold text-slate-700">{student.avgGrade}%</span>
-        </div>
-        <div className="flex justify-between text-xs">
-          <span className="text-slate-500">Last Active</span>
-          <span className="text-slate-600">{formatDate(student.lastActive)}</span>
         </div>
       </div>
 
-      {/* Contact */}
       <div className="w-full space-y-1">
         <div className="flex items-center gap-2 text-xs text-slate-500 truncate">
           <KeyRound className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
-          <span className="truncate">{student.loginId}</span>
+          <span className="truncate">{member.student_login_id}</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <Phone className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
-          <span>{student.phone}</span>
+          <span>{member.student_phone}</span>
         </div>
       </div>
 
-      {/* View Profile button */}
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full mt-1"
-        onClick={() => onViewProfile(student)}
-      >
+      <Button variant="outline" size="sm" className="w-full mt-1" onClick={() => onViewProfile(member)}>
         View Profile
       </Button>
     </div>
@@ -122,22 +77,16 @@ function StudentCard({
 // ─── Student Detail Panel ─────────────────────────────────────────────────────
 
 function StudentDetailPanel({
-  student,
+  member,
+  attendanceRate,
+  records,
   onBack,
-  onSaveNotes,
 }: {
-  student: Student;
+  member: GroupMember;
+  attendanceRate: number;
+  records: { id: string; date: string; status: string; notes: string | null }[];
   onBack: () => void;
-  onSaveNotes: (id: string, notes: string) => void;
 }) {
-  const [notes, setNotes] = useState(student.notes);
-  const attendance = TEACHER_ATTENDANCE.filter((a) => a.studentId === student.id);
-  const grades = TEACHER_GRADES.filter((g) => g.studentId === student.id);
-
-  // Count assignment submissions related to this student
-  const assignmentCount = grades.length;
-  const examCount = grades.filter((g) => g.examScore > 0).length;
-
   const statusColors: Record<string, string> = {
     present: 'bg-emerald-100 text-emerald-700',
     absent: 'bg-red-100 text-red-600',
@@ -147,140 +96,54 @@ function StudentDetailPanel({
 
   return (
     <Card className="mt-6" noPadding>
-      {/* Panel header */}
       <div className="flex items-center gap-4 px-6 py-5 border-b border-slate-100">
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ChevronLeft className="h-4 w-4" />
           Back
         </Button>
         <div className="flex items-center gap-3">
-          <Avatar name={student.name} size="md" />
+          <Avatar name={member.student_name} size="md" />
           <div>
-            <p className="font-semibold text-slate-900">{student.name}</p>
-            <p className="text-xs text-slate-500">{student.groupName}</p>
+            <p className="font-semibold text-slate-900">{member.student_name}</p>
+            <p className="text-xs text-slate-500">{member.group_name}</p>
           </div>
         </div>
         <div className="ml-auto">
-          <StatusBadge status={student.status} />
+          <StatusBadge status={member.status} />
         </div>
       </div>
 
       <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Personal Info */}
         <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-            Personal Information
-          </h4>
-
+          <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Personal Information</h4>
           <div className="space-y-3">
-            <InfoRow icon={<KeyRound className="h-4 w-4" />} label="Login ID" value={student.loginId} />
-            <InfoRow icon={<Phone className="h-4 w-4" />} label="Phone" value={student.phone} />
-            <InfoRow icon={<Users className="h-4 w-4" />} label="Group" value={student.groupName} />
-            <InfoRow icon={<Users className="h-4 w-4" />} label="Parent" value={student.parentName} />
-            <InfoRow icon={<Phone className="h-4 w-4" />} label="Parent Phone" value={student.parentPhone} />
-            <InfoRow icon={<ClipboardCheck className="h-4 w-4" />} label="Last Active" value={formatDate(student.lastActive)} />
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">Notes</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-            />
-            <div className="flex justify-end mt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={notes === student.notes}
-                onClick={() => onSaveNotes(student.id, notes)}
-              >
-                Save Notes
-              </Button>
-            </div>
+            <InfoRow icon={<KeyRound className="h-4 w-4" />} label="Login ID" value={member.student_login_id} />
+            <InfoRow icon={<Phone className="h-4 w-4" />} label="Phone" value={member.student_phone} />
+            <InfoRow icon={<Users className="h-4 w-4" />} label="Group" value={member.group_name} />
+            <InfoRow icon={<Users className="h-4 w-4" />} label="Course" value={member.course_name} />
           </div>
         </div>
 
-        {/* Right: Stats + History */}
         <div className="space-y-5">
-          {/* Mini stat cards */}
-          <div className="grid grid-cols-2 gap-3">
-            <MiniStat
-              icon={<ClipboardCheck className="h-4 w-4 text-indigo-600" />}
-              label="Attendance"
-              value={`${student.attendanceRate}%`}
-              bg="bg-indigo-50"
-            />
-            <MiniStat
-              icon={<BarChart2 className="h-4 w-4 text-emerald-600" />}
-              label="Avg Grade"
-              value={`${student.avgGrade}%`}
-              bg="bg-emerald-50"
-            />
-            <MiniStat
-              icon={<FileText className="h-4 w-4 text-amber-600" />}
-              label="Assignments"
-              value={assignmentCount}
-              bg="bg-amber-50"
-            />
-            <MiniStat
-              icon={<BookOpen className="h-4 w-4 text-violet-600" />}
-              label="Exams Graded"
-              value={examCount}
-              bg="bg-violet-50"
-            />
+          <div className="grid grid-cols-1 gap-3">
+            <MiniStat icon={<ClipboardCheck className="h-4 w-4 text-indigo-600" />} label="Attendance" value={`${attendanceRate}%`} bg="bg-indigo-50" />
           </div>
 
-          {/* Attendance History */}
           <div>
             <h4 className="text-sm font-semibold text-slate-700 mb-2">Recent Attendance</h4>
-            {attendance.length === 0 ? (
+            {records.length === 0 ? (
               <p className="text-sm text-slate-400">No attendance records.</p>
             ) : (
               <div className="space-y-1.5">
-                {attendance.map((rec) => (
-                  <div
-                    key={rec.id}
-                    className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2"
-                  >
+                {records.map((rec) => (
+                  <div key={rec.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <span
-                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${statusColors[rec.status] ?? 'bg-slate-100 text-slate-600'}`}
-                      >
+                      <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${statusColors[rec.status] ?? 'bg-slate-100 text-slate-600'}`}>
                         {rec.status.charAt(0).toUpperCase() + rec.status.slice(1)}
                       </span>
                       <span className="text-xs text-slate-500">{formatDate(rec.date)}</span>
                     </div>
-                    {rec.note && (
-                      <span className="text-xs text-slate-400 truncate max-w-[140px]">{rec.note}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Assignment Grades */}
-          <div>
-            <h4 className="text-sm font-semibold text-slate-700 mb-2">Assignment Grades</h4>
-            {grades.length === 0 ? (
-              <p className="text-sm text-slate-400">No grade records.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {grades.map((g) => (
-                  <div
-                    key={g.id}
-                    className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2"
-                  >
-                    <span className="text-xs text-slate-700">{g.subject}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500">Assign: {g.assignmentScore}</span>
-                      <span className="text-xs text-slate-500">Exam: {g.examScore}</span>
-                      <span className="font-semibold text-xs text-slate-900">{g.finalGrade}</span>
-                      <Badge label={g.letterGrade} variant={g.letterGrade.startsWith('A') ? 'success' : g.letterGrade.startsWith('B') ? 'info' : g.letterGrade.startsWith('C') ? 'warning' : 'danger'} />
-                    </div>
+                    {rec.notes && <span className="text-xs text-slate-400 truncate max-w-[140px]">{rec.notes}</span>}
                   </div>
                 ))}
               </div>
@@ -291,8 +154,6 @@ function StudentDetailPanel({
     </Card>
   );
 }
-
-// ─── Small helpers ────────────────────────────────────────────────────────────
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
@@ -306,17 +167,7 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
   );
 }
 
-function MiniStat({
-  icon,
-  label,
-  value,
-  bg,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-  bg: string;
-}) {
+function MiniStat({ icon, label, value, bg }: { icon: React.ReactNode; label: string; value: string | number; bg: string }) {
   return (
     <div className="bg-slate-50 rounded-xl p-3 flex items-center gap-3">
       <div className={`p-2 rounded-lg ${bg} flex-shrink-0`}>{icon}</div>
@@ -328,125 +179,98 @@ function MiniStat({
   );
 }
 
-// ─── Page Component ───────────────────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function StudentsPage() {
-  const studentItems = useTeacherStudentsStore((s) => s.items);
-  const students = studentItems.filter((s) => !s.deletedAt);
-  const updateStudent = useTeacherStudentsStore((s) => s.update);
+export default function TeacherStudentsPage() {
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const { data: myProfile } = useMyTeacherProfileQuery();
+  const { data: groups } = useGroupsQuery({ organizationId: organizationId ?? '', teacher: myProfile?.id });
+  const groupIds = useMemo(() => (groups ?? []).map((g) => g.id), [groups]);
+
+  const { data: roster, isLoading } = useMyRosterQuery(groupIds);
+  const { data: attendance } = useAttendanceForGroupsQuery(organizationId ?? '', groupIds);
+
+  const activeRoster = useMemo(
+    () => roster.filter((m) => m.status === 'active').filter((m, i, arr) => arr.findIndex((x) => x.student_profile === m.student_profile) === i),
+    [roster]
+  );
 
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const filtered = useMemo(() => {
-    return students.filter((s) => {
-      const matchSearch =
-        !search ||
-        s.name.toLowerCase().includes(search.toLowerCase()) ||
-        s.loginId.toLowerCase().includes(search.toLowerCase());
-      const matchGroup = !groupFilter || s.groupId === groupFilter;
-      return matchSearch && matchGroup;
-    });
-  }, [students, search, groupFilter]);
+  function rateFor(studentProfileId: string): number {
+    const records = attendance.filter((r) => r.student_profile === studentProfileId);
+    if (records.length === 0) return 0;
+    const present = records.filter((r) => r.status === 'present').length;
+    return Math.round((present / records.length) * 100);
+  }
 
-  const selectedStudent = students.find((s) => s.id === selectedId) ?? null;
+  const filtered = activeRoster.filter((m) => {
+    const matchSearch = !search || m.student_name.toLowerCase().includes(search.toLowerCase()) || m.student_login_id.toLowerCase().includes(search.toLowerCase());
+    const matchGroup = !groupFilter || m.group === groupFilter;
+    return matchSearch && matchGroup;
+  });
 
-  // Stats
-  const totalStudents = students.length;
-  const avgAttendance = Math.round(
-    students.reduce((s, st) => s + st.attendanceRate, 0) / totalStudents
-  );
-  const avgGrade = Math.round(
-    students.reduce((s, st) => s + st.avgGrade, 0) / totalStudents
-  );
+  const selectedMember = activeRoster.find((m) => m.student_profile === selectedId) ?? null;
 
-  const groupOptions = TEACHER_GROUPS.map((g) => ({ value: g.id, label: g.name }));
+  const totalStudents = activeRoster.length;
+  const avgAttendance = totalStudents > 0 ? Math.round(activeRoster.reduce((sum, m) => sum + rateFor(m.student_profile), 0) / totalStudents) : 0;
 
-  const handleViewProfile = (student: Student) => {
-    setSelectedId(student.id);
-    // Scroll to detail panel
+  const groupOptions = (groups ?? []).map((g) => ({ value: g.id, label: g.name }));
+
+  const handleViewProfile = (member: GroupMember) => {
+    setSelectedId(member.student_profile);
     setTimeout(() => {
       document.getElementById('student-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
   };
 
-  const handleSaveNotes = (id: string, notes: string) => {
-    updateStudent(id, { notes });
-    toast.success('Notes saved');
-  };
-
   return (
     <div className="space-y-6">
-      {/* Header */}
       <PageHeader
         title="Students"
         subtitle="Manage and monitor your students across all groups"
         actions={
           <>
-            <SearchInput
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search students..."
-            />
-            <Select
-              value={groupFilter}
-              onChange={(e) => setGroupFilter(e.target.value)}
-              options={groupOptions}
-              placeholder="All Groups"
-              className="w-40"
-            />
+            <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search students..." />
+            <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} options={groupOptions} placeholder="All Groups" className="w-40" />
           </>
         }
       />
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard
-          label="Total Students"
-          value={totalStudents}
-          icon={<Users className="h-5 w-5 text-indigo-600" />}
-          iconBg="bg-indigo-50"
-        />
-        <StatCard
-          label="Avg Attendance"
-          value={`${avgAttendance}%`}
-          icon={<ClipboardCheck className="h-5 w-5 text-emerald-600" />}
-          iconBg="bg-emerald-50"
-        />
-        <StatCard
-          label="Avg Grade"
-          value={`${avgGrade}%`}
-          icon={<BarChart2 className="h-5 w-5 text-amber-600" />}
-          iconBg="bg-amber-50"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <StatCard label="Total Students" value={totalStudents} icon={<Users className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label="Avg Attendance" value={`${avgAttendance}%`} icon={<ClipboardCheck className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
       </div>
 
-      {/* Student Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-slate-400">
-            No students found.
-          </div>
-        ) : (
-          filtered.map((student) => (
-            <StudentCard
-              key={student.id}
-              student={student}
-              onViewProfile={handleViewProfile}
-            />
-          ))
-        )}
-      </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-400">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading students…
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.length === 0 ? (
+            <div className="col-span-full text-center py-12 text-slate-400">No students found.</div>
+          ) : (
+            filtered.map((member) => (
+              <StudentCard key={member.id} member={member} attendanceRate={rateFor(member.student_profile)} onViewProfile={handleViewProfile} />
+            ))
+          )}
+        </div>
+      )}
 
-      {/* Detail Panel */}
-      {selectedStudent && (
+      {selectedMember && (
         <div id="student-detail">
           <StudentDetailPanel
-            key={selectedStudent.id}
-            student={selectedStudent}
+            key={selectedMember.id}
+            member={selectedMember}
+            attendanceRate={rateFor(selectedMember.student_profile)}
+            records={attendance
+              .filter((r) => r.student_profile === selectedMember.student_profile)
+              .map((r) => ({ id: r.id, date: r.date, status: r.status, notes: r.notes }))}
             onBack={() => setSelectedId(null)}
-            onSaveNotes={handleSaveNotes}
           />
         </div>
       )}

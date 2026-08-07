@@ -6,12 +6,13 @@ from teacher.models import TeacherAvailability, TeacherDocument, TeacherProfile,
 class TeacherProfileSerializer(serializers.ModelSerializer):
     user_full_name = serializers.CharField(source="user.get_full_name", read_only=True)
     user_login_id = serializers.CharField(source="user.login_id", read_only=True)
+    user_phone = serializers.CharField(source="user.phone", read_only=True)
     branch_name = serializers.CharField(source="branch.name", read_only=True, default=None)
 
     class Meta:
         model = TeacherProfile
         fields = [
-            "id", "organization", "user", "user_full_name", "user_login_id", "branch", "branch_name",
+            "id", "organization", "user", "user_full_name", "user_login_id", "user_phone", "branch", "branch_name",
             "teacher_code", "status", "employment_type", "hire_date", "termination_date", "bio",
             "experience_years", "education_degree", "university", "notes", "metadata",
             "created_at", "updated_at",

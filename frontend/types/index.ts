@@ -55,51 +55,9 @@ export interface Teacher {
   deletedAt?: string | null;
 }
 
-// ─── Course ───────────────────────────────────────────────────────────────────
-
-export type CourseLevel = "beginner" | "intermediate" | "advanced";
-
-export interface Course {
-  id: string;
-  name: string;
-  category: string;
-  level: CourseLevel;
-  description: string;
-  duration: number; // weeks
-  lessonsCount: number;
-  groupCount: number;
-  studentCount: number;
-  price: number;
-  status: Status;
-  createdAt: string;
-  color: string;
-  deletedAt?: string | null;
-}
-
-// ─── Group ────────────────────────────────────────────────────────────────────
-
-export type DayOfWeek = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
-
-export interface Group {
-  id: string;
-  name: string;
-  courseId: string;
-  courseName: string;
-  teacherId: string;
-  teacherName: string;
-  teacherAvatar?: string;
-  room: string;
-  days: DayOfWeek[];
-  startTime: string;
-  endTime: string;
-  capacity: number;
-  enrolledCount: number;
-  status: Status;
-  startDate: string;
-  endDate: string;
-  level: CourseLevel;
-  deletedAt?: string | null;
-}
+// Course/Group mock types were removed here (2026-08) once both got a real
+// backend + real Admin pages — see lib/api/courses.ts (CourseProfile,
+// CourseLevel) and lib/api/groups.ts (Group, DayOfWeek) for the real shapes.
 
 // ─── Schedule ─────────────────────────────────────────────────────────────────
 
@@ -142,20 +100,11 @@ export interface AttendanceRecord {
 export type PaymentStatus = "paid" | "pending" | "overdue" | "cancelled";
 export type PaymentMethod = "cash" | "card" | "transfer" | "online";
 
-export interface Invoice {
-  id: string;
-  studentId: string;
-  studentName: string;
-  studentAvatar?: string;
-  groupName: string;
-  amount: number;
-  paid: number;
-  balance: number;
-  dueDate: string;
-  status: PaymentStatus;
-  createdAt: string;
-  deletedAt?: string | null;
-}
+// The mock Invoice interface that used to live here was removed (2026-08)
+// once the real Finance backend + Admin page landed — see lib/api/finance.ts's
+// real Invoice type. Transaction below is untouched: the Admin Dashboard's
+// "Recent Transactions" widget still reads TRANSACTIONS and hasn't been
+// wired to real Payment data yet.
 
 export interface Transaction {
   id: string;

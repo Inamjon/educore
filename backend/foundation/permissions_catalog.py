@@ -5,8 +5,8 @@ in `database/15-seed-and-recommendations.sql`, which predates several
 implementation decisions (e.g. that file uses action "read" and a "users"
 module; the real code uses "view" and "administrators" — see
 `foundation/views.py::UserViewSet`) and includes modules for apps that don't
-exist yet (courses, groups, attendance, ...). Extend this list — and the
-data migration that loads it — as new apps/ViewSets are added.
+exist yet (homework, exams, ...). Extend this list — and the data
+migration that loads it — as new apps/ViewSets are added.
 """
 
 PERMISSIONS_CATALOG: list[tuple[str, str, str]] = [
@@ -32,6 +32,22 @@ PERMISSIONS_CATALOG: list[tuple[str, str, str]] = [
     ("teachers", "create", "Create teacher profiles"),
     ("teachers", "update", "Update teacher profiles"),
     ("teachers", "delete", "Delete teacher profiles"),
+    ("courses", "view", "View courses"),
+    ("courses", "create", "Create courses"),
+    ("courses", "update", "Update courses"),
+    ("courses", "delete", "Delete courses"),
+    ("groups", "view", "View groups"),
+    ("groups", "create", "Create groups"),
+    ("groups", "update", "Update groups"),
+    ("groups", "delete", "Delete groups"),
+    ("attendance", "view", "View attendance records"),
+    ("attendance", "create", "Mark attendance"),
+    ("attendance", "update", "Update attendance records"),
+    ("attendance", "delete", "Delete attendance records"),
+    ("finance", "view", "View invoices and payments"),
+    ("finance", "create", "Create invoices and record payments"),
+    ("finance", "update", "Update invoices"),
+    ("finance", "delete", "Delete invoices"),
 ]
 
 # Default permission grants for the three org-scoped roles every
@@ -62,15 +78,50 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("teachers", "create"),
         ("teachers", "update"),
         ("teachers", "delete"),
+        ("courses", "view"),
+        ("courses", "create"),
+        ("courses", "update"),
+        ("courses", "delete"),
+        ("groups", "view"),
+        ("groups", "create"),
+        ("groups", "update"),
+        ("groups", "delete"),
+        ("attendance", "view"),
+        ("attendance", "create"),
+        ("attendance", "update"),
+        ("attendance", "delete"),
+        # finance is deliberately center_admin-only — unlike every other
+        # module, no other role gets even :view. Permission grants here are
+        # module-wide, not object-scoped, so a "teacher" grant would mean
+        # every teacher can see every student's balance, not just their own.
+        # No portal but Admin has a Finance UI to wire anyway.
+        ("finance", "view"),
+        ("finance", "create"),
+        ("finance", "update"),
+        ("finance", "delete"),
         ("roles", "view"),
     ],
     "teacher": [
         ("students", "view"),
         ("teachers", "view"),
+        # "update" here is deliberately still safe org-wide at the module
+        # level — TeacherProfileViewSet.perform_update further restricts a
+        # teacher (not center_admin) to their OWN profile only, mirroring
+        # AttendanceViewSet's teacher-owns-group check. Needed for the
+        # Teacher Portal's Profile page to save bio/education/etc.
+        ("teachers", "update"),
+        ("courses", "view"),
+        ("groups", "view"),
+        ("attendance", "view"),
+        ("attendance", "create"),
+        ("attendance", "update"),
         ("roles", "view"),
     ],
     "student": [
         ("students", "view"),
+        ("courses", "view"),
+        ("groups", "view"),
+        ("attendance", "view"),
         ("roles", "view"),
     ],
 }

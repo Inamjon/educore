@@ -33,6 +33,10 @@ INSTALLED_APPS = [
     "auth_custom",
     "student",
     "teacher",
+    "course",
+    "groups",
+    "attendance",
+    "finance",
 ]
 
 MIDDLEWARE = [

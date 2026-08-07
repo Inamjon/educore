@@ -1,11 +1,18 @@
 "use client";
 
-import { ChevronLeft, Users, Clock, MapPin, Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { ChevronLeft, Users, Clock, MapPin, Pencil, Trash2, UserPlus, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/badge";
-import type { Group, Student } from "@/types";
+import { Select } from "@/components/ui/input";
+import { toast } from "@/lib/store/toast-store";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { useStudentsQuery } from "@/lib/queries/students";
+import { useAddGroupMemberMutation, useGroupMembersQuery, useRemoveGroupMemberMutation } from "@/lib/queries/groups";
+import { ApiError } from "@/lib/api/client";
+import type { Group } from "@/lib/api/groups";
 
 interface GroupDetailPanelProps {
   group: Group;
@@ -15,10 +22,36 @@ interface GroupDetailPanelProps {
 }
 
 export function GroupDetailPanel({ group, onBack, onEdit, onDelete }: GroupDetailPanelProps) {
-  // Student no longer carries a groupId (no group/enrollment backend exists
-  // yet to keep it in sync with — see types/index.ts::Student) so group
-  // membership can't be derived here anymore.
-  const students: Student[] = [];
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const { data: members } = useGroupMembersQuery(group.id);
+  const { data: students } = useStudentsQuery({ organizationId: organizationId ?? "" });
+  const addMemberMutation = useAddGroupMemberMutation();
+  const removeMemberMutation = useRemoveGroupMemberMutation();
+  const [pickedStudent, setPickedStudent] = useState("");
+
+  const activeMembers = (members ?? []).filter((m) => m.status !== "dropped" && m.status !== "transferred");
+  const enrolledIds = new Set((members ?? []).map((m) => m.student_profile));
+  const availableStudents = (students ?? []).filter((s) => !enrolledIds.has(s.id));
+
+  async function handleAdd() {
+    if (!pickedStudent || !organizationId) return;
+    try {
+      await addMemberMutation.mutateAsync({ organizationId, groupId: group.id, studentProfileId: pickedStudent });
+      toast.success("Student enrolled");
+      setPickedStudent("");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to enroll student.");
+    }
+  }
+
+  async function handleRemove(memberId: string) {
+    try {
+      await removeMemberMutation.mutateAsync(memberId);
+      toast.success("Student removed from group");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to remove student.");
+    }
+  }
 
   return (
     <Card noPadding>
@@ -29,7 +62,7 @@ export function GroupDetailPanel({ group, onBack, onEdit, onDelete }: GroupDetai
         </Button>
         <div>
           <p className="font-semibold text-slate-900">{group.name}</p>
-          <p className="text-xs text-slate-500">{group.courseName}</p>
+          <p className="text-xs text-slate-500">{group.course_name}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <StatusBadge status={group.status} />
@@ -48,24 +81,54 @@ export function GroupDetailPanel({ group, onBack, onEdit, onDelete }: GroupDetai
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Group Information</h4>
           <div className="space-y-3">
-            <InfoRow icon={<Users className="h-4 w-4" />} label="Teacher" value={group.teacherName} />
-            <InfoRow icon={<MapPin className="h-4 w-4" />} label="Room" value={group.room} />
-            <InfoRow icon={<Clock className="h-4 w-4" />} label="Schedule" value={`${group.days.join(", ")} · ${group.startTime}–${group.endTime}`} />
-            <InfoRow icon={<Users className="h-4 w-4" />} label="Enrollment" value={`${group.enrolledCount}/${group.capacity}`} />
+            <InfoRow icon={<Users className="h-4 w-4" />} label="Teacher" value={group.teacher_name} />
+            <InfoRow icon={<MapPin className="h-4 w-4" />} label="Room" value={group.room || "—"} />
+            <InfoRow
+              icon={<Clock className="h-4 w-4" />}
+              label="Schedule"
+              value={
+                group.days_of_week.length
+                  ? `${group.days_of_week.join(", ")} · ${group.start_time?.slice(0, 5) ?? "—"}–${group.end_time?.slice(0, 5) ?? "—"}`
+                  : "—"
+              }
+            />
+            <InfoRow icon={<Users className="h-4 w-4" />} label="Enrollment" value={`${group.enrolled_count}/${group.max_students}`} />
           </div>
         </div>
 
         <div className="space-y-3">
           <h4 className="text-sm font-semibold text-slate-700 mb-2">Enrolled Students</h4>
-          {students.length === 0 ? (
+
+          <div className="flex items-center gap-2">
+            <Select
+              placeholder="Add a student..."
+              options={availableStudents.map((s) => ({ value: s.id, label: s.user_full_name }))}
+              value={pickedStudent}
+              onChange={(e) => setPickedStudent(e.target.value)}
+              className="flex-1"
+            />
+            <Button size="sm" onClick={handleAdd} disabled={!pickedStudent || addMemberMutation.isPending}>
+              <UserPlus className="h-3.5 w-3.5" />
+              Add
+            </Button>
+          </div>
+
+          {activeMembers.length === 0 ? (
             <p className="text-sm text-slate-400">No students enrolled.</p>
           ) : (
             <div className="space-y-1.5">
-              {students.map((s) => (
-                <div key={s.id} className="flex items-center gap-2.5 rounded-lg bg-slate-50 px-3 py-2">
-                  <Avatar name={s.name} size="xs" />
-                  <span className="text-xs text-slate-700 flex-1">{s.name}</span>
-                  <StatusBadge status={s.status} />
+              {activeMembers.map((m) => (
+                <div key={m.id} className="flex items-center gap-2.5 rounded-lg bg-slate-50 px-3 py-2">
+                  <Avatar name={m.student_name} size="xs" />
+                  <span className="text-xs text-slate-700 flex-1">{m.student_name}</span>
+                  <StatusBadge status={m.status} />
+                  <button
+                    onClick={() => handleRemove(m.id)}
+                    className="text-slate-400 hover:text-red-500 transition-colors"
+                    aria-label="Remove from group"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               ))}
             </div>

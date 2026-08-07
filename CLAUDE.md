@@ -62,72 +62,6 @@ Always think in this order:
 
 ---
 
-# Tech Stack
-
-Backend
-
-- Python
-- Django
-- Django REST Framework
-
-Database
-
-- PostgreSQL
-
-Frontend
-
-- React
-- TypeScript
-- TailwindCSS
-- Shadcn UI
-
-State
-
-- React Query
-- Zustand
-
-Validation
-
-- Zod
-
-Icons
-
-- Lucide React
-
-Charts
-
-- Recharts
-
-Deployment
-
-Docker
-Nginx
-Gunicorn
-
-Version Control
-
-Git
-
----
-
-# Coding Philosophy
-
-Write code like a Senior Engineer.
-
-Avoid shortcuts.
-
-Avoid hacks.
-
-Avoid duplicate logic.
-
-Avoid unnecessary comments.
-
-Prefer readable code over clever code.
-
-Code should explain itself.
-
----
-
 # Architecture Rules
 
 Always follow:
@@ -179,52 +113,6 @@ Tests
 Types
 
 Validation
-
----
-
-# SOLID
-
-Every implementation must respect
-
-SOLID
-
-DRY
-
-KISS
-
-YAGNI
-
-Clean Architecture
-
----
-
-# Naming Convention
-
-Variables
-
-camelCase
-
-Functions
-
-camelCase
-
-Components
-
-PascalCase
-
-Classes
-
-PascalCase
-
-Database
-
-snake_case
-
-API
-
-RESTful naming
-
-Never invent inconsistent names.
 
 ---
 
@@ -436,42 +324,6 @@ Never log passwords.
 
 ---
 
-# Performance
-
-Always think about
-
-N+1 queries
-
-Caching
-
-Lazy loading
-
-Pagination
-
-Indexes
-
-Database optimization
-
-Bundle size
-
----
-
-# Testing
-
-Every important feature requires
-
-Unit Tests
-
-Integration Tests
-
-API Tests
-
-Edge Cases
-
-Never assume code works.
-
----
-
 # Git Rules
 
 Small commits.
@@ -479,22 +331,6 @@ Small commits.
 Clear commit messages.
 
 One feature per commit.
-
----
-
-# Before Writing Code
-
-Always answer internally:
-
-What problem am I solving?
-
-Which files change?
-
-Will this break existing logic?
-
-Can this be simpler?
-
-Can it scale?
 
 ---
 
@@ -531,22 +367,6 @@ Performance
 Maintainability
 
 Never change behavior unintentionally.
-
----
-
-# Documentation
-
-When adding a feature, explain:
-
-Purpose
-
-Architecture
-
-Flow
-
-Limitations
-
-Future improvements
 
 ---
 

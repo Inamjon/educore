@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,11 +11,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
-import { useTeachersStore } from "@/lib/store/teachers-store";
 import { toast } from "@/lib/store/toast-store";
-import { teacherSchema, type TeacherFormValues } from "@/lib/schemas/teacher-schema";
-import { generateLoginId } from "@/lib/utils";
-import type { Teacher } from "@/types";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { teacherProfileSchema, type TeacherProfileFormValues } from "@/lib/schemas/teacher-profile-schema";
+import {
+  useCreateTeacherMutation,
+  useTeacherRoleQuery,
+  useUpdateTeacherMutation,
+  useUserQuery,
+} from "@/lib/queries/teachers";
+import { ApiError } from "@/lib/api/client";
+import type { TeacherProfile } from "@/lib/api/teachers";
 
 const GENDER_OPTIONS = [
   { value: "male", label: "Male" },
@@ -25,25 +31,36 @@ const GENDER_OPTIONS = [
 
 const STATUS_OPTIONS = [
   { value: "active", label: "Active" },
+  { value: "on_leave", label: "On Leave" },
+  { value: "terminated", label: "Terminated" },
   { value: "inactive", label: "Inactive" },
   { value: "pending", label: "Pending" },
-  { value: "suspended", label: "Suspended" },
 ];
 
-const EMPTY_VALUES: TeacherFormValues = {
-  name: "",
+const EMPLOYMENT_OPTIONS = [
+  { value: "full_time", label: "Full Time" },
+  { value: "part_time", label: "Part Time" },
+  { value: "contract", label: "Contract" },
+  { value: "freelance", label: "Freelance" },
+  { value: "intern", label: "Intern" },
+];
+
+const EMPTY_VALUES: TeacherProfileFormValues = {
+  firstName: "",
+  lastName: "",
   phone: "",
   gender: "male",
-  specialization: "",
-  subjects: [],
+  teacherCode: "",
   status: "active",
+  employmentType: "full_time",
+  specialization: "",
   salary: 0,
 };
 
 interface TeacherFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  teacher?: Teacher | null;
+  teacher?: TeacherProfile | null;
 }
 
 export function TeacherFormDialog({ open, onOpenChange, teacher }: TeacherFormDialogProps) {
@@ -67,39 +84,54 @@ function TeacherFormFields({
   teacher,
   onOpenChange,
 }: {
-  teacher?: Teacher | null;
+  teacher?: TeacherProfile | null;
   onOpenChange: (open: boolean) => void;
 }) {
-  const addTeacher = useTeachersStore((s) => s.add);
-  const updateTeacher = useTeachersStore((s) => s.update);
+  const mode = teacher ? "edit" : "create";
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
 
-  const [values, setValues] = useState<TeacherFormValues>(() =>
-    teacher ? { ...EMPTY_VALUES, ...teacher } : EMPTY_VALUES
-  );
-  const [subjectsInput, setSubjectsInput] = useState(() => (teacher ? teacher.subjects.join(", ") : ""));
-  const [errors, setErrors] = useState<Partial<Record<keyof TeacherFormValues, string>>>({});
+  const { data: teacherRole } = useTeacherRoleQuery(organizationId);
+  const { data: userRecord, isLoading: userLoading } = useUserQuery(teacher?.user ?? null);
+  const createMutation = useCreateTeacherMutation();
+  const updateMutation = useUpdateTeacherMutation();
+
+  const [values, setValues] = useState<TeacherProfileFormValues>(EMPTY_VALUES);
+  const [initialized, setInitialized] = useState(mode === "create");
+  const [errors, setErrors] = useState<Partial<Record<keyof TeacherProfileFormValues, string>>>({});
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState<string | undefined>();
+  const [submitting, setSubmitting] = useState(false);
 
-  const mode = teacher ? "edit" : "create";
+  useEffect(() => {
+    if (mode === "edit" && !initialized && userRecord && teacher) {
+      setValues({
+        firstName: userRecord.first_name,
+        lastName: userRecord.last_name,
+        phone: userRecord.phone,
+        gender: userRecord.gender ?? "male",
+        teacherCode: teacher.teacher_code,
+        status: teacher.status,
+        employmentType: teacher.employment_type,
+        specialization: "",
+        salary: 0,
+      });
+      setInitialized(true);
+    }
+  }, [mode, initialized, userRecord, teacher]);
 
-  function setField<K extends keyof TeacherFormValues>(key: K, value: TeacherFormValues[K]) {
+  function setField<K extends keyof TeacherProfileFormValues>(key: K, value: TeacherProfileFormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined }));
   }
 
-  function handleSubmit() {
-    const subjects = subjectsInput
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const candidate = { ...values, subjects };
-    const result = teacherSchema.safeParse(candidate);
+  async function handleSubmit() {
+    const schema = mode === "create" ? teacherProfileSchema : teacherProfileSchema.omit({ specialization: true, salary: true });
+    const result = schema.safeParse(values);
     if (!result.success) {
-      const fieldErrors: Partial<Record<keyof TeacherFormValues, string>> = {};
+      const fieldErrors: Partial<Record<keyof TeacherProfileFormValues, string>> = {};
       for (const issue of result.error.issues) {
-        const key = issue.path[0] as keyof TeacherFormValues;
+        const key = issue.path[0] as keyof TeacherProfileFormValues;
         if (!fieldErrors[key]) fieldErrors[key] = issue.message;
       }
       setErrors(fieldErrors);
@@ -115,20 +147,66 @@ function TeacherFormFields({
         setPasswordError("Passwords do not match");
         return;
       }
-      addTeacher({
-        ...result.data,
-        loginId: generateLoginId("TCH"),
-        groupCount: 0,
-        studentCount: 0,
-        joinedAt: new Date().toISOString().slice(0, 10),
-        rating: 0,
-      });
-      toast.success("Teacher created");
+      if (!organizationId || !teacherRole) {
+        toast.error("Teacher role isn't set up for this organization yet.");
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        await createMutation.mutateAsync({
+          organizationId,
+          teacherRoleId: teacherRole.id,
+          firstName: values.firstName,
+          lastName: values.lastName,
+          phone: values.phone,
+          gender: values.gender,
+          password,
+          teacherCode: values.teacherCode,
+          status: values.status,
+          employmentType: values.employmentType,
+          specialization: values.specialization,
+          salary: values.salary,
+        });
+        toast.success("Teacher created");
+        onOpenChange(false);
+      } catch (err) {
+        applyServerErrors(err, setErrors);
+      } finally {
+        setSubmitting(false);
+      }
     } else if (teacher) {
-      updateTeacher(teacher.id, result.data);
-      toast.success("Teacher updated");
+      setSubmitting(true);
+      try {
+        await updateMutation.mutateAsync({
+          profileId: teacher.id,
+          input: {
+            userId: teacher.user,
+            firstName: values.firstName,
+            lastName: values.lastName,
+            phone: values.phone,
+            gender: values.gender,
+            teacherCode: values.teacherCode,
+            status: values.status,
+            employmentType: values.employmentType,
+          },
+        });
+        toast.success("Teacher updated");
+        onOpenChange(false);
+      } catch (err) {
+        applyServerErrors(err, setErrors);
+      } finally {
+        setSubmitting(false);
+      }
     }
-    onOpenChange(false);
+  }
+
+  if (mode === "edit" && (userLoading || !initialized)) {
+    return (
+      <DialogBody>
+        <p className="text-sm text-slate-400 py-8 text-center">Loading teacher…</p>
+      </DialogBody>
+    );
   }
 
   return (
@@ -136,11 +214,16 @@ function TeacherFormFields({
       <DialogBody>
         <div className="grid grid-cols-2 gap-3">
           <Input
-            placeholder="Full name"
-            value={values.name}
-            onChange={(e) => setField("name", e.target.value)}
-            error={errors.name}
-            className="col-span-2"
+            placeholder="First name"
+            value={values.firstName}
+            onChange={(e) => setField("firstName", e.target.value)}
+            error={errors.firstName}
+          />
+          <Input
+            placeholder="Last name"
+            value={values.lastName}
+            onChange={(e) => setField("lastName", e.target.value)}
+            error={errors.lastName}
           />
           <Input
             placeholder="Phone"
@@ -151,40 +234,47 @@ function TeacherFormFields({
           <Select
             options={GENDER_OPTIONS}
             value={values.gender}
-            onChange={(e) => setField("gender", e.target.value as TeacherFormValues["gender"])}
+            onChange={(e) => setField("gender", e.target.value as TeacherProfileFormValues["gender"])}
           />
           <Input
-            placeholder="Specialization"
-            value={values.specialization}
-            onChange={(e) => setField("specialization", e.target.value)}
-            error={errors.specialization}
+            placeholder="Teacher code"
+            value={values.teacherCode}
+            onChange={(e) => setField("teacherCode", e.target.value)}
+            error={errors.teacherCode}
           />
-          <Input
-            placeholder="Subjects (comma separated)"
-            value={subjectsInput}
-            onChange={(e) => setSubjectsInput(e.target.value)}
-            error={errors.subjects}
-            className="col-span-2"
-          />
-          <Input
-            type="number"
-            placeholder="Monthly salary"
-            value={values.salary}
-            onChange={(e) => setField("salary", Number(e.target.value))}
-            error={errors.salary}
+          <Select
+            options={EMPLOYMENT_OPTIONS}
+            value={values.employmentType}
+            onChange={(e) => setField("employmentType", e.target.value as TeacherProfileFormValues["employmentType"])}
           />
           <Select
             options={STATUS_OPTIONS}
             value={values.status}
-            onChange={(e) => setField("status", e.target.value as TeacherFormValues["status"])}
+            onChange={(e) => setField("status", e.target.value as TeacherProfileFormValues["status"])}
+            className="col-span-2"
           />
 
           {mode === "edit" && teacher && (
-            <Input value={teacher.loginId} disabled placeholder="Login ID" className="col-span-2" />
+            <Input value={teacher.user_login_id} disabled placeholder="Login ID" className="col-span-2" />
           )}
 
           {mode === "create" && (
             <>
+              <Input
+                placeholder="Specialization (e.g. Mathematics)"
+                value={values.specialization}
+                onChange={(e) => setField("specialization", e.target.value)}
+                error={errors.specialization}
+                className="col-span-2"
+              />
+              <Input
+                type="number"
+                placeholder="Monthly salary"
+                value={values.salary}
+                onChange={(e) => setField("salary", Number(e.target.value))}
+                error={errors.salary}
+                className="col-span-2"
+              />
               <Input
                 type="password"
                 placeholder="Password"
@@ -206,11 +296,30 @@ function TeacherFormFields({
         </div>
       </DialogBody>
       <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
           Cancel
         </Button>
-        <Button onClick={handleSubmit}>{mode === "create" ? "Create" : "Save"}</Button>
+        <Button onClick={handleSubmit} loading={submitting}>
+          {mode === "create" ? "Create" : "Save"}
+        </Button>
       </DialogFooter>
     </>
   );
+}
+
+function applyServerErrors(
+  err: unknown,
+  setErrors: React.Dispatch<React.SetStateAction<Partial<Record<keyof TeacherProfileFormValues, string>>>>
+) {
+  if (err instanceof ApiError && err.fieldErrors) {
+    const mapped: Partial<Record<keyof TeacherProfileFormValues, string>> = {};
+    for (const [key, messages] of Object.entries(err.fieldErrors)) {
+      const field = key === "teacher_code" ? "teacherCode" : key === "employment_type" ? "employmentType" : (key as keyof TeacherProfileFormValues);
+      mapped[field] = messages[0];
+    }
+    setErrors(mapped);
+    toast.error("Please fix the highlighted fields.");
+  } else {
+    toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+  }
 }

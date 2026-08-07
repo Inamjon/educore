@@ -1,4 +1,5 @@
 from rest_framework import viewsets
+from rest_framework.exceptions import PermissionDenied
 
 from common.audit import audited
 from common.permissions import HasModulePermission
@@ -37,6 +38,18 @@ class TeacherProfileViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
     search_fields = ["teacher_code", "user__first_name", "user__last_name", "user__login_id"]
     entity_type = "teacher_profile"
     permission_map = TEACHER_PERMISSION_MAP
+
+    def perform_update(self, serializer):
+        """teacher:update grants a teacher edit rights on their OWN profile
+        only (e.g. the Teacher Portal's Profile page) — HasModulePermission
+        is module-level only, so without this a teacher with teacher:update
+        could PATCH any teacher's row in the org. Same pattern as
+        attendance/views.py::AttendanceViewSet._check_owns_group.
+        """
+        teacher_profile = getattr(self.request.user, "teacher_profile", None)
+        if teacher_profile is not None and serializer.instance.id != teacher_profile.id:
+            raise PermissionDenied("You can only update your own teacher profile.")
+        serializer.save()
 
     @audited(action="create", entity_type="teacher_profile")
     def create(self, request, *args, **kwargs):

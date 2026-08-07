@@ -5,9 +5,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/badge";
-import { ATTENDANCE_RECORDS, INVOICES } from "@/lib/data";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { useStudentParentsQuery } from "@/lib/queries/students";
+import { useStudentGroupMembershipsQuery } from "@/lib/queries/groups";
+import { useAttendanceQuery } from "@/lib/queries/attendance";
+import { useInvoicesQuery } from "@/lib/queries/finance";
+import { useAuthStore } from "@/lib/store/auth-store";
 import type { StudentProfile } from "@/lib/api/students";
 
 const ATTENDANCE_COLORS: Record<string, string> = {
@@ -25,16 +28,19 @@ interface StudentDetailPanelProps {
 }
 
 export function StudentDetailPanel({ student, onBack, onEdit, onDelete }: StudentDetailPanelProps) {
-  // Attendance/Invoices are still mock-only (no backend app exists yet — see
-  // types/index.ts) and keyed by mock student ids, so these will always be
-  // empty for real students. That's an honest reflection of reality, not a
-  // bug: neither subsystem exists to have real data yet.
-  const attendance = ATTENDANCE_RECORDS.filter((a) => a.studentId === student.id);
-  const invoices = INVOICES.filter((i) => i.studentId === student.id);
-  const balance = invoices.reduce((sum, inv) => sum + inv.balance, 0);
-
   const { data: parents } = useStudentParentsQuery(student.id);
   const primaryParent = parents?.find((p) => p.is_primary_contact) ?? parents?.[0];
+
+  const { data: memberships } = useStudentGroupMembershipsQuery(student.id);
+  const activeMemberships = (memberships ?? []).filter((m) => m.status === "active");
+
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const { data: attendance } = useAttendanceQuery({ organizationId: organizationId ?? "", studentProfile: student.id });
+  const recentAttendance = (attendance ?? []).slice(0, 5);
+
+  const { data: invoicesData } = useInvoicesQuery({ organizationId: organizationId ?? "", studentProfile: student.id });
+  const invoices = invoicesData ?? [];
+  const balance = invoices.reduce((sum, inv) => sum + Number(inv.balance), 0);
 
   return (
     <Card noPadding>
@@ -84,18 +90,34 @@ export function StudentDetailPanel({ student, onBack, onEdit, onDelete }: Studen
                 )}
               </>
             )}
-            <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Balance" value={balance > 0 ? `-$${balance}` : "Paid"} />
+            <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Balance" value={balance > 0 ? formatCurrency(balance) : "Paid"} />
           </div>
         </div>
 
         <div className="space-y-5">
           <div>
+            <h4 className="text-sm font-semibold text-slate-700 mb-2">Enrolled Groups</h4>
+            {activeMemberships.length === 0 ? (
+              <p className="text-sm text-slate-400">Not enrolled in any group.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {activeMemberships.map((m) => (
+                  <div key={m.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                    <span className="text-xs text-slate-700">{m.group_name}</span>
+                    <span className="text-xs text-slate-500">{m.course_name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
             <h4 className="text-sm font-semibold text-slate-700 mb-2">Recent Attendance</h4>
-            {attendance.length === 0 ? (
+            {recentAttendance.length === 0 ? (
               <p className="text-sm text-slate-400">No attendance records.</p>
             ) : (
               <div className="space-y-1.5">
-                {attendance.map((rec) => (
+                {recentAttendance.map((rec) => (
                   <div key={rec.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
                     <div className="flex items-center gap-2">
                       <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${ATTENDANCE_COLORS[rec.status] ?? "bg-slate-100 text-slate-600"}`}>
@@ -103,7 +125,7 @@ export function StudentDetailPanel({ student, onBack, onEdit, onDelete }: Studen
                       </span>
                       <span className="text-xs text-slate-500">{formatDate(rec.date)}</span>
                     </div>
-                    {rec.note && <span className="text-xs text-slate-400 truncate max-w-[140px]">{rec.note}</span>}
+                    {rec.notes && <span className="text-xs text-slate-400 truncate max-w-[140px]">{rec.notes}</span>}
                   </div>
                 ))}
               </div>
@@ -118,9 +140,9 @@ export function StudentDetailPanel({ student, onBack, onEdit, onDelete }: Studen
               <div className="space-y-1.5">
                 {invoices.map((inv) => (
                   <div key={inv.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                    <span className="text-xs text-slate-700">{inv.groupName}</span>
+                    <span className="text-xs text-slate-700">{inv.group_name ?? inv.invoice_number}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500">{formatCurrency(inv.amount)}</span>
+                      <span className="text-xs text-slate-500">{formatCurrency(Number(inv.total_amount))}</span>
                       <StatusBadge status={inv.status} />
                     </div>
                   </div>

@@ -1,9 +1,11 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from common.audit import audited
-from common.permissions import HasModulePermission
+from common.permissions import HasModulePermission, user_has_permission
 from foundation.filters import BranchFilter, OrganizationFilter, UserFilter
 from foundation.models import Organization, Branch, Permission, Role, User
 from foundation.serializers import (
@@ -122,6 +124,35 @@ class UserViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
         "destroy": ("administrators", "delete"),
         "suspend": ("administrators", "update"),
     }
+
+    # Fields a user without administrators:update may change on their OWN
+    # record — everything else (role_ids, status, organization, branch, ...)
+    # stays gated behind the real "administrators" permission even for
+    # self-requests, so this never becomes a privilege-escalation path.
+    SELF_EDITABLE_FIELDS = {"first_name", "last_name", "phone", "gender", "avatar_url", "password", "language"}
+
+    def get_permissions(self):
+        """Every non-admin portal (Teacher, Student, ...) needs to read and
+        lightly edit its own logged-in user's record — e.g. the Teacher
+        Profile page pre-filling name/phone — but has no administrators
+        grant. Self-access on your own pk bypasses the module check
+        entirely for retrieve; update/partial_update still go through
+        perform_update's field allowlist below.
+        """
+        is_self = self.action in ("retrieve", "update", "partial_update") and str(
+            self.kwargs.get("pk", "")
+        ) == str(getattr(self.request.user, "id", ""))
+        if is_self:
+            return [IsAuthenticated()]
+        return super().get_permissions()
+
+    def perform_update(self, serializer):
+        is_self = serializer.instance.id == self.request.user.id
+        if is_self and not user_has_permission(self.request.user, "administrators", "update"):
+            disallowed = set(serializer.validated_data) - self.SELF_EDITABLE_FIELDS
+            if disallowed:
+                raise PermissionDenied(f"You can only update: {', '.join(sorted(self.SELF_EDITABLE_FIELDS))}.")
+        serializer.save()
 
     @audited(action="create", entity_type="user")
     def create(self, request, *args, **kwargs):
