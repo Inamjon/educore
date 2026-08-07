@@ -1,3 +1,4 @@
+"use client";
 import Link from "next/link";
 import {
   Users,
@@ -18,7 +19,6 @@ import { formatCurrency } from "@/lib/utils";
 import {
   DASHBOARD_STATS,
   STUDENTS,
-  LESSONS,
   TRANSACTIONS,
 } from "@/lib/data";
 import {
@@ -26,12 +26,28 @@ import {
   EnrollmentPieChart,
   AttendanceBarChart,
 } from "@/components/charts/dashboard-charts";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { useLessonsQuery } from "@/lib/queries/schedule";
 
 const recentStudents = STUDENTS.slice(0, 5);
-const todayLessons = LESSONS.filter((l) => l.date === "2026-07-07").slice(0, 4);
 const recentTransactions = TRANSACTIONS.slice(0, 4);
 
+function toLocalIso(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export default function DashboardPage() {
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const todayIso = toLocalIso(new Date());
+  const { data: lessons = [] } = useLessonsQuery({
+    organizationId: organizationId ?? "",
+    date: todayIso,
+  });
+  const todayLessons = lessons.slice(0, 4);
+
   return (
     <div className="space-y-6">
       {/* Stat Cards Row 1 */}
@@ -149,18 +165,21 @@ export default function DashboardPage() {
         {/* Today's Lessons */}
         <Card title="Today's Lessons" subtitle="Scheduled for today">
           <div className="space-y-3">
+            {todayLessons.length === 0 && (
+              <p className="text-sm text-slate-400 text-center py-6">No lessons scheduled for today.</p>
+            )}
             {todayLessons.map((lesson) => (
               <div key={lesson.id} className="flex items-center gap-3">
                 <div
                   className="h-9 w-1.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: lesson.color }}
+                  style={{ backgroundColor: lesson.course_color || "#6366f1" }}
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">{lesson.groupName}</p>
+                  <p className="text-sm font-medium text-slate-800 truncate">{lesson.group_name}</p>
                   <p className="text-xs text-slate-400">{lesson.topic}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-xs font-medium text-slate-700">{lesson.startTime}</p>
+                  <p className="text-xs font-medium text-slate-700">{lesson.start_time.slice(0, 5)}</p>
                   <p className="text-xs text-slate-400">{lesson.room}</p>
                 </div>
               </div>

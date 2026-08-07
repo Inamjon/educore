@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { Bell, Search, Menu, ChevronDown, Settings, LogOut, User } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { NOTIFICATIONS } from "@/lib/data";
+import { useNotificationsQuery } from "@/lib/queries/notifications";
 import { useLogout } from "@/lib/hooks/use-logout";
 
 const PAGE_TITLES: Record<string, string> = {
@@ -28,7 +28,8 @@ interface HeaderProps {
 export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
   const pathname = usePathname();
   const title = PAGE_TITLES[pathname] ?? "EduCore";
-  const unreadCount = NOTIFICATIONS.filter((n) => !n.read).length;
+  const { data: notifications = [] } = useNotificationsQuery();
+  const unreadCount = notifications.filter((n) => !n.read).length;
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const handleLogout = useLogout();

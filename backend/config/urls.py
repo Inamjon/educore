@@ -16,6 +16,9 @@ urlpatterns = [
     path("api/v1/", include("groups.urls")),
     path("api/v1/", include("attendance.urls")),
     path("api/v1/", include("finance.urls")),
+    path("api/v1/", include("notifications.urls")),
+    path("api/v1/", include("schedule.urls")),
+    path("api/v1/", include("homework.urls")),
 ]
 
 # JSON-envelope fallback for unhandled exceptions — see common/exceptions.py.

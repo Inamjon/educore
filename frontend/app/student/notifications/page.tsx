@@ -4,23 +4,13 @@ import { useState } from 'react';
 import { Info, CheckCircle2, AlertTriangle, XCircle, Bell } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
-import { STUDENT_NOTIFICATIONS } from '@/lib/student-data';
+import { useNotificationsQuery, useMarkNotificationReadMutation } from '@/lib/queries/notifications';
+import type { NotificationType } from '@/lib/api/notifications';
 import { cn } from '@/lib/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type NotificationCategory = 'all' | 'class' | 'homework' | 'exam' | 'message' | 'admin';
-type NotificationType = 'info' | 'success' | 'warning' | 'error';
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: NotificationType;
-  read: boolean;
-  createdAt: string;
-  category: Exclude<NotificationCategory, 'all'>;
-}
 
 const FILTER_TABS: { id: NotificationCategory; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -40,7 +30,7 @@ const TYPE_CONFIG: Record<NotificationType, { bg: string; iconBg: string; iconCo
 
 function formatTime(isoString: string): string {
   const date = new Date(isoString);
-  const now = new Date('2026-07-06T14:43:49Z');
+  const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMin = Math.floor(diffMs / 60000);
   const diffHr = Math.floor(diffMin / 60);
@@ -55,17 +45,18 @@ function formatTime(isoString: string): string {
 
 export default function StudentNotificationsPage() {
   const [activeTab, setActiveTab] = useState<NotificationCategory>('all');
-  const [notifications, setNotifications] = useState<Notification[]>(STUDENT_NOTIFICATIONS);
+  const { data: notifications = [] } = useNotificationsQuery();
+  const markReadMutation = useMarkNotificationReadMutation();
 
   const filtered = notifications.filter((n) => activeTab === 'all' || n.category === activeTab);
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   function markRead(id: string) {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    markReadMutation.mutate({ id, read: true });
   }
 
   function markAllRead() {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    notifications.filter((n) => !n.read).forEach((n) => markReadMutation.mutate({ id: n.id, read: true }));
   }
 
   return (
@@ -133,7 +124,7 @@ export default function StudentNotificationsPage() {
                     {notification.title}
                   </p>
                   <p className="text-sm text-slate-500 mt-0.5 leading-snug">{notification.message}</p>
-                  <p className="text-xs text-slate-400 mt-1.5">{formatTime(notification.createdAt)}</p>
+                  <p className="text-xs text-slate-400 mt-1.5">{formatTime(notification.created_at)}</p>
                 </div>
 
                 <div className="flex-shrink-0 flex items-start pt-1">

@@ -24,7 +24,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
-import { TEACHER_STATS } from "@/lib/teacher-data";
+import { useNotificationsQuery } from "@/lib/queries/notifications";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { useLogout } from "@/lib/hooks/use-logout";
 
@@ -197,7 +197,8 @@ function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
   const pathname = usePathname();
   const authUser = useAuthStore((s) => s.user);
   const title = PAGE_TITLES[pathname] ?? "Teacher Portal";
-  const unreadCount = TEACHER_STATS.unreadMessages;
+  const { data: notifications = [] } = useNotificationsQuery();
+  const unreadCount = notifications.filter((n) => !n.read).length;
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const handleLogout = useLogout();

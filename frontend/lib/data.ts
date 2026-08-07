@@ -1,9 +1,7 @@
 import type {
   Student,
   Teacher,
-  Lesson,
   Transaction,
-  Notification,
 } from "@/types";
 
 // ─── Students ─────────────────────────────────────────────────────────────────
@@ -34,23 +32,11 @@ export const TEACHERS: Teacher[] = [
   { id: "t6", name: "Mr. David Nguyen", loginId: "TCH-2006", phone: "+1 555-0206", gender: "male", specialization: "Computer Science", subjects: ["Programming", "Data Structures", "Web Dev"], groupCount: 2, studentCount: 35, status: "inactive", joinedAt: "2023-06-01", salary: 5000, rating: 4.5 },
 ];
 
-// ─── Lessons / Schedule ───────────────────────────────────────────────────────
-// Courses/Groups mock arrays were removed here (2026-08) once both got a
-// real backend + real Admin pages — see lib/api/courses.ts, lib/api/groups.ts.
-// Schedule below still references course/group names as plain string
-// literals (not the removed exports) since Schedule itself has no backend
-// yet.
-
-export const LESSONS: Lesson[] = [
-  { id: "l1", groupId: "g1", groupName: "Algebra A1", courseId: "c1", courseName: "Algebra Fundamentals", teacherId: "t1", teacherName: "Dr. Sarah Connor", room: "Room 101", date: "2026-07-07", startTime: "09:00", endTime: "10:30", status: "scheduled", topic: "Linear Equations", color: "#6366f1" },
-  { id: "l2", groupId: "g2", groupName: "Physics B2", courseId: "c2", courseName: "Classical Physics", teacherId: "t2", teacherName: "Prof. James Wilson", room: "Room 205", date: "2026-07-07", startTime: "11:00", endTime: "13:00", status: "scheduled", topic: "Newton's Laws", color: "#3b82f6" },
-  { id: "l3", groupId: "g3", groupName: "English C1", courseId: "c3", courseName: "English Communication", teacherId: "t3", teacherName: "Ms. Emily Carter", room: "Room 303", date: "2026-07-07", startTime: "14:00", endTime: "15:30", status: "scheduled", topic: "Writing Skills", color: "#22c55e" },
-  { id: "l4", groupId: "g5", groupName: "Biology E2", courseId: "c5", courseName: "Biology & Life Sciences", teacherId: "t5", teacherName: "Ms. Lisa Park", room: "Lab 201", date: "2026-07-07", startTime: "13:00", endTime: "14:30", status: "scheduled", topic: "Cell Division", color: "#ec4899" },
-  { id: "l5", groupId: "g4", groupName: "Chemistry D1", courseId: "c4", courseName: "Advanced Chemistry", teacherId: "t4", teacherName: "Dr. Robert Chen", room: "Lab 102", date: "2026-07-08", startTime: "10:00", endTime: "12:00", status: "scheduled", topic: "Organic Reactions", color: "#f59e0b" },
-  { id: "l6", groupId: "g1", groupName: "Algebra A1", courseId: "c1", courseName: "Algebra Fundamentals", teacherId: "t1", teacherName: "Dr. Sarah Connor", room: "Room 101", date: "2026-07-09", startTime: "09:00", endTime: "10:30", status: "scheduled", topic: "Quadratic Equations", color: "#6366f1" },
-  { id: "l7", groupId: "g6", groupName: "WebDev F1", courseId: "c6", courseName: "Web Development", teacherId: "t6", teacherName: "Mr. David Nguyen", room: "Lab 303", date: "2026-07-05", startTime: "10:00", endTime: "13:00", status: "scheduled", topic: "React Hooks", color: "#a855f7" },
-  { id: "l8", groupId: "g2", groupName: "Physics B2", courseId: "c2", courseName: "Classical Physics", teacherId: "t2", teacherName: "Prof. James Wilson", room: "Room 205", date: "2026-07-04", startTime: "11:00", endTime: "13:00", status: "completed", topic: "Kinematics", color: "#3b82f6" },
-];
+// Admin's LESSONS mock array was removed here (2026-08-07) once the real
+// Schedule backend + Admin page landed — see lib/api/schedule.ts. The
+// Teacher/Student portals' own mocks (lib/teacher-data.ts::TEACHER_SCHEDULE,
+// lib/student-data.ts::STUDENT_SCHEDULE) were replaced the same day — see
+// their respective pages.
 
 // Admin's ATTENDANCE_RECORDS mock array was removed here (2026-08) once the
 // real Attendance backend + Admin page landed — see lib/api/attendance.ts.
@@ -71,19 +57,6 @@ export const TRANSACTIONS: Transaction[] = [
   { id: "tr4", studentName: "Grace Kim", amount: 399, method: "online", description: "Monthly tuition - Chemistry D1", date: "2026-06-24", status: "paid" },
   { id: "tr5", studentName: "Iris Chen", amount: 329, method: "card", description: "Monthly tuition - Biology E2", date: "2026-06-23", status: "paid" },
   { id: "tr6", studentName: "Bob Smith", amount: 149, method: "cash", description: "Partial payment - Algebra A1", date: "2026-06-20", status: "paid" },
-];
-
-// ─── Notifications ────────────────────────────────────────────────────────────
-
-export const NOTIFICATIONS: Notification[] = [
-  { id: "n1", title: "New Student Enrolled", message: "Henry Davis has enrolled in Chemistry D1 group.", type: "info", read: false, createdAt: "2026-07-03T10:00:00Z" },
-  { id: "n2", title: "Payment Overdue", message: "Daniel Brown has an overdue payment of $300.", type: "warning", read: false, createdAt: "2026-07-03T09:30:00Z" },
-  { id: "n3", title: "Low Attendance Alert", message: "Liam Turner attendance dropped below 50%.", type: "error", read: false, createdAt: "2026-07-02T14:00:00Z" },
-  { id: "n4", title: "Lesson Completed", message: "Physics B2 completed lesson on Kinematics.", type: "success", read: true, createdAt: "2026-07-02T13:00:00Z" },
-  { id: "n5", title: "New Course Added", message: "Web Development course is now available.", type: "info", read: true, createdAt: "2026-07-01T11:00:00Z" },
-  { id: "n6", title: "Payment Received", message: "Alice Johnson paid $299 for Algebra A1.", type: "success", read: true, createdAt: "2026-06-28T16:00:00Z" },
-  { id: "n7", title: "Schedule Updated", message: "Biology E2 schedule has been updated for next week.", type: "info", read: true, createdAt: "2026-06-28T09:00:00Z" },
-  { id: "n8", title: "Teacher Report Due", message: "Monthly teacher performance reports are due July 10.", type: "warning", read: false, createdAt: "2026-07-03T08:00:00Z" },
 ];
 
 // ─── Dashboard Stats ──────────────────────────────────────────────────────────

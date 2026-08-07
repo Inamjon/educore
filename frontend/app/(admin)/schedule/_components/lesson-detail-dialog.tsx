@@ -7,9 +7,14 @@ import {
   DialogHeader,
   DialogTitle,
   DialogBody,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
-import type { Lesson } from "@/types";
+import { toast } from "@/lib/store/toast-store";
+import { useUpdateLessonMutation } from "@/lib/queries/schedule";
+import { ApiError } from "@/lib/api/client";
+import type { Lesson } from "@/lib/api/schedule";
 
 interface LessonDetailDialogProps {
   lesson: Lesson | null;
@@ -17,28 +22,51 @@ interface LessonDetailDialogProps {
 }
 
 export function LessonDetailDialog({ lesson, onOpenChange }: LessonDetailDialogProps) {
+  const updateMutation = useUpdateLessonMutation();
+
+  async function setStatus(status: "completed" | "cancelled") {
+    if (!lesson) return;
+    try {
+      await updateMutation.mutateAsync({ id: lesson.id, input: { status } });
+      toast.success(status === "cancelled" ? "Lesson cancelled" : "Lesson marked completed");
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+    }
+  }
+
   return (
     <Dialog open={!!lesson} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         {lesson && (
           <>
             <DialogHeader>
-              <DialogTitle>{lesson.groupName}</DialogTitle>
+              <DialogTitle>{lesson.group_name}</DialogTitle>
             </DialogHeader>
             <DialogBody>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-500">{lesson.topic}</span>
+                <span className="text-sm text-slate-500">{lesson.topic || "—"}</span>
                 <StatusBadge status={lesson.status} />
               </div>
-              <InfoRow icon={<BookOpen className="h-4 w-4" />} label="Course" value={lesson.courseName} />
-              <InfoRow icon={<User className="h-4 w-4" />} label="Teacher" value={lesson.teacherName} />
-              <InfoRow icon={<MapPin className="h-4 w-4" />} label="Room" value={lesson.room} />
+              <InfoRow icon={<BookOpen className="h-4 w-4" />} label="Course" value={lesson.course_name ?? "—"} />
+              <InfoRow icon={<User className="h-4 w-4" />} label="Teacher" value={lesson.teacher_name} />
+              <InfoRow icon={<MapPin className="h-4 w-4" />} label="Room" value={lesson.room || "—"} />
               <InfoRow
                 icon={<Clock className="h-4 w-4" />}
                 label="Time"
-                value={`${lesson.startTime} – ${lesson.endTime}`}
+                value={`${lesson.start_time.slice(0, 5)} – ${lesson.end_time.slice(0, 5)}`}
               />
             </DialogBody>
+            {lesson.status === "scheduled" && (
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setStatus("cancelled")} loading={updateMutation.isPending}>
+                  Cancel Lesson
+                </Button>
+                <Button onClick={() => setStatus("completed")} loading={updateMutation.isPending}>
+                  Mark Completed
+                </Button>
+              </DialogFooter>
+            )}
           </>
         )}
       </DialogContent>

@@ -1,14 +1,16 @@
 "use client";
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
-import { LESSONS } from "@/lib/data";
-import type { Lesson } from "@/types";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { useLessonsQuery } from "@/lib/queries/schedule";
+import type { Lesson } from "@/lib/api/schedule";
 import { LessonDetailDialog } from "./_components/lesson-detail-dialog";
+import { LessonFormDialog } from "./_components/lesson-form-dialog";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HOUR_START = 8;
@@ -19,7 +21,16 @@ const VIEW_OPTIONS = [
   { value: "list", label: "List View" },
 ];
 
-const REFERENCE_DATE = "2026-07-07";
+/** Formats a Date as a YYYY-MM-DD string using its local calendar date (not
+ * toISOString, which converts to UTC and shifts the date backward a day in
+ * timezones ahead of UTC — see app/teacher/schedule/page.tsx's toLocalIso
+ * for the bug this fixes). */
+function toLocalIso(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function getMondayOf(date: Date): Date {
   const d = new Date(date);
@@ -36,7 +47,7 @@ function buildWeek(monday: Date) {
     d.setDate(monday.getDate() + i);
     return {
       day: DAYS[i],
-      date: d.toISOString().split("T")[0],
+      date: toLocalIso(d),
       label: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     };
   });
@@ -60,18 +71,31 @@ function getLessonStyle(startTime: string, endTime: string) {
 }
 
 export default function SchedulePage() {
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
   const [view, setView] = useState<"week" | "list">("week");
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   const currentMonday = useMemo(() => {
-    const base = getMondayOf(new Date(REFERENCE_DATE + "T12:00:00"));
+    const base = getMondayOf(new Date());
     base.setDate(base.getDate() + weekOffset * 7);
     return base;
   }, [weekOffset]);
 
   const weekDates = useMemo(() => buildWeek(currentMonday), [currentMonday]);
   const weekRange = useMemo(() => formatWeekRange(weekDates), [weekDates]);
+
+  const { data: lessons = [], isLoading } = useLessonsQuery({
+    organizationId: organizationId ?? "",
+    dateFrom: weekDates[0].date,
+    dateTo: weekDates[6].date,
+  });
+  // List view isn't week-bound — widen the window instead of re-deriving a
+  // second query shape for one toggle state.
+  const { data: allLessons = [] } = useLessonsQuery({
+    organizationId: view === "list" ? organizationId ?? "" : "",
+  });
 
   return (
     <div className="space-y-6">
@@ -95,6 +119,10 @@ export default function SchedulePage() {
               onChange={(e) => setView(e.target.value as "week" | "list")}
               className="w-32"
             />
+            <Button size="sm" onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" />
+              New Lesson
+            </Button>
           </div>
         }
       />
@@ -122,26 +150,29 @@ export default function SchedulePage() {
               </div>
 
               {weekDates.map((d) => {
-                const dayLessons = LESSONS.filter((l) => l.date === d.date);
+                const dayLessons = lessons.filter((l) => l.date === d.date);
                 return (
                   <div key={d.date} className="relative border-r border-slate-100 last:border-0">
                     {HOURS.map((h) => (
                       <div key={h} className="h-[60px] border-b border-slate-50" />
                     ))}
                     {dayLessons.map((lesson) => {
-                      const style = getLessonStyle(lesson.startTime, lesson.endTime);
+                      const style = getLessonStyle(lesson.start_time, lesson.end_time);
+                      const color = lesson.course_color || "#6366f1";
                       return (
                         <div
                           key={lesson.id}
                           onClick={() => setSelectedLesson(lesson)}
                           className="absolute left-1 right-1 rounded-lg px-2 py-1 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-                          style={{ ...style, backgroundColor: `${lesson.color}20`, borderLeft: `3px solid ${lesson.color}` }}
+                          style={{ ...style, backgroundColor: `${color}20`, borderLeft: `3px solid ${color}` }}
                         >
-                          <p className="text-xs font-semibold truncate" style={{ color: lesson.color }}>
-                            {lesson.groupName}
+                          <p className="text-xs font-semibold truncate" style={{ color }}>
+                            {lesson.group_name}
                           </p>
                           <p className="text-[10px] text-slate-500 truncate">{lesson.topic}</p>
-                          <p className="text-[10px] text-slate-400">{lesson.startTime}–{lesson.endTime}</p>
+                          <p className="text-[10px] text-slate-400">
+                            {lesson.start_time.slice(0, 5)}–{lesson.end_time.slice(0, 5)}
+                          </p>
                         </div>
                       );
                     })}
@@ -154,35 +185,46 @@ export default function SchedulePage() {
       ) : (
         <Card noPadding title="All Lessons">
           <div className="divide-y divide-slate-50">
-            {LESSONS.sort((a, b) => a.date.localeCompare(b.date)).map((lesson) => (
-              <div
-                key={lesson.id}
-                onClick={() => setSelectedLesson(lesson)}
-                className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer"
-              >
-                <div className="h-10 w-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: lesson.color }} />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-slate-900">{lesson.groupName}</p>
-                  <p className="text-sm text-slate-400">{lesson.topic} · {lesson.teacherName}</p>
+            {[...allLessons]
+              .sort((a, b) => a.date.localeCompare(b.date))
+              .map((lesson) => (
+                <div
+                  key={lesson.id}
+                  onClick={() => setSelectedLesson(lesson)}
+                  className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  <div className="h-10 w-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: lesson.course_color || "#6366f1" }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-slate-900">{lesson.group_name}</p>
+                    <p className="text-sm text-slate-400">{lesson.topic} · {lesson.teacher_name}</p>
+                  </div>
+                  <div className="text-sm text-slate-600 hidden sm:block">{lesson.room}</div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-slate-800">
+                      {lesson.start_time.slice(0, 5)} – {lesson.end_time.slice(0, 5)}
+                    </p>
+                    <p className="text-xs text-slate-400">{new Date(lesson.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</p>
+                  </div>
+                  <StatusBadge status={lesson.status} />
                 </div>
-                <div className="text-sm text-slate-600 hidden sm:block">{lesson.room}</div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-slate-800">{lesson.startTime} – {lesson.endTime}</p>
-                  <p className="text-xs text-slate-400">{new Date(lesson.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</p>
-                </div>
-                <StatusBadge status={lesson.status} />
-              </div>
-            ))}
+              ))}
+            {allLessons.length === 0 && (
+              <p className="text-sm text-slate-400 text-center py-10">No lessons found.</p>
+            )}
           </div>
         </Card>
       )}
 
+      {!isLoading && lessons.length === 0 && view === "week" && (
+        <p className="text-sm text-slate-400 text-center">No lessons scheduled this week.</p>
+      )}
+
       <div className="flex flex-wrap gap-4">
-        {Array.from(new Set(LESSONS.map((l) => l.groupName))).map((name) => {
-          const lesson = LESSONS.find((l) => l.groupName === name)!;
+        {Array.from(new Set(lessons.map((l) => l.group_name))).map((name) => {
+          const lesson = lessons.find((l) => l.group_name === name)!;
           return (
             <div key={name} className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full" style={{ backgroundColor: lesson.color }} />
+              <div className="h-3 w-3 rounded-full" style={{ backgroundColor: lesson.course_color || "#6366f1" }} />
               <span className="text-xs text-slate-600">{name}</span>
             </div>
           );
@@ -190,6 +232,7 @@ export default function SchedulePage() {
       </div>
 
       <LessonDetailDialog lesson={selectedLesson} onOpenChange={(open) => !open && setSelectedLesson(null)} />
+      <LessonFormDialog open={formOpen} onOpenChange={setFormOpen} />
     </div>
   );
 }

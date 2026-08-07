@@ -2,9 +2,11 @@
 
 Django + DRF backend for EduCore. `foundation` and `auth_custom` (organizations,
 branches, users, RBAC, JWT auth with real session tracking) shipped first as
-Phase 0; `student`, `teacher`, `course`, `groups`, `attendance`, and `finance`
-have since been added on top of it. Every other module (homework, exams,
-notifications, reports/AI) is still a later phase; see
+Phase 0; `student`, `teacher`, `course`, `groups`, `attendance`, `finance`,
+`notifications`, `schedule`, and `homework` (assignments + submissions) have
+since been added on top of it. `exams` and reports/AI are still a later
+phase — `exams` deliberately skipped for now, possibly getting dropped from
+the product entirely; see
 `C:\Users\qrina\.claude\plans\stateful-gliding-perlis.md` for the full
 architecture plan this was built from.
 
@@ -40,9 +42,9 @@ CREATE DATABASE educore;
 -- `manage.py migrate` itself succeeded (RLS policies also don't help here:
 -- this is plain schema/table privilege, evaluated before RLS ever runs).
 CREATE ROLE educore_app LOGIN PASSWORD 'change-me';
-GRANT USAGE ON SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance TO educore_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance TO educore_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance
+GRANT USAGE ON SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework TO educore_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework TO educore_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO educore_app;
 
 -- Used ONLY by the login endpoint's initial login_id -> user lookup, which
@@ -51,9 +53,9 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "
 -- but still not a superuser — keep this role's blast radius as narrow as
 -- the login/session/refresh-token code paths that actually use it.
 CREATE ROLE educore_auth_bypass LOGIN PASSWORD 'change-me-too' BYPASSRLS;
-GRANT USAGE ON SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance TO educore_auth_bypass;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance TO educore_auth_bypass;
-ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance
+GRANT USAGE ON SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework TO educore_auth_bypass;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework TO educore_auth_bypass;
+ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO educore_auth_bypass;
 ```
 

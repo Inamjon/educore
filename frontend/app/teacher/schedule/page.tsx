@@ -1,28 +1,16 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, MapPin } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { TEACHER_SCHEDULE } from '@/lib/teacher-data';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { useLessonsQuery } from '@/lib/queries/schedule';
+import type { Lesson } from '@/lib/api/schedule';
 import { LessonDetailDialog } from './_components/lesson-detail-dialog';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface Lesson {
-  id: string;
-  groupId: string;
-  groupName: string;
-  courseColor: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  room: string;
-  topic: string;
-  status: 'completed' | 'scheduled' | 'cancelled';
-}
+import { LessonFormDialog } from './_components/lesson-form-dialog';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -37,8 +25,9 @@ const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Formats a Date as a YYYY-MM-DD string using its local calendar date (not toISOString, which
- * converts to UTC and shifts the date backward a day in timezones ahead of UTC). */
+/** Formats a Date as a YYYY-MM-DD string using its local calendar date (not
+ * toISOString, which converts to UTC and shifts the date backward a day in
+ * timezones ahead of UTC). */
 function toLocalIso(d: Date): string {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -109,12 +98,14 @@ function formatDateBadge(iso: string): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function TeacherSchedulePage() {
-  const todayIso = '2026-07-04';
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const todayIso = useMemo(() => toLocalIso(new Date()), []);
   const [weekOffset, setWeekOffset] = useState(0); // 0 = current week
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   const currentMonday = useMemo(() => {
-    const base = getMondayOf(new Date(todayIso + 'T12:00:00'));
+    const base = getMondayOf(new Date());
     base.setDate(base.getDate() + weekOffset * 7);
     return base;
   }, [weekOffset]);
@@ -122,34 +113,30 @@ export default function TeacherSchedulePage() {
   const weekDates = useMemo(() => buildWeek(currentMonday), [currentMonday]);
   const weekRange = useMemo(() => formatWeekRange(weekDates), [weekDates]);
 
-  // Lessons in this week, cast to typed array
-  const weekLessons = useMemo(
-    () =>
-      (TEACHER_SCHEDULE as Lesson[]).filter((l) => weekDates.includes(l.date)),
-    [weekDates]
-  );
+  const { data: weekLessons = [] } = useLessonsQuery({
+    organizationId: organizationId ?? '',
+    dateFrom: weekDates[0],
+    dateTo: weekDates[6],
+  });
+  // Today's timetable + upcoming panels look 30 days ahead regardless of
+  // which week is currently navigated to.
+  const { data: horizonLessons = [] } = useLessonsQuery({
+    organizationId: organizationId ?? '',
+    dateFrom: todayIso,
+  });
 
-  // Today's lessons (only relevant when viewing the current week)
   const todayLessons = useMemo(
-    () =>
-      (TEACHER_SCHEDULE as Lesson[])
-        .filter((l) => l.date === todayIso)
-        .sort((a, b) => a.startTime.localeCompare(b.startTime)),
-    []
+    () => horizonLessons.filter((l) => l.date === todayIso).sort((a, b) => a.start_time.localeCompare(b.start_time)),
+    [horizonLessons, todayIso]
   );
 
-  // Upcoming: next 5 lessons after today, sorted by date then time
   const upcomingLessons = useMemo(
     () =>
-      (TEACHER_SCHEDULE as Lesson[])
+      horizonLessons
         .filter((l) => l.date > todayIso && l.status !== 'cancelled')
-        .sort((a, b) =>
-          a.date !== b.date
-            ? a.date.localeCompare(b.date)
-            : a.startTime.localeCompare(b.startTime)
-        )
+        .sort((a, b) => (a.date !== b.date ? a.date.localeCompare(b.date) : a.start_time.localeCompare(b.start_time)))
         .slice(0, 5),
-    []
+    [horizonLessons, todayIso]
   );
 
   const statusVariant = (status: Lesson['status']) => {
@@ -157,6 +144,8 @@ export default function TeacherSchedulePage() {
     if (status === 'cancelled') return 'secondary' as const;
     return 'info' as const;
   };
+
+  const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
   return (
     <div className="space-y-6">
@@ -186,6 +175,10 @@ export default function TeacherSchedulePage() {
               onClick={() => setWeekOffset((o) => o + 1)}
             >
               <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button size="sm" onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" />
+              New Lesson
             </Button>
           </div>
         }
@@ -267,8 +260,9 @@ export default function TeacherSchedulePage() {
 
                   {/* Lesson blocks */}
                   {dayLessons.map((lesson) => {
-                    const style = getLessonStyle(lesson.startTime, lesson.endTime);
+                    const style = getLessonStyle(lesson.start_time, lesson.end_time);
                     const isCancelled = lesson.status === 'cancelled';
+                    const color = lesson.course_color || '#6366f1';
                     return (
                       <div
                         key={lesson.id}
@@ -279,21 +273,21 @@ export default function TeacherSchedulePage() {
                         style={{
                           top: style.top,
                           height: style.height,
-                          backgroundColor: `${lesson.courseColor}18`,
-                          borderLeft: `3px solid ${lesson.courseColor}`,
+                          backgroundColor: `${color}18`,
+                          borderLeft: `3px solid ${color}`,
                         }}
                       >
                         <p
                           className="text-[11px] font-semibold truncate leading-tight"
-                          style={{ color: lesson.courseColor }}
+                          style={{ color }}
                         >
-                          {lesson.groupName}
+                          {lesson.group_name}
                         </p>
                         <p className="text-[10px] text-slate-500 truncate leading-tight mt-0.5">
                           {lesson.topic}
                         </p>
                         <p className="text-[10px] text-slate-400 leading-tight">
-                          {lesson.startTime}–{lesson.endTime}
+                          {lesson.start_time.slice(0, 5)}–{lesson.end_time.slice(0, 5)}
                         </p>
                       </div>
                     );
@@ -307,17 +301,13 @@ export default function TeacherSchedulePage() {
 
       {/* ── Group color legend ──────────────────────────────────────── */}
       <div className="flex flex-wrap gap-4">
-        {Array.from(
-          new Map(
-            (TEACHER_SCHEDULE as Lesson[]).map((l) => [l.groupId, l])
-          ).values()
-        ).map((l) => (
-          <div key={l.groupId} className="flex items-center gap-2">
+        {Array.from(new Map(weekLessons.map((l) => [l.group, l])).values()).map((l) => (
+          <div key={l.group} className="flex items-center gap-2">
             <span
               className="h-3 w-3 rounded-full"
-              style={{ backgroundColor: l.courseColor }}
+              style={{ backgroundColor: l.course_color || '#6366f1' }}
             />
-            <span className="text-xs text-slate-600">{l.groupName}</span>
+            <span className="text-xs text-slate-600">{l.group_name}</span>
           </div>
         ))}
       </div>
@@ -327,7 +317,7 @@ export default function TeacherSchedulePage() {
         {/* Today's Timetable */}
         <Card
           title="Today's Timetable"
-          subtitle={`Saturday, July 4, 2026 · ${todayLessons.length} lesson${
+          subtitle={`${todayLabel} · ${todayLessons.length} lesson${
             todayLessons.length !== 1 ? 's' : ''
           }`}
         >
@@ -346,7 +336,7 @@ export default function TeacherSchedulePage() {
                   {/* Number */}
                   <span
                     className="h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5"
-                    style={{ backgroundColor: lesson.courseColor }}
+                    style={{ backgroundColor: lesson.course_color || '#6366f1' }}
                   >
                     {i + 1}
                   </span>
@@ -355,7 +345,7 @@ export default function TeacherSchedulePage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-semibold text-slate-900">
-                        {lesson.groupName}
+                        {lesson.group_name}
                       </span>
                       <Badge
                         label={lesson.status.charAt(0).toUpperCase() + lesson.status.slice(1)}
@@ -366,11 +356,11 @@ export default function TeacherSchedulePage() {
                     <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {formatTime(lesson.startTime)} – {formatTime(lesson.endTime)}
+                        {formatTime(lesson.start_time)} – {formatTime(lesson.end_time)}
                       </span>
                       <span className="flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
-                        {lesson.room}
+                        {lesson.room || '—'}
                       </span>
                     </div>
                   </div>
@@ -400,25 +390,25 @@ export default function TeacherSchedulePage() {
                   {/* Colored left accent */}
                   <div
                     className="h-10 w-1 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: lesson.courseColor }}
+                    style={{ backgroundColor: lesson.course_color || '#6366f1' }}
                   />
 
                   {/* Date badge */}
                   <div
                     className="flex-shrink-0 text-center rounded-xl px-2.5 py-1.5 min-w-[48px]"
                     style={{
-                      backgroundColor: `${lesson.courseColor}15`,
+                      backgroundColor: `${lesson.course_color || '#6366f1'}15`,
                     }}
                   >
                     <p
                       className="text-[10px] font-semibold uppercase leading-none"
-                      style={{ color: lesson.courseColor }}
+                      style={{ color: lesson.course_color || '#6366f1' }}
                     >
                       {new Date(lesson.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })}
                     </p>
                     <p
                       className="text-base font-bold leading-tight"
-                      style={{ color: lesson.courseColor }}
+                      style={{ color: lesson.course_color || '#6366f1' }}
                     >
                       {new Date(lesson.date + 'T00:00:00').getDate()}
                     </p>
@@ -427,17 +417,17 @@ export default function TeacherSchedulePage() {
                   {/* Lesson details */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-slate-900 truncate">
-                      {lesson.groupName}
+                      {lesson.group_name}
                     </p>
                     <p className="text-xs text-slate-500 truncate">{lesson.topic}</p>
                     <div className="flex items-center gap-3 mt-0.5 text-[10px] text-slate-400">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {lesson.startTime}–{lesson.endTime}
+                        {lesson.start_time.slice(0, 5)}–{lesson.end_time.slice(0, 5)}
                       </span>
                       <span className="flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
-                        {lesson.room}
+                        {lesson.room || '—'}
                       </span>
                     </div>
                   </div>
@@ -457,6 +447,7 @@ export default function TeacherSchedulePage() {
       </div>
 
       <LessonDetailDialog lesson={selectedLesson} onOpenChange={(open) => !open && setSelectedLesson(null)} />
+      <LessonFormDialog open={formOpen} onOpenChange={setFormOpen} />
     </div>
   );
 }

@@ -59,24 +59,8 @@ export interface Teacher {
 // backend + real Admin pages — see lib/api/courses.ts (CourseProfile,
 // CourseLevel) and lib/api/groups.ts (Group, DayOfWeek) for the real shapes.
 
-// ─── Schedule ─────────────────────────────────────────────────────────────────
-
-export interface Lesson {
-  id: string;
-  groupId: string;
-  groupName: string;
-  courseId: string;
-  courseName: string;
-  teacherId: string;
-  teacherName: string;
-  room: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  status: "scheduled" | "completed" | "cancelled";
-  topic?: string;
-  color: string;
-}
+// Admin's mock Lesson type was removed here (2026-08-07) once the real
+// Schedule backend + Admin page landed — see lib/api/schedule.ts::Lesson.
 
 // ─── Attendance ───────────────────────────────────────────────────────────────
 
@@ -115,21 +99,6 @@ export interface Transaction {
   description: string;
   date: string;
   status: PaymentStatus;
-}
-
-// ─── Notification ─────────────────────────────────────────────────────────────
-
-export type NotificationType = "info" | "success" | "warning" | "error";
-
-export interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: NotificationType;
-  read: boolean;
-  createdAt: string;
-  targetRole?: Role;
-  deletedAt?: string | null;
 }
 
 // ─── Stats ────────────────────────────────────────────────────────────────────

@@ -27,23 +27,29 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import {
   STUDENT_PROFILE,
   STUDENT_STATS,
-  STUDENT_SCHEDULE,
-  STUDENT_HOMEWORK,
-  STUDENT_NOTIFICATIONS,
   STUDENT_EXAMS,
   GRADE_TREND_DATA,
 } from "@/lib/student-data";
+import { useNotificationsQuery } from "@/lib/queries/notifications";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { useLessonsQuery } from "@/lib/queries/schedule";
+import type { Lesson } from "@/lib/api/schedule";
+import { useStudentsQuery } from "@/lib/queries/students";
+import { useStudentGroupMembershipsQuery } from "@/lib/queries/groups";
+import { useAssignmentsQuery, useSubmissionsQuery } from "@/lib/queries/homework";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const TODAY = "2026-07-04";
 
-const todayClasses = STUDENT_SCHEDULE.filter((s) => s.date === TODAY);
-const upcomingLessons = STUDENT_SCHEDULE.filter((s) => s.date > TODAY).slice(0, 4);
+function toLocalIso(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 const upcomingExams = STUDENT_EXAMS.filter((e) => e.status === "upcoming");
-const pendingHomework = STUDENT_HOMEWORK.filter(
-  (h) => h.status === "pending" || h.status === "late"
-).slice(0, 4);
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
@@ -60,7 +66,10 @@ function daysUntil(dateStr: string) {
 }
 
 function formatRelativeTime(isoString: string) {
-  const now = new Date("2026-07-06T14:43:49Z");
+  // Real wall-clock "now" — this now also formats real Notification
+  // timestamps (see the Recent Activity card below), which aren't anchored
+  // to the dashboard's fixed demo date the way STUDENT_* mock data still is.
+  const now = new Date();
   const then = new Date(isoString);
   const diffMs = now.getTime() - then.getTime();
   const diffMin = Math.floor(diffMs / 60000);
@@ -122,22 +131,22 @@ const QUICK_ACTIONS = [
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ScheduleItem({ lesson }: { lesson: (typeof STUDENT_SCHEDULE)[number] }) {
+function ScheduleItem({ lesson }: { lesson: Lesson }) {
   return (
     <div
       className="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0"
-      style={{ borderLeft: `3px solid ${lesson.courseColor}`, paddingLeft: "12px" }}
+      style={{ borderLeft: `3px solid ${lesson.course_color || "#6366f1"}`, paddingLeft: "12px" }}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-semibold text-slate-800 truncate">
-            {lesson.groupName}
+            {lesson.group_name}
           </span>
           <StatusBadge status={lesson.status} />
         </div>
         <p className="text-xs text-slate-500 mt-0.5 truncate">{lesson.topic}</p>
         <p className="text-xs text-slate-400 mt-0.5">
-          {lesson.startTime} – {lesson.endTime} &middot; {lesson.room}
+          {lesson.start_time.slice(0, 5)} – {lesson.end_time.slice(0, 5)} &middot; {lesson.room || "—"}
         </p>
       </div>
     </div>
@@ -147,6 +156,25 @@ function ScheduleItem({ lesson }: { lesson: (typeof STUDENT_SCHEDULE)[number] })
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function StudentDashboardPage() {
+  const { data: notifications = [] } = useNotificationsQuery();
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const todayIso = toLocalIso(new Date());
+  const { data: lessons = [] } = useLessonsQuery({ organizationId: organizationId ?? "", dateFrom: todayIso });
+  const todayClasses = lessons.filter((l) => l.date === todayIso);
+  const upcomingLessons = lessons.filter((l) => l.date > todayIso).slice(0, 4);
+
+  const authUserId = useAuthStore((s) => s.user?.id);
+  const { data: students = [] } = useStudentsQuery({ organizationId: organizationId ?? "" });
+  const myProfile = students.find((s) => s.user === authUserId);
+  const { data: memberships = [] } = useStudentGroupMembershipsQuery(myProfile?.id ?? null);
+  const myGroupIds = new Set(memberships.filter((m) => m.status === "active").map((m) => m.group));
+  const { data: assignments = [] } = useAssignmentsQuery({ organizationId: organizationId ?? "" });
+  const myAssignments = assignments.filter((a) => myGroupIds.has(a.group));
+  const { data: submissions = [] } = useSubmissionsQuery({ organizationId: organizationId ?? "", studentProfile: myProfile?.id });
+  const submittedAssignmentIds = new Set(submissions.map((s) => s.assignment));
+  const allPendingHomework = myAssignments.filter((a) => !submittedAssignmentIds.has(a.id));
+  const pendingHomework = allPendingHomework.slice(0, 4);
+
   const todayLabel = new Date(TODAY + "T00:00:00").toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
@@ -193,7 +221,7 @@ export default function StudentDashboardPage() {
         />
         <StatCard
           label="Pending Homework"
-          value={STUDENT_STATS.pendingHomework}
+          value={allPendingHomework.length}
           icon={<ClipboardList className="h-5 w-5 text-amber-600" />}
           iconBg="bg-amber-50"
         />
@@ -228,7 +256,7 @@ export default function StudentDashboardPage() {
         <div className="lg:col-span-2">
           <Card
             title="Today's Classes"
-            subtitle={`${todayClasses.length} sessions on ${formatDate(TODAY)}`}
+            subtitle={`${todayClasses.length} sessions on ${formatDate(todayIso)}`}
           >
             {todayClasses.length === 0 ? (
               <p className="text-sm text-slate-400 text-center py-8">No classes today</p>
@@ -283,24 +311,30 @@ export default function StudentDashboardPage() {
             <p className="text-sm text-slate-400 text-center py-8">You&apos;re all caught up!</p>
           ) : (
             <div className="space-y-3">
-              {pendingHomework.map((hw) => (
-                <div
-                  key={hw.id}
-                  className="rounded-xl border border-slate-100 p-3 hover:border-indigo-100 hover:bg-indigo-50/30 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 truncate">{hw.title}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{hw.groupName}</p>
+              {pendingHomework.map((assignment) => {
+                const isLate = assignment.due_date < todayIso;
+                return (
+                  <div
+                    key={assignment.id}
+                    className="rounded-xl border border-slate-100 p-3 hover:border-indigo-100 hover:bg-indigo-50/30 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate">{assignment.title}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{assignment.group_name}</p>
+                      </div>
+                      <Badge
+                        label={HOMEWORK_STATUS_CONFIG[isLate ? "late" : "pending"].label}
+                        variant={HOMEWORK_STATUS_CONFIG[isLate ? "late" : "pending"].variant}
+                      />
                     </div>
-                    <Badge label={HOMEWORK_STATUS_CONFIG[hw.status].label} variant={HOMEWORK_STATUS_CONFIG[hw.status].variant} />
+                    <div className="flex items-center gap-1.5 mt-2 text-xs text-slate-400">
+                      <Clock className="h-3 w-3" />
+                      Due {formatDate(assignment.due_date)}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 mt-2 text-xs text-slate-400">
-                    <Clock className="h-3 w-3" />
-                    Due {formatDate(hw.dueDate)}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </Card>
@@ -311,7 +345,10 @@ export default function StudentDashboardPage() {
         <div className="lg:col-span-2">
           <Card title="Recent Activity" subtitle="Latest notifications">
             <div className="space-y-4">
-              {STUDENT_NOTIFICATIONS.slice(0, 5).map((notif) => (
+              {notifications.length === 0 && (
+                <p className="text-sm text-slate-400 text-center py-6">No recent notifications</p>
+              )}
+              {notifications.slice(0, 5).map((notif) => (
                 <div key={notif.id} className="flex items-start gap-3">
                   <div className="mt-1.5 flex-shrink-0">
                     <span
@@ -322,7 +359,7 @@ export default function StudentDashboardPage() {
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-semibold text-slate-800 truncate">{notif.title}</p>
                       <span className="text-xs text-slate-400 flex-shrink-0">
-                        {formatRelativeTime(notif.createdAt)}
+                        {formatRelativeTime(notif.created_at)}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{notif.message}</p>

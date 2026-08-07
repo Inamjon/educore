@@ -37,6 +37,9 @@ INSTALLED_APPS = [
     "groups",
     "attendance",
     "finance",
+    "notifications",
+    "schedule",
+    "homework",
 ]
 
 MIDDLEWARE = [

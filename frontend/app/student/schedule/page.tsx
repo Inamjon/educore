@@ -6,23 +6,9 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { STUDENT_SCHEDULE } from '@/lib/student-data';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface Lesson {
-  id: string;
-  groupId: string;
-  groupName: string;
-  courseColor: string;
-  teacherName: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  room: string;
-  topic: string;
-  status: 'completed' | 'scheduled' | 'cancelled';
-}
+import { useAuthStore } from '@/lib/store/auth-store';
+import { useLessonsQuery } from '@/lib/queries/schedule';
+import type { Lesson } from '@/lib/api/schedule';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -37,6 +23,16 @@ const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Formats a Date as a YYYY-MM-DD string using its local calendar date (not
+ * toISOString, which converts to UTC and shifts the date backward a day in
+ * timezones ahead of UTC — same fix as app/teacher/schedule/page.tsx). */
+function toLocalIso(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function getMondayOf(date: Date): Date {
   const d = new Date(date);
   const day = d.getDay();
@@ -50,7 +46,7 @@ function buildWeek(monday: Date): string[] {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    return d.toISOString().split('T')[0];
+    return toLocalIso(d);
   });
 }
 
@@ -92,11 +88,12 @@ function formatTime(time: string): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function StudentSchedulePage() {
-  const todayIso = '2026-07-04';
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const todayIso = useMemo(() => toLocalIso(new Date()), []);
   const [weekOffset, setWeekOffset] = useState(0);
 
   const currentMonday = useMemo(() => {
-    const base = getMondayOf(new Date(todayIso + 'T12:00:00'));
+    const base = getMondayOf(new Date());
     base.setDate(base.getDate() + weekOffset * 7);
     return base;
   }, [weekOffset]);
@@ -104,28 +101,28 @@ export default function StudentSchedulePage() {
   const weekDates = useMemo(() => buildWeek(currentMonday), [currentMonday]);
   const weekRange = useMemo(() => formatWeekRange(weekDates), [weekDates]);
 
-  const weekLessons = useMemo(
-    () => (STUDENT_SCHEDULE as Lesson[]).filter((l) => weekDates.includes(l.date)),
-    [weekDates]
-  );
+  const { data: weekLessons = [] } = useLessonsQuery({
+    organizationId: organizationId ?? '',
+    dateFrom: weekDates[0],
+    dateTo: weekDates[6],
+  });
+  const { data: horizonLessons = [] } = useLessonsQuery({
+    organizationId: organizationId ?? '',
+    dateFrom: todayIso,
+  });
 
   const todayLessons = useMemo(
-    () =>
-      (STUDENT_SCHEDULE as Lesson[])
-        .filter((l) => l.date === todayIso)
-        .sort((a, b) => a.startTime.localeCompare(b.startTime)),
-    []
+    () => horizonLessons.filter((l) => l.date === todayIso).sort((a, b) => a.start_time.localeCompare(b.start_time)),
+    [horizonLessons, todayIso]
   );
 
   const upcomingLessons = useMemo(
     () =>
-      (STUDENT_SCHEDULE as Lesson[])
+      horizonLessons
         .filter((l) => l.date > todayIso && l.status !== 'cancelled')
-        .sort((a, b) =>
-          a.date !== b.date ? a.date.localeCompare(b.date) : a.startTime.localeCompare(b.startTime)
-        )
+        .sort((a, b) => (a.date !== b.date ? a.date.localeCompare(b.date) : a.start_time.localeCompare(b.start_time)))
         .slice(0, 5),
-    []
+    [horizonLessons, todayIso]
   );
 
   const statusVariant = (status: Lesson['status']) => {
@@ -210,8 +207,9 @@ export default function StudentSchedulePage() {
                   ))}
 
                   {dayLessons.map((lesson) => {
-                    const style = getLessonStyle(lesson.startTime, lesson.endTime);
+                    const style = getLessonStyle(lesson.start_time, lesson.end_time);
                     const isCancelled = lesson.status === 'cancelled';
+                    const color = lesson.course_color || '#6366f1';
                     return (
                       <div
                         key={lesson.id}
@@ -221,16 +219,16 @@ export default function StudentSchedulePage() {
                         style={{
                           top: style.top,
                           height: style.height,
-                          backgroundColor: `${lesson.courseColor}18`,
-                          borderLeft: `3px solid ${lesson.courseColor}`,
+                          backgroundColor: `${color}18`,
+                          borderLeft: `3px solid ${color}`,
                         }}
                       >
-                        <p className="text-[11px] font-semibold truncate leading-tight" style={{ color: lesson.courseColor }}>
-                          {lesson.groupName}
+                        <p className="text-[11px] font-semibold truncate leading-tight" style={{ color }}>
+                          {lesson.group_name}
                         </p>
                         <p className="text-[10px] text-slate-500 truncate leading-tight mt-0.5">{lesson.topic}</p>
                         <p className="text-[10px] text-slate-400 leading-tight">
-                          {lesson.startTime}–{lesson.endTime}
+                          {lesson.start_time.slice(0, 5)}–{lesson.end_time.slice(0, 5)}
                         </p>
                       </div>
                     );
@@ -244,10 +242,10 @@ export default function StudentSchedulePage() {
 
       {/* Course color legend */}
       <div className="flex flex-wrap gap-4">
-        {Array.from(new Map((STUDENT_SCHEDULE as Lesson[]).map((l) => [l.groupId, l])).values()).map((l) => (
-          <div key={l.groupId} className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: l.courseColor }} />
-            <span className="text-xs text-slate-600">{l.groupName}</span>
+        {Array.from(new Map(weekLessons.map((l) => [l.group, l])).values()).map((l) => (
+          <div key={l.group} className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: l.course_color || '#6366f1' }} />
+            <span className="text-xs text-slate-600">{l.group_name}</span>
           </div>
         ))}
       </div>
@@ -266,13 +264,13 @@ export default function StudentSchedulePage() {
                 <li key={lesson.id} className="flex items-start gap-3">
                   <span
                     className="h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5"
-                    style={{ backgroundColor: lesson.courseColor }}
+                    style={{ backgroundColor: lesson.course_color || '#6366f1' }}
                   >
                     {i + 1}
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-slate-900">{lesson.groupName}</span>
+                      <span className="text-sm font-semibold text-slate-900">{lesson.group_name}</span>
                       <Badge
                         label={lesson.status.charAt(0).toUpperCase() + lesson.status.slice(1)}
                         variant={statusVariant(lesson.status)}
@@ -282,15 +280,15 @@ export default function StudentSchedulePage() {
                     <div className="flex items-center gap-3 mt-1 text-xs text-slate-400 flex-wrap">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {formatTime(lesson.startTime)} – {formatTime(lesson.endTime)}
+                        {formatTime(lesson.start_time)} – {formatTime(lesson.end_time)}
                       </span>
                       <span className="flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
-                        {lesson.room}
+                        {lesson.room || '—'}
                       </span>
                       <span className="flex items-center gap-1">
                         <User className="h-3 w-3" />
-                        {lesson.teacherName}
+                        {lesson.teacher_name}
                       </span>
                     </div>
                   </div>
@@ -307,29 +305,29 @@ export default function StudentSchedulePage() {
             <div className="space-y-3">
               {upcomingLessons.map((lesson) => (
                 <div key={lesson.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors">
-                  <div className="h-10 w-1 rounded-full flex-shrink-0" style={{ backgroundColor: lesson.courseColor }} />
+                  <div className="h-10 w-1 rounded-full flex-shrink-0" style={{ backgroundColor: lesson.course_color || '#6366f1' }} />
                   <div
                     className="flex-shrink-0 text-center rounded-xl px-2.5 py-1.5 min-w-[48px]"
-                    style={{ backgroundColor: `${lesson.courseColor}15` }}
+                    style={{ backgroundColor: `${lesson.course_color || '#6366f1'}15` }}
                   >
-                    <p className="text-[10px] font-semibold uppercase leading-none" style={{ color: lesson.courseColor }}>
+                    <p className="text-[10px] font-semibold uppercase leading-none" style={{ color: lesson.course_color || '#6366f1' }}>
                       {new Date(lesson.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })}
                     </p>
-                    <p className="text-base font-bold leading-tight" style={{ color: lesson.courseColor }}>
+                    <p className="text-base font-bold leading-tight" style={{ color: lesson.course_color || '#6366f1' }}>
                       {new Date(lesson.date + 'T00:00:00').getDate()}
                     </p>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{lesson.groupName}</p>
+                    <p className="text-sm font-semibold text-slate-900 truncate">{lesson.group_name}</p>
                     <p className="text-xs text-slate-500 truncate">{lesson.topic}</p>
                     <div className="flex items-center gap-3 mt-0.5 text-[10px] text-slate-400">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {lesson.startTime}–{lesson.endTime}
+                        {lesson.start_time.slice(0, 5)}–{lesson.end_time.slice(0, 5)}
                       </span>
                       <span className="flex items-center gap-1">
                         <User className="h-3 w-3" />
-                        {lesson.teacherName}
+                        {lesson.teacher_name}
                       </span>
                     </div>
                   </div>
