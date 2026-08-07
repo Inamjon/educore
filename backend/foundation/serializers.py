@@ -45,17 +45,36 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
 
 class BranchSerializer(serializers.ModelSerializer):
+    """`student_count`/`teacher_count` back the Super-Admin Branches table
+    — computed, not stored, same precedent as OrganizationSerializer's own
+    counts above. No `manager`/`working_hours` fields: the mock Branch had
+    both, Branch has neither a manager/owner user FK nor a hours column —
+    dropped rather than invented.
+    """
+
     organization_name = serializers.CharField(source="organization.name", read_only=True)
+    student_count = serializers.SerializerMethodField()
+    teacher_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Branch
         fields = [
             "id", "organization", "organization_name", "name", "code", "phone", "email",
             "address_line1", "address_line2", "city", "state", "country", "postal_code",
-            "latitude", "longitude", "timezone", "is_main", "is_active",
-            "created_at", "updated_at",
+            "latitude", "longitude", "timezone", "is_main", "is_active", "student_count",
+            "teacher_count", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_student_count(self, obj) -> int:
+        from student.models import StudentProfile
+
+        return StudentProfile.objects.filter(branch=obj).count()
+
+    def get_teacher_count(self, obj) -> int:
+        from teacher.models import TeacherProfile
+
+        return TeacherProfile.objects.filter(branch=obj).count()
 
 
 class PermissionSerializer(serializers.ModelSerializer):
