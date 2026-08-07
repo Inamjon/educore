@@ -3,31 +3,42 @@ scoping in NotificationViewSet.get_queryset() — needs a real login (not just
 ORM objects) since HasModulePermission reads from request.user and role
 grants only exist once foundation.signals's post_save provisioning has run,
 same reasoning as attendance/tests/test_attendance_authorization.py.
+
+Fixture setup goes through the auth_bypass_rls alias throughout — see
+finance/tests/test_finance.py's module docstring for why, under
+`transaction=True`, this is what's needed.
 """
 
 import uuid
 
 import pytest
+from django.db import transaction as db_transaction
 from rest_framework.test import APIClient
 
+from common.context import apply_org_context
 from foundation.models import Organization, Role, User, UserRole
 from notifications.models import Notification
 
 pytestmark = pytest.mark.django_db(databases=["default", "auth_bypass_rls"], transaction=True)
 
+BYPASS_ALIAS = "auth_bypass_rls"
+
 
 def _make_org():
-    return Organization.objects.create(
-        name="Org", slug=f"org-notif-test-{uuid.uuid4().hex[:8]}", email="a@example.com"
-    )
+    org_id = uuid.uuid4()
+    with db_transaction.atomic():
+        apply_org_context(str(org_id))
+        return Organization.objects.using(BYPASS_ALIAS).create(
+            id=org_id, name="Org", slug=f"org-notif-test-{uuid.uuid4().hex[:8]}", email="a@example.com"
+        )
 
 
 def _make_login(org, phone, role_slug):
-    user = User.objects.create_user(
+    user = User.objects.db_manager(BYPASS_ALIAS).create_user(
         organization=org, first_name="U", last_name=phone[-4:], password="pw123456", phone=phone, status="active",
     )
-    role = Role.objects.get(organization=org, slug=role_slug)
-    UserRole.objects.create(user=user, role=role, organization=org)
+    role = Role.objects.using(BYPASS_ALIAS).get(organization=org, slug=role_slug)
+    UserRole.objects.using(BYPASS_ALIAS).create(user=user, role=role, organization=org)
     return user
 
 
@@ -40,14 +51,14 @@ def _login(client, user):
 def test_soft_delete_never_hard_deletes():
     org = _make_org()
     recipient = _make_login(org, "+998900100001", "student")
-    notification = Notification.objects.create(organization=org, recipient=recipient, title="Hi", message="Hello")
+    notification = Notification.objects.using(BYPASS_ALIAS).create(organization=org, recipient=recipient, title="Hi", message="Hello")
     notification_id = notification.id
 
-    notification.delete()
+    notification.delete(using=BYPASS_ALIAS)
 
-    assert not Notification.objects.filter(id=notification_id).exists()
-    assert Notification.all_objects.filter(id=notification_id).exists()
-    assert Notification.all_objects.get(id=notification_id).deleted_at is not None
+    assert not Notification.objects.using(BYPASS_ALIAS).filter(id=notification_id).exists()
+    assert Notification.all_objects.using(BYPASS_ALIAS).filter(id=notification_id).exists()
+    assert Notification.all_objects.using(BYPASS_ALIAS).get(id=notification_id).deleted_at is not None
 
 
 def test_recipient_cannot_see_other_recipients_notification():

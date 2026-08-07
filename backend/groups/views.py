@@ -36,9 +36,23 @@ class GroupViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
 
 
 class GroupMemberViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
-    queryset = GroupMember.objects.all().select_related("student_profile__user", "group__course").order_by("-created_at")
     serializer_class = GroupMemberSerializer
     permission_classes = [HasModulePermission]
     filterset_class = GroupMemberFilter
     entity_type = "group_member"
     permission_map = GROUP_PERMISSION_MAP
+
+    def get_queryset(self):
+        """`groups:view` is module-wide (matches every other role's grant on
+        this module) — without this, any student holding it could list
+        *every* other student's phone/login_id via GroupMemberSerializer's
+        `student_phone`/`student_login_id` fields. Object-scoped for a
+        student caller the same way finance.views.InvoiceViewSet/
+        homework.views.SubmissionViewSet already are; center_admin/teacher
+        (the only other roles with `groups` access) stay unrestricted.
+        """
+        qs = GroupMember.objects.all().select_related("student_profile__user", "group__course").order_by("-created_at")
+        student_profile = getattr(self.request.user, "student_profile", None)
+        if student_profile is not None:
+            return qs.filter(student_profile=student_profile)
+        return qs

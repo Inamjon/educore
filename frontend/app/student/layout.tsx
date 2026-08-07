@@ -13,6 +13,7 @@ import {
   ClipboardCheck,
   MessageSquare,
   Bell,
+  CreditCard,
   UserCircle,
   Settings,
   ChevronLeft,
@@ -52,6 +53,12 @@ const NAV_GROUPS = [
     ],
   },
   {
+    label: "Billing",
+    items: [
+      { href: "/student/payments", label: "Payments", icon: CreditCard },
+    ],
+  },
+  {
     label: "Communication",
     items: [
       { href: "/student/messages", label: "Messages", icon: MessageSquare },
@@ -77,6 +84,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/student/exams": "Exams",
   "/student/grades": "Grades",
   "/student/attendance": "Attendance",
+  "/student/payments": "Payments",
   "/student/messages": "Messages",
   "/student/notifications": "Notifications",
   "/student/profile": "Profile",

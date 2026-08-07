@@ -1,10 +1,10 @@
 from decimal import Decimal
 
-from django.db.models import Sum
 from rest_framework import serializers
 
 from finance.models import Invoice, Payment
 from finance.numbering import generate_invoice_number
+from finance.services import invoice_paid_amount
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
@@ -24,7 +24,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "invoice_number", "status", "issued_date", "created_at", "updated_at"]
 
     def get_paid_amount(self, obj) -> Decimal:
-        return obj.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        return invoice_paid_amount(obj)
 
     def get_balance(self, obj) -> Decimal:
         return obj.total_amount - self.get_paid_amount(obj)
@@ -54,8 +54,7 @@ class PaymentSerializer(serializers.ModelSerializer):
         if invoice is not None:
             attrs["student_profile"] = invoice.student_profile
             if not self.instance:
-                already_paid = invoice.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0")
-                remaining = invoice.total_amount - already_paid
+                remaining = invoice.total_amount - invoice_paid_amount(invoice)
                 if attrs["amount"] > remaining:
                     raise serializers.ValidationError(
                         {"amount": f"Amount exceeds the remaining balance ({remaining} {invoice.currency})."}
