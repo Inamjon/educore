@@ -27,19 +27,26 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import {
   STUDENT_PROFILE,
   STUDENT_STATS,
-  STUDENT_SCHEDULE,
   STUDENT_HOMEWORK,
   STUDENT_EXAMS,
   GRADE_TREND_DATA,
 } from "@/lib/student-data";
 import { useNotificationsQuery } from "@/lib/queries/notifications";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { useLessonsQuery } from "@/lib/queries/schedule";
+import type { Lesson } from "@/lib/api/schedule";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const TODAY = "2026-07-04";
 
-const todayClasses = STUDENT_SCHEDULE.filter((s) => s.date === TODAY);
-const upcomingLessons = STUDENT_SCHEDULE.filter((s) => s.date > TODAY).slice(0, 4);
+function toLocalIso(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 const upcomingExams = STUDENT_EXAMS.filter((e) => e.status === "upcoming");
 const pendingHomework = STUDENT_HOMEWORK.filter(
   (h) => h.status === "pending" || h.status === "late"
@@ -60,7 +67,10 @@ function daysUntil(dateStr: string) {
 }
 
 function formatRelativeTime(isoString: string) {
-  const now = new Date("2026-07-06T14:43:49Z");
+  // Real wall-clock "now" — this now also formats real Notification
+  // timestamps (see the Recent Activity card below), which aren't anchored
+  // to the dashboard's fixed demo date the way STUDENT_* mock data still is.
+  const now = new Date();
   const then = new Date(isoString);
   const diffMs = now.getTime() - then.getTime();
   const diffMin = Math.floor(diffMs / 60000);
@@ -122,22 +132,22 @@ const QUICK_ACTIONS = [
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ScheduleItem({ lesson }: { lesson: (typeof STUDENT_SCHEDULE)[number] }) {
+function ScheduleItem({ lesson }: { lesson: Lesson }) {
   return (
     <div
       className="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0"
-      style={{ borderLeft: `3px solid ${lesson.courseColor}`, paddingLeft: "12px" }}
+      style={{ borderLeft: `3px solid ${lesson.course_color || "#6366f1"}`, paddingLeft: "12px" }}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-semibold text-slate-800 truncate">
-            {lesson.groupName}
+            {lesson.group_name}
           </span>
           <StatusBadge status={lesson.status} />
         </div>
         <p className="text-xs text-slate-500 mt-0.5 truncate">{lesson.topic}</p>
         <p className="text-xs text-slate-400 mt-0.5">
-          {lesson.startTime} – {lesson.endTime} &middot; {lesson.room}
+          {lesson.start_time.slice(0, 5)} – {lesson.end_time.slice(0, 5)} &middot; {lesson.room || "—"}
         </p>
       </div>
     </div>
@@ -148,6 +158,11 @@ function ScheduleItem({ lesson }: { lesson: (typeof STUDENT_SCHEDULE)[number] })
 
 export default function StudentDashboardPage() {
   const { data: notifications = [] } = useNotificationsQuery();
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const todayIso = toLocalIso(new Date());
+  const { data: lessons = [] } = useLessonsQuery({ organizationId: organizationId ?? "", dateFrom: todayIso });
+  const todayClasses = lessons.filter((l) => l.date === todayIso);
+  const upcomingLessons = lessons.filter((l) => l.date > todayIso).slice(0, 4);
   const todayLabel = new Date(TODAY + "T00:00:00").toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
@@ -229,7 +244,7 @@ export default function StudentDashboardPage() {
         <div className="lg:col-span-2">
           <Card
             title="Today's Classes"
-            subtitle={`${todayClasses.length} sessions on ${formatDate(TODAY)}`}
+            subtitle={`${todayClasses.length} sessions on ${formatDate(todayIso)}`}
           >
             {todayClasses.length === 0 ? (
               <p className="text-sm text-slate-400 text-center py-8">No classes today</p>

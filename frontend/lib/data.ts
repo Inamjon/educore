@@ -1,7 +1,6 @@
 import type {
   Student,
   Teacher,
-  Lesson,
   Transaction,
 } from "@/types";
 
@@ -33,23 +32,11 @@ export const TEACHERS: Teacher[] = [
   { id: "t6", name: "Mr. David Nguyen", loginId: "TCH-2006", phone: "+1 555-0206", gender: "male", specialization: "Computer Science", subjects: ["Programming", "Data Structures", "Web Dev"], groupCount: 2, studentCount: 35, status: "inactive", joinedAt: "2023-06-01", salary: 5000, rating: 4.5 },
 ];
 
-// ─── Lessons / Schedule ───────────────────────────────────────────────────────
-// Courses/Groups mock arrays were removed here (2026-08) once both got a
-// real backend + real Admin pages — see lib/api/courses.ts, lib/api/groups.ts.
-// Schedule below still references course/group names as plain string
-// literals (not the removed exports) since Schedule itself has no backend
-// yet.
-
-export const LESSONS: Lesson[] = [
-  { id: "l1", groupId: "g1", groupName: "Algebra A1", courseId: "c1", courseName: "Algebra Fundamentals", teacherId: "t1", teacherName: "Dr. Sarah Connor", room: "Room 101", date: "2026-07-07", startTime: "09:00", endTime: "10:30", status: "scheduled", topic: "Linear Equations", color: "#6366f1" },
-  { id: "l2", groupId: "g2", groupName: "Physics B2", courseId: "c2", courseName: "Classical Physics", teacherId: "t2", teacherName: "Prof. James Wilson", room: "Room 205", date: "2026-07-07", startTime: "11:00", endTime: "13:00", status: "scheduled", topic: "Newton's Laws", color: "#3b82f6" },
-  { id: "l3", groupId: "g3", groupName: "English C1", courseId: "c3", courseName: "English Communication", teacherId: "t3", teacherName: "Ms. Emily Carter", room: "Room 303", date: "2026-07-07", startTime: "14:00", endTime: "15:30", status: "scheduled", topic: "Writing Skills", color: "#22c55e" },
-  { id: "l4", groupId: "g5", groupName: "Biology E2", courseId: "c5", courseName: "Biology & Life Sciences", teacherId: "t5", teacherName: "Ms. Lisa Park", room: "Lab 201", date: "2026-07-07", startTime: "13:00", endTime: "14:30", status: "scheduled", topic: "Cell Division", color: "#ec4899" },
-  { id: "l5", groupId: "g4", groupName: "Chemistry D1", courseId: "c4", courseName: "Advanced Chemistry", teacherId: "t4", teacherName: "Dr. Robert Chen", room: "Lab 102", date: "2026-07-08", startTime: "10:00", endTime: "12:00", status: "scheduled", topic: "Organic Reactions", color: "#f59e0b" },
-  { id: "l6", groupId: "g1", groupName: "Algebra A1", courseId: "c1", courseName: "Algebra Fundamentals", teacherId: "t1", teacherName: "Dr. Sarah Connor", room: "Room 101", date: "2026-07-09", startTime: "09:00", endTime: "10:30", status: "scheduled", topic: "Quadratic Equations", color: "#6366f1" },
-  { id: "l7", groupId: "g6", groupName: "WebDev F1", courseId: "c6", courseName: "Web Development", teacherId: "t6", teacherName: "Mr. David Nguyen", room: "Lab 303", date: "2026-07-05", startTime: "10:00", endTime: "13:00", status: "scheduled", topic: "React Hooks", color: "#a855f7" },
-  { id: "l8", groupId: "g2", groupName: "Physics B2", courseId: "c2", courseName: "Classical Physics", teacherId: "t2", teacherName: "Prof. James Wilson", room: "Room 205", date: "2026-07-04", startTime: "11:00", endTime: "13:00", status: "completed", topic: "Kinematics", color: "#3b82f6" },
-];
+// Admin's LESSONS mock array was removed here (2026-08-07) once the real
+// Schedule backend + Admin page landed — see lib/api/schedule.ts. The
+// Teacher/Student portals' own mocks (lib/teacher-data.ts::TEACHER_SCHEDULE,
+// lib/student-data.ts::STUDENT_SCHEDULE) were replaced the same day — see
+// their respective pages.
 
 // Admin's ATTENDANCE_RECORDS mock array was removed here (2026-08) once the
 // real Attendance backend + Admin page landed — see lib/api/attendance.ts.

@@ -343,22 +343,9 @@ export const TEACHER_ATTENDANCE = [
 ];
 
 
-// ─── Teacher Schedule ─────────────────────────────────────────────────────────
-
-export const TEACHER_SCHEDULE = [
-  { id: "ts1", groupId: "g1", groupName: "Algebra A1", courseColor: "#6366f1", date: "2026-07-04", startTime: "09:00", endTime: "10:30", room: "Room 101", topic: "Introduction to Polynomials", status: "completed" as const },
-  { id: "ts2", groupId: "g3", groupName: "Calculus B1", courseColor: "#06b6d4", date: "2026-07-04", startTime: "13:00", endTime: "14:30", room: "Room 205", topic: "Limits and Continuity", status: "completed" as const },
-  { id: "ts3", groupId: "g2", groupName: "Algebra A2", courseColor: "#8b5cf6", date: "2026-07-05", startTime: "11:00", endTime: "12:30", room: "Room 102", topic: "Solving Systems of Equations", status: "scheduled" as const },
-  { id: "ts4", groupId: "g1", groupName: "Algebra A1", courseColor: "#6366f1", date: "2026-07-06", startTime: "09:00", endTime: "10:30", room: "Room 101", topic: "Polynomial Operations", status: "scheduled" as const },
-  { id: "ts5", groupId: "g3", groupName: "Calculus B1", courseColor: "#06b6d4", date: "2026-07-06", startTime: "13:00", endTime: "14:30", room: "Room 205", topic: "Derivatives: Basic Rules", status: "scheduled" as const },
-  { id: "ts6", groupId: "g1", groupName: "Algebra A1", courseColor: "#6366f1", date: "2026-07-07", startTime: "09:00", endTime: "10:30", room: "Room 101", topic: "Factoring Polynomials", status: "scheduled" as const },
-  { id: "ts7", groupId: "g2", groupName: "Algebra A2", courseColor: "#8b5cf6", date: "2026-07-07", startTime: "11:00", endTime: "12:30", room: "Room 102", topic: "Inequalities & Absolute Value", status: "scheduled" as const },
-  { id: "ts8", groupId: "g3", groupName: "Calculus B1", courseColor: "#06b6d4", date: "2026-07-07", startTime: "13:00", endTime: "14:30", room: "Room 205", topic: "Chain Rule & Product Rule", status: "scheduled" as const },
-  { id: "ts9", groupId: "g2", groupName: "Algebra A2", courseColor: "#8b5cf6", date: "2026-07-08", startTime: "11:00", endTime: "12:30", room: "Room 102", topic: "Quadratic Functions", status: "scheduled" as const },
-  { id: "ts10", groupId: "g1", groupName: "Algebra A1", courseColor: "#6366f1", date: "2026-07-09", startTime: "09:00", endTime: "10:30", room: "Room 101", topic: "Rational Expressions", status: "scheduled" as const },
-  { id: "ts11", groupId: "g3", groupName: "Calculus B1", courseColor: "#06b6d4", date: "2026-07-09", startTime: "13:00", endTime: "14:30", room: "Room 205", topic: "Implicit Differentiation", status: "scheduled" as const },
-  { id: "ts12", groupId: "g1", groupName: "Algebra A1", courseColor: "#6366f1", date: "2026-07-10", startTime: "09:00", endTime: "10:30", room: "Room 101", topic: "Review: Mid-term Prep", status: "cancelled" as const },
-];
+// Teacher Schedule mock array (TEACHER_SCHEDULE) was removed here
+// (2026-08-07) once the real Schedule backend + Teacher page landed — see
+// lib/api/schedule.ts.
 
 // ─── Teacher Assignments ──────────────────────────────────────────────────────
 

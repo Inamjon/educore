@@ -76,21 +76,9 @@ export const STUDENT_COURSES = [
   },
 ];
 
-// ─── Student Schedule ─────────────────────────────────────────────────────────
-
-export const STUDENT_SCHEDULE = [
-  { id: "ss1", groupId: "g1", groupName: "Algebra A1", courseColor: "#6366f1", teacherName: "Dr. Sarah Connor", date: "2026-07-04", startTime: "09:00", endTime: "10:30", room: "Room 101", topic: "Introduction to Polynomials", status: "completed" as const },
-  { id: "ss2", groupId: "g5", groupName: "Biology B1", courseColor: "#10b981", teacherName: "Ms. Elena Ruiz", date: "2026-07-04", startTime: "12:00", endTime: "13:30", room: "Lab 3", topic: "Cell Structure Review", status: "completed" as const },
-  { id: "ss3", groupId: "g4", groupName: "English Literature B", courseColor: "#f59e0b", teacherName: "Mr. James Cole", date: "2026-07-06", startTime: "10:00", endTime: "11:30", room: "Room 210", topic: "Shakespearean Sonnets", status: "scheduled" as const },
-  { id: "ss4", groupId: "g5", groupName: "Biology B1", courseColor: "#10b981", teacherName: "Ms. Elena Ruiz", date: "2026-07-06", startTime: "12:00", endTime: "13:30", room: "Lab 3", topic: "Photosynthesis Basics", status: "scheduled" as const },
-  { id: "ss5", groupId: "g1", groupName: "Algebra A1", courseColor: "#6366f1", teacherName: "Dr. Sarah Connor", date: "2026-07-07", startTime: "09:00", endTime: "10:30", room: "Room 101", topic: "Factoring Polynomials", status: "scheduled" as const },
-  { id: "ss6", groupId: "g4", groupName: "English Literature B", courseColor: "#f59e0b", teacherName: "Mr. James Cole", date: "2026-07-08", startTime: "10:00", endTime: "11:30", room: "Room 210", topic: "Essay Structure Workshop", status: "scheduled" as const },
-  { id: "ss7", groupId: "g1", groupName: "Algebra A1", courseColor: "#6366f1", teacherName: "Dr. Sarah Connor", date: "2026-07-09", startTime: "09:00", endTime: "10:30", room: "Room 101", topic: "Rational Expressions", status: "scheduled" as const },
-  { id: "ss8", groupId: "g5", groupName: "Biology B1", courseColor: "#10b981", teacherName: "Ms. Elena Ruiz", date: "2026-07-08", startTime: "12:00", endTime: "13:30", room: "Lab 3", topic: "Plant Respiration", status: "scheduled" as const },
-  { id: "ss9", groupId: "g1", groupName: "Algebra A1", courseColor: "#6366f1", teacherName: "Dr. Sarah Connor", date: "2026-07-10", startTime: "09:00", endTime: "10:30", room: "Room 101", topic: "Review: Mid-term Prep", status: "cancelled" as const },
-  { id: "ss10", groupId: "g1", groupName: "Algebra A1", courseColor: "#6366f1", teacherName: "Dr. Sarah Connor", date: "2026-07-02", startTime: "09:00", endTime: "10:30", room: "Room 101", topic: "Polynomial Operations", status: "completed" as const },
-  { id: "ss11", groupId: "g4", groupName: "English Literature B", courseColor: "#f59e0b", teacherName: "Mr. James Cole", date: "2026-07-01", startTime: "10:00", endTime: "11:30", room: "Room 210", topic: "Poetry Analysis", status: "completed" as const },
-];
+// Student Schedule mock array (STUDENT_SCHEDULE) was removed here
+// (2026-08-07) once the real Schedule backend + Student page landed — see
+// lib/api/schedule.ts.
 
 // ─── Student Homework ─────────────────────────────────────────────────────────
 
