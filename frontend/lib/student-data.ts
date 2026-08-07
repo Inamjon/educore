@@ -80,101 +80,9 @@ export const STUDENT_COURSES = [
 // (2026-08-07) once the real Schedule backend + Student page landed — see
 // lib/api/schedule.ts.
 
-// ─── Student Homework ─────────────────────────────────────────────────────────
-
-export const STUDENT_HOMEWORK = [
-  {
-    id: "hw1",
-    title: "Polynomial Expressions Worksheet",
-    groupId: "g1",
-    groupName: "Algebra A1",
-    courseColor: "#6366f1",
-    assignedDate: "2026-07-01",
-    dueDate: "2026-07-08",
-    description: "Complete exercises 1–20 on polynomial addition, subtraction, and multiplication.",
-    maxScore: 100,
-    status: "graded" as const,
-    score: 92,
-    submittedAt: "2026-07-06T10:30:00Z",
-    feedback: "Excellent work on multiplication! Keep it up.",
-  },
-  {
-    id: "hw2",
-    title: "Essay: Themes in Sonnet 18",
-    groupId: "g4",
-    groupName: "English Literature B",
-    courseColor: "#f59e0b",
-    assignedDate: "2026-07-02",
-    dueDate: "2026-07-09",
-    description: "Write a 500-word essay analyzing the central themes of Shakespeare's Sonnet 18.",
-    maxScore: 100,
-    status: "submitted" as const,
-    submittedAt: "2026-07-08T20:15:00Z",
-  },
-  {
-    id: "hw3",
-    title: "Cell Structure Lab Report",
-    groupId: "g5",
-    groupName: "Biology B1",
-    courseColor: "#10b981",
-    assignedDate: "2026-06-30",
-    dueDate: "2026-07-05",
-    description: "Submit your observations and diagrams from the microscope lab session.",
-    maxScore: 50,
-    status: "graded" as const,
-    score: 45,
-    submittedAt: "2026-07-04T18:00:00Z",
-    feedback: "Great diagrams. Add more detail to the nucleus labeling next time.",
-  },
-  {
-    id: "hw4",
-    title: "Factoring Quiz Preparation",
-    groupId: "g1",
-    groupName: "Algebra A1",
-    courseColor: "#6366f1",
-    assignedDate: "2026-07-04",
-    dueDate: "2026-07-11",
-    description: "Practice factoring by GCF, difference of squares, and trinomials.",
-    maxScore: 50,
-    status: "pending" as const,
-  },
-  {
-    id: "hw5",
-    title: "Photosynthesis Reflection",
-    groupId: "g5",
-    groupName: "Biology B1",
-    courseColor: "#10b981",
-    assignedDate: "2026-07-04",
-    dueDate: "2026-07-12",
-    description: "Write a short reflection connecting photosynthesis to plant respiration.",
-    maxScore: 30,
-    status: "pending" as const,
-  },
-  {
-    id: "hw6",
-    title: "Poetry Analysis Worksheet",
-    groupId: "g4",
-    groupName: "English Literature B",
-    courseColor: "#f59e0b",
-    assignedDate: "2026-06-24",
-    dueDate: "2026-07-01",
-    description: "Analyze meter and rhyme scheme for three assigned poems.",
-    maxScore: 40,
-    status: "late" as const,
-  },
-  {
-    id: "hw7",
-    title: "Rational Expressions Homework",
-    groupId: "g1",
-    groupName: "Algebra A1",
-    courseColor: "#6366f1",
-    assignedDate: "2026-07-04",
-    dueDate: "2026-07-14",
-    description: "Simplify, multiply, and divide rational expressions. 15 problems total.",
-    maxScore: 75,
-    status: "pending" as const,
-  },
-];
+// Student Homework mock array (STUDENT_HOMEWORK) was removed here
+// (2026-08-07) once the real Homework backend + Student page landed — see
+// lib/api/homework.ts.
 
 // ─── Student Grades ───────────────────────────────────────────────────────────
 
@@ -359,7 +267,9 @@ export const STUDENT_NOTIFICATIONS = [
 export const STUDENT_STATS = {
   attendanceRate: 92,
   avgGrade: 85,
-  pendingHomework: STUDENT_HOMEWORK.filter((h) => h.status === "pending" || h.status === "late").length,
+  // pendingHomework removed — its only consumer (the Dashboard's "Pending
+  // Homework" stat card) now reads the real Homework backend directly, see
+  // app/student/page.tsx.
   upcomingExams: STUDENT_EXAMS.filter((e) => e.status === "upcoming").length,
   unreadMessages: STUDENT_MESSAGES.reduce((sum, m) => sum + m.unread, 0),
   enrolledCourses: STUDENT_COURSES.length,
