@@ -48,6 +48,7 @@ def rotate_tokens(*, raw_refresh_token: str, request) -> dict:
         raise ValueError("Session has been revoked or expired.")
 
     from foundation.models import User  # local import: avoids app-loading cycle
+    from foundation.services import primary_role_slug  # local import: avoids app-loading cycle
 
     user = User.objects.using(BYPASS_ALIAS).get(pk=old_token[settings.SIMPLE_JWT["USER_ID_CLAIM"]])
 
@@ -58,7 +59,9 @@ def rotate_tokens(*, raw_refresh_token: str, request) -> dict:
 
     Session.objects.using(BYPASS_ALIAS).filter(pk=session.pk).update(last_activity_at=timezone.now())
 
-    return _mint_and_persist(user=user, session=session, request=request)
+    tokens = _mint_and_persist(user=user, session=session, request=request)
+    tokens["role"] = primary_role_slug(user, using=BYPASS_ALIAS)
+    return tokens
 
 
 def _mint_and_persist(*, user, session: Session, request) -> dict:
