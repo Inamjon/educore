@@ -9,6 +9,7 @@ import {
   Users2,
   Calendar,
   ClipboardCheck,
+  ClipboardList,
   CreditCard,
   Bell,
   Settings,
@@ -38,6 +39,7 @@ const NAV_ITEMS = [
       { href: "/groups", label: "Groups", icon: Users2 },
       { href: "/schedule", label: "Schedule", icon: Calendar },
       { href: "/attendance", label: "Attendance", icon: ClipboardCheck },
+      { href: "/homework", label: "Homework", icon: ClipboardList },
     ],
   },
   {

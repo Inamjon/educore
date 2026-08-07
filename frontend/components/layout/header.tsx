@@ -15,6 +15,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/groups": "Groups & Classes",
   "/schedule": "Schedule",
   "/attendance": "Attendance",
+  "/homework": "Homework",
   "/finance": "Finance",
   "/notifications": "Notifications",
   "/settings": "Settings",
