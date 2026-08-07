@@ -12,60 +12,87 @@ import {
   Trash2,
   Plus,
   X,
-  MoreHorizontal,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge, StatusBadge } from '@/components/ui/badge';
-import { Avatar } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui/stat-card';
 import { DataTable, Column } from '@/components/ui/data-table';
 import { Input, SearchInput, Select } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { SA_SUBSCRIPTIONS, CenterStatus, SubscriptionTier } from '@/lib/super-admin-data';
-import { useSACentersStore, type SACenter } from '@/lib/store/sa-centers-store';
 import { toast } from '@/lib/store/toast-store';
+import {
+  useOrganizationsQuery,
+  useCreateOrganizationMutation,
+  useUpdateOrganizationMutation,
+  useSuspendOrganizationMutation,
+  useDeleteOrganizationMutation,
+} from '@/lib/queries/organizations';
+import type { Organization, OrganizationStatus, SubscriptionPlan } from '@/lib/api/organizations';
+import { ApiError } from '@/lib/api/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface CenterFormData {
   name: string;
-  owner: string;
+  email: string;
   city: string;
   country: string;
-  subscription: string;
-  status: string;
+  subscriptionPlan: SubscriptionPlan;
+  status: OrganizationStatus;
 }
 
 const emptyForm: CenterFormData = {
   name: '',
-  owner: '',
+  email: '',
   city: '',
-  country: '',
-  subscription: 'basic',
-  status: 'active',
+  country: 'UZB',
+  subscriptionPlan: 'free',
+  status: 'trial',
 };
+
+const PLAN_OPTIONS: { value: SubscriptionPlan; label: string }[] = [
+  { value: 'free', label: 'Free' },
+  { value: 'starter', label: 'Starter' },
+  { value: 'basic', label: 'Basic' },
+  { value: 'pro', label: 'Pro' },
+  { value: 'enterprise', label: 'Enterprise' },
+  { value: 'custom', label: 'Custom' },
+];
+
+const STATUS_OPTIONS: { value: OrganizationStatus; label: string }[] = [
+  { value: 'active', label: 'Active' },
+  { value: 'trial', label: 'Trial' },
+  { value: 'suspended', label: 'Suspended' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
 
 // ─── Subscription Badge ───────────────────────────────────────────────────────
 
-function SubscriptionBadge({ tier }: { tier: SubscriptionTier }) {
-  const map: Record<SubscriptionTier, { variant: 'warning' | 'purple' | 'info'; label: string }> = {
+function SubscriptionBadge({ plan }: { plan: SubscriptionPlan }) {
+  const map: Record<SubscriptionPlan, { variant: 'warning' | 'purple' | 'info' | 'secondary'; label: string }> = {
     enterprise: { variant: 'warning', label: 'Enterprise' },
     pro: { variant: 'purple', label: 'Pro' },
     basic: { variant: 'info', label: 'Basic' },
+    starter: { variant: 'info', label: 'Starter' },
+    free: { variant: 'secondary', label: 'Free' },
+    custom: { variant: 'purple', label: 'Custom' },
   };
-  const cfg = map[tier] ?? { variant: 'info' as const, label: tier };
+  const cfg = map[plan] ?? { variant: 'info' as const, label: plan };
   return <Badge label={cfg.label} variant={cfg.variant} />;
 }
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
-function CenterStatusBadge({ status }: { status: CenterStatus }) {
-  const map: Record<CenterStatus, { label: string; className: string }> = {
-    active:    { label: 'Active',    className: 'bg-emerald-50 text-emerald-700' },
+function CenterStatusBadge({ status }: { status: OrganizationStatus }) {
+  const map: Record<OrganizationStatus, { label: string; className: string }> = {
+    active: { label: 'Active', className: 'bg-emerald-50 text-emerald-700' },
     suspended: { label: 'Suspended', className: 'bg-red-50 text-red-600' },
-    trial:     { label: 'Trial',     className: 'bg-amber-50 text-amber-700' },
+    trial: { label: 'Trial', className: 'bg-amber-50 text-amber-700' },
+    cancelled: { label: 'Cancelled', className: 'bg-slate-100 text-slate-500' },
   };
   const cfg = map[status] ?? { label: status, className: 'bg-slate-50 text-slate-600' };
   return (
@@ -79,118 +106,124 @@ function CenterStatusBadge({ status }: { status: CenterStatus }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CentersPage() {
-  const centerItems = useSACentersStore((s) => s.items);
-  const centers = centerItems.filter((c) => !c.deletedAt);
-  const addCenter = useSACentersStore((s) => s.add);
-  const updateCenter = useSACentersStore((s) => s.update);
-  const removeCenter = useSACentersStore((s) => s.softDelete);
-
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [deletingCenter, setDeletingCenter] = useState<SACenter | null>(null);
+  const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
+  const [deletingCenter, setDeletingCenter] = useState<Organization | null>(null);
   const [form, setForm] = useState<CenterFormData>(emptyForm);
+  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterSub, setFilterSub] = useState('');
+  const [filterStatus, setFilterStatus] = useState<OrganizationStatus | ''>('');
+  const [filterPlan, setFilterPlan] = useState<SubscriptionPlan | ''>('');
   const searchParams = useSearchParams();
 
+  const { data: centers, isLoading, isError, error } = useOrganizationsQuery({
+    status: filterStatus || undefined,
+    subscriptionPlan: filterPlan || undefined,
+  });
+  const createMutation = useCreateOrganizationMutation();
+  const updateMutation = useUpdateOrganizationMutation();
+  const suspendMutation = useSuspendOrganizationMutation();
+  const deleteMutation = useDeleteOrganizationMutation();
+
   useEffect(() => {
-    const sub = searchParams.get('subscription');
-    if (sub) setFilterSub(sub);
+    const plan = searchParams.get('subscription');
+    if (plan) setFilterPlan(plan as SubscriptionPlan);
   }, [searchParams]);
+
+  const list = centers ?? [];
 
   // ── Stats ──────────────────────────────────────────────────────────────────
 
-  const total = centers.length;
-  const active = centers.filter((c) => c.status === 'active').length;
-  const suspended = centers.filter((c) => c.status === 'suspended').length;
-  const trial = centers.filter((c) => c.status === 'trial').length;
+  const total = list.length;
+  const active = list.filter((c) => c.status === 'active').length;
+  const suspended = list.filter((c) => c.status === 'suspended').length;
+  const trial = list.filter((c) => c.status === 'trial').length;
 
   // ── Filtered data ──────────────────────────────────────────────────────────
 
   const filtered = useMemo(() => {
-    return centers.filter((c) => {
-      const q = search.toLowerCase();
-      const matchSearch =
-        !q ||
-        c.name.toLowerCase().includes(q) ||
-        c.owner.toLowerCase().includes(q) ||
-        c.city.toLowerCase().includes(q);
-      const matchStatus = !filterStatus || c.status === filterStatus;
-      const matchSub = !filterSub || c.subscription === filterSub;
-      return matchSearch && matchStatus && matchSub;
-    });
-  }, [centers, search, filterStatus, filterSub]);
+    const q = search.toLowerCase();
+    return list.filter(
+      (c) => !q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || (c.city ?? '').toLowerCase().includes(q)
+    );
+  }, [list, search]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  const handleFormChange = (field: keyof CenterFormData, value: string) => {
+  function handleFormChange<K extends keyof CenterFormData>(field: K, value: CenterFormData[K]) {
     setForm((prev) => ({ ...prev, [field]: value }));
-  };
+  }
 
-  const handleCancel = () => {
+  function handleCancel() {
     setShowForm(false);
-    setEditingId(null);
+    setEditingOrg(null);
     setForm(emptyForm);
-  };
+  }
 
-  const handleEdit = (center: SACenter) => {
-    setEditingId(center.id);
+  function handleEdit(center: Organization) {
+    setEditingOrg(center);
     setForm({
       name: center.name,
-      owner: center.owner,
-      city: center.city,
+      email: center.email,
+      city: center.city ?? '',
       country: center.country,
-      subscription: center.subscription,
+      subscriptionPlan: center.subscription_plan,
       status: center.status,
     });
     setShowForm(true);
-  };
+  }
 
-  const handleSuspendToggle = (center: SACenter) => {
-    const nextStatus: CenterStatus = center.status === 'suspended' ? 'active' : 'suspended';
-    updateCenter(center.id, { status: nextStatus });
-    toast.success(nextStatus === 'suspended' ? 'Center suspended' : 'Center reactivated');
-  };
+  async function handleSuspendToggle(center: Organization) {
+    try {
+      await suspendMutation.mutateAsync(center.id);
+      toast.success(center.status === 'suspended' ? 'Center reactivated' : 'Center suspended');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+    }
+  }
 
-  const handleSubmit = () => {
-    if (!form.name.trim() || !form.owner.trim()) {
-      toast.error('Center name and owner are required');
+  async function handleSubmit() {
+    if (!form.name.trim() || !form.email.trim()) {
+      toast.error('Center name and email are required');
       return;
     }
-    if (editingId) {
-      updateCenter(editingId, {
-        name: form.name,
-        owner: form.owner,
-        city: form.city,
-        country: form.country,
-        subscription: form.subscription as SubscriptionTier,
-        status: form.status as CenterStatus,
-      });
-      toast.success('Center updated');
-    } else {
-      addCenter({
-        name: form.name,
-        owner: form.owner,
-        city: form.city,
-        country: form.country,
-        subscription: form.subscription as SubscriptionTier,
-        status: form.status as CenterStatus,
-        branchCount: 0,
-        studentCount: 0,
-        teacherCount: 0,
-        createdAt: new Date().toISOString(),
-      });
-      toast.success('Center created');
+    setSaving(true);
+    try {
+      if (editingOrg) {
+        await updateMutation.mutateAsync({
+          id: editingOrg.id,
+          input: {
+            name: form.name,
+            email: form.email,
+            city: form.city,
+            country: form.country,
+            subscriptionPlan: form.subscriptionPlan,
+            status: form.status,
+          },
+        });
+        toast.success('Center updated');
+      } else {
+        await createMutation.mutateAsync({
+          name: form.name,
+          email: form.email,
+          city: form.city,
+          country: form.country,
+          subscriptionPlan: form.subscriptionPlan,
+          status: form.status,
+        });
+        toast.success('Center created');
+      }
+      handleCancel();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setSaving(false);
     }
-    setShowForm(false);
-    setEditingId(null);
-    setForm(emptyForm);
-  };
+  }
 
   // ── Columns ────────────────────────────────────────────────────────────────
 
-  const columns: Column<SACenter>[] = [
+  const columns: Column<Organization>[] = [
     {
       key: 'name',
       label: 'Center',
@@ -201,87 +234,44 @@ export default function CentersPage() {
           </div>
           <div>
             <p className="font-semibold text-slate-900">{row.name}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{row.city}, {row.country}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{[row.city, row.country].filter(Boolean).join(', ') || '—'}</p>
           </div>
         </div>
       ),
     },
     {
-      key: 'owner',
-      label: 'Owner',
+      key: 'email',
+      label: 'Contact',
       render: (_, row) => (
-        <div className="flex items-center gap-2">
-          <Avatar name={row.owner} size="sm" />
-          <span className="text-slate-700">{row.owner}</span>
+        <div>
+          <p className="text-slate-700">{row.email}</p>
+          {row.phone && <p className="text-xs text-slate-400">{row.phone}</p>}
         </div>
       ),
     },
-    {
-      key: 'branchCount',
-      label: 'Branches',
-      render: (_, row) => (
-        <span className="font-semibold text-slate-900">{row.branchCount}</span>
-      ),
-    },
-    {
-      key: 'studentCount',
-      label: 'Students',
-      render: (_, row) => (
-        <span className="font-medium text-slate-800">{row.studentCount.toLocaleString()}</span>
-      ),
-    },
-    {
-      key: 'teacherCount',
-      label: 'Teachers',
-      render: (_, row) => (
-        <span className="font-medium text-slate-800">{row.teacherCount}</span>
-      ),
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (_, row) => <CenterStatusBadge status={row.status} />,
-    },
-    {
-      key: 'subscription',
-      label: 'Subscription',
-      render: (_, row) => <SubscriptionBadge tier={row.subscription} />,
-    },
+    { key: 'branch_count', label: 'Branches', render: (_, row) => <span className="font-semibold text-slate-900">{row.branch_count}</span> },
+    { key: 'student_count', label: 'Students', render: (_, row) => <span className="font-medium text-slate-800">{row.student_count.toLocaleString()}</span> },
+    { key: 'teacher_count', label: 'Teachers', render: (_, row) => <span className="font-medium text-slate-800">{row.teacher_count}</span> },
+    { key: 'status', label: 'Status', render: (_, row) => <CenterStatusBadge status={row.status} /> },
+    { key: 'subscription_plan', label: 'Subscription', render: (_, row) => <SubscriptionBadge plan={row.subscription_plan} /> },
     {
       key: 'id',
       label: 'Actions',
       render: (_, row) => (
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => handleEdit(row)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-            title="Edit"
-          >
+          <button onClick={() => handleEdit(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" title="Edit">
             <Pencil className="h-4 w-4" />
           </button>
-          <button
-            onClick={() => handleSuspendToggle(row)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
-            title={row.status === 'suspended' ? 'Reactivate' : 'Suspend'}
-          >
+          <button onClick={() => handleSuspendToggle(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors" title={row.status === 'suspended' ? 'Reactivate' : 'Suspend'}>
             <Ban className="h-4 w-4" />
           </button>
-          <button
-            onClick={() => setDeletingCenter(row)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-            title="Delete"
-          >
+          <button onClick={() => setDeletingCenter(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
       ),
     },
   ];
-
-  const subscriptionOptions = SA_SUBSCRIPTIONS.map((s) => ({
-    value: s.name.toLowerCase(),
-    label: s.name,
-  }));
 
   return (
     <div className="space-y-6">
@@ -292,10 +282,9 @@ export default function CentersPage() {
         actions={
           <Button
             onClick={() => {
-              if (showForm) {
-                handleCancel();
-              } else {
-                setEditingId(null);
+              if (showForm) handleCancel();
+              else {
+                setEditingOrg(null);
                 setForm(emptyForm);
                 setShowForm(true);
               }
@@ -309,43 +298,18 @@ export default function CentersPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Total Centers"
-          value={total}
-          icon={<Building2 className="h-5 w-5 text-indigo-600" />}
-          iconBg="bg-indigo-50"
-        />
-        <StatCard
-          label="Active"
-          value={active}
-          icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />}
-          iconBg="bg-emerald-50"
-        />
-        <StatCard
-          label="Trial"
-          value={trial}
-          icon={<Clock className="h-5 w-5 text-amber-600" />}
-          iconBg="bg-amber-50"
-        />
-        <StatCard
-          label="Suspended"
-          value={suspended}
-          icon={<XCircle className="h-5 w-5 text-red-500" />}
-          iconBg="bg-red-50"
-        />
+        <StatCard label="Total Centers" value={total} icon={<Building2 className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label="Active" value={active} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label="Trial" value={trial} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
+        <StatCard label="Suspended" value={suspended} icon={<XCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
       </div>
 
-      {/* Create Center Form */}
+      {/* Create/Edit Center Form */}
       {showForm && (
         <Card>
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-base font-semibold text-slate-900">
-              {editingId ? 'Edit Educational Center' : 'Create New Educational Center'}
-            </h3>
-            <button
-              onClick={handleCancel}
-              className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-            >
+            <h3 className="text-base font-semibold text-slate-900">{editingOrg ? 'Edit Educational Center' : 'Create New Educational Center'}</h3>
+            <button onClick={handleCancel} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -353,76 +317,42 @@ export default function CentersPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-600">Center Name</label>
-              <Input
-                placeholder="e.g. Bright Future Academy"
-                value={form.name}
-                onChange={(e) => handleFormChange('name', e.target.value)}
-              />
+              <Input placeholder="e.g. Bright Future Academy" value={form.name} onChange={(e) => handleFormChange('name', e.target.value)} />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Owner Name</label>
-              <Input
-                placeholder="Full name"
-                value={form.owner}
-                onChange={(e) => handleFormChange('owner', e.target.value)}
-              />
+              <label className="text-xs font-medium text-slate-600">Contact Email</label>
+              <Input type="email" placeholder="contact@center.com" value={form.email} onChange={(e) => handleFormChange('email', e.target.value)} />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-600">City</label>
-              <Input
-                placeholder="City"
-                value={form.city}
-                onChange={(e) => handleFormChange('city', e.target.value)}
-              />
+              <Input placeholder="City" value={form.city} onChange={(e) => handleFormChange('city', e.target.value)} />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Country</label>
-              <Input
-                placeholder="Country"
-                value={form.country}
-                onChange={(e) => handleFormChange('country', e.target.value)}
-              />
+              <label className="text-xs font-medium text-slate-600">Country Code</label>
+              <Input placeholder="ISO alpha-3, e.g. UZB" maxLength={3} value={form.country} onChange={(e) => handleFormChange('country', e.target.value.toUpperCase())} />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-600">Subscription Plan</label>
-              <Select
-                className="w-full"
-                value={form.subscription}
-                options={[
-                  { value: 'basic', label: 'Basic' },
-                  { value: 'pro', label: 'Pro' },
-                  { value: 'enterprise', label: 'Enterprise' },
-                ]}
-                onChange={(e) => handleFormChange('subscription', e.target.value)}
-              />
+              <Select className="w-full" value={form.subscriptionPlan} options={PLAN_OPTIONS} onChange={(e) => handleFormChange('subscriptionPlan', e.target.value as SubscriptionPlan)} />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-600">Status</label>
-              <Select
-                className="w-full"
-                value={form.status}
-                options={[
-                  { value: 'active', label: 'Active' },
-                  { value: 'trial', label: 'Trial' },
-                  { value: 'suspended', label: 'Suspended' },
-                ]}
-                onChange={(e) => handleFormChange('status', e.target.value)}
-              />
+              <Select className="w-full" value={form.status} options={STATUS_OPTIONS} onChange={(e) => handleFormChange('status', e.target.value as OrganizationStatus)} />
             </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-slate-100">
-            <Button variant="secondary" onClick={handleCancel}>
+            <Button variant="secondary" onClick={handleCancel} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit}>
+            <Button onClick={handleSubmit} loading={saving}>
               <Plus className="h-4 w-4" />
-              {editingId ? 'Save Changes' : 'Create Center'}
+              {editingOrg ? 'Save Changes' : 'Create Center'}
             </Button>
           </div>
         </Card>
@@ -431,37 +361,25 @@ export default function CentersPage() {
       {/* Table */}
       <Card noPadding>
         <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-b border-slate-50">
-          <SearchInput
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search centers..."
-          />
+          <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search centers..." />
           <Select
             value={filterStatus}
             placeholder="All Statuses"
-            options={[
-              { value: 'active', label: 'Active' },
-              { value: 'trial', label: 'Trial' },
-              { value: 'suspended', label: 'Suspended' },
-            ]}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            options={STATUS_OPTIONS}
+            onChange={(e) => setFilterStatus(e.target.value as OrganizationStatus | '')}
           />
           <Select
-            value={filterSub}
+            value={filterPlan}
             placeholder="All Plans"
-            options={[
-              { value: 'basic', label: 'Basic' },
-              { value: 'pro', label: 'Pro' },
-              { value: 'enterprise', label: 'Enterprise' },
-            ]}
-            onChange={(e) => setFilterSub(e.target.value)}
+            options={PLAN_OPTIONS}
+            onChange={(e) => setFilterPlan(e.target.value as SubscriptionPlan | '')}
           />
-          {(search || filterStatus || filterSub) && (
+          {(search || filterStatus || filterPlan) && (
             <button
               onClick={() => {
                 setSearch('');
                 setFilterStatus('');
-                setFilterSub('');
+                setFilterPlan('');
               }}
               className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
             >
@@ -471,12 +389,19 @@ export default function CentersPage() {
           <span className="ml-auto text-xs text-slate-400">{filtered.length} centers</span>
         </div>
 
-        <DataTable<SACenter>
-          columns={columns}
-          data={filtered}
-          keyField="id"
-          emptyMessage="No educational centers found"
-        />
+        {isError ? (
+          <div className="flex items-center gap-2 px-6 py-8 text-sm text-red-500">
+            <AlertCircle className="h-4 w-4" />
+            {error instanceof ApiError ? error.message : 'Failed to load centers.'}
+          </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-slate-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading centers…
+          </div>
+        ) : (
+          <DataTable<Organization> columns={columns} data={filtered} keyField="id" emptyMessage="No educational centers found" />
+        )}
       </Card>
 
       <ConfirmDialog
@@ -485,10 +410,15 @@ export default function CentersPage() {
         title="Delete educational center"
         description={`Are you sure you want to delete "${deletingCenter?.name}"? This can be restored later if needed.`}
         confirmLabel="Delete"
-        onConfirm={() => {
-          if (deletingCenter) {
-            removeCenter(deletingCenter.id);
+        onConfirm={async () => {
+          if (!deletingCenter) return;
+          try {
+            await deleteMutation.mutateAsync(deletingCenter.id);
             toast.success('Center deleted');
+          } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+          } finally {
+            setDeletingCenter(null);
           }
         }}
       />
