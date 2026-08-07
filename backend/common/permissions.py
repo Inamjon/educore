@@ -8,6 +8,26 @@ from __future__ import annotations
 from rest_framework.permissions import BasePermission
 
 
+def is_platform_user(user) -> bool:
+    """Python-side counterpart to the `foundation.is_platform_user()` SQL
+    function RLS policies use (see migrations/0004_rls.py) — same "holds a
+    system-level role (organization IS NULL)" check, for view code that
+    needs to branch on it directly rather than only gate a single (module,
+    action) pair. Currently just `OrganizationViewSet.get_queryset()` (see
+    foundation/views.py): Organization itself has no tenant/RLS scoping —
+    it IS the tenant root — so without an explicit check here, a
+    center_admin's own `organizations:view` grant (needed for their own
+    org's Settings page) would otherwise return every organization on the
+    platform, not just theirs.
+    """
+    if user is None or not getattr(user, "is_authenticated", False):
+        return False
+
+    from foundation.models import UserRole
+
+    return UserRole.objects.filter(user=user, role__is_active=True, role__organization__isnull=True).exists()
+
+
 def user_has_permission(user, module: str, action: str) -> bool:
     if user is None or not getattr(user, "is_authenticated", False):
         return False
