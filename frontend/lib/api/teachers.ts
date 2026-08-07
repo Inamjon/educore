@@ -55,14 +55,19 @@ interface ListResponse<T> {
 }
 
 export interface ListTeachersParams {
-  organizationId: string;
+  /** Omit for a platform-wide query — only a super_admin's RLS bypass
+   * actually returns cross-org rows when this is left out; every other
+   * role is still scoped to their own org regardless (see the Super-Admin
+   * Teachers page for the platform-wide use). */
+  organizationId?: string;
   status?: TeacherStatus;
   search?: string;
   pageSize?: number;
 }
 
 export async function listTeachers(params: ListTeachersParams): Promise<TeacherProfile[]> {
-  const query = new URLSearchParams({ organization: params.organizationId });
+  const query = new URLSearchParams();
+  if (params.organizationId) query.set("organization", params.organizationId);
   if (params.status) query.set("status", params.status);
   if (params.search) query.set("search", params.search);
   query.set("page_size", String(params.pageSize ?? 100));
