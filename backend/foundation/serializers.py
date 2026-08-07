@@ -4,6 +4,20 @@ from foundation.models import AuditLog, Branch, Organization, Permission, Role, 
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
+    """`branch_count`/`student_count`/`teacher_count` back the Super-Admin
+    Centers table's columns of the same name — computed, not stored, same
+    "derive from real records" precedent as Course's group_count or
+    Assignment's submitted_count. No `owner` field: the mock Center had one
+    (a person's name), but Organization has no owner/primary-contact user
+    FK — dropped rather than invented, same as Student's mock
+    attendanceRate/balance were dropped when their real modules didn't
+    exist yet.
+    """
+
+    branch_count = serializers.SerializerMethodField()
+    student_count = serializers.SerializerMethodField()
+    teacher_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Organization
         fields = [
@@ -11,9 +25,23 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "email", "phone", "address_line1", "address_line2", "city", "state",
             "country", "postal_code", "timezone", "locale", "currency", "status",
             "subscription_plan", "max_students", "max_teachers", "max_branches",
-            "trial_ends_at", "subscription_ends_at", "created_at", "updated_at",
+            "trial_ends_at", "subscription_ends_at", "branch_count", "student_count",
+            "teacher_count", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_branch_count(self, obj) -> int:
+        return obj.branch_set.count()
+
+    def get_student_count(self, obj) -> int:
+        from student.models import StudentProfile
+
+        return StudentProfile.objects.filter(organization=obj).count()
+
+    def get_teacher_count(self, obj) -> int:
+        from teacher.models import TeacherProfile
+
+        return TeacherProfile.objects.filter(organization=obj).count()
 
 
 class BranchSerializer(serializers.ModelSerializer):

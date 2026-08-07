@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from common.audit import audited
-from common.permissions import HasModulePermission, user_has_permission
+from common.permissions import HasModulePermission, is_platform_user, user_has_permission
 from foundation.filters import AuditLogFilter, BranchFilter, OrganizationFilter, UserFilter
 from foundation.models import AuditLog, Organization, Branch, Permission, Role, User
 from foundation.serializers import (
@@ -34,7 +34,6 @@ class SoftDeleteDestroyMixin:
 
 
 class OrganizationViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
-    queryset = Organization.objects.all().order_by("-created_at")
     serializer_class = OrganizationSerializer
     permission_classes = [HasModulePermission]
     filterset_class = OrganizationFilter
@@ -50,6 +49,20 @@ class OrganizationViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
         "destroy": ("organizations", "delete"),
         "suspend": ("organizations", "update"),
     }
+
+    def get_queryset(self):
+        """Organization has no tenant/RLS scoping — it IS the tenant root —
+        so unlike every other ViewSet in this codebase, an explicit filter
+        is needed here, not just a permission check: a center_admin's own
+        `organizations:view` grant (for their org's Settings page) would
+        otherwise return every organization on the platform. Only a
+        platform user (super_admin) sees the full list, which is what the
+        Super-Admin Centers page needs.
+        """
+        qs = Organization.objects.all().order_by("-created_at")
+        if is_platform_user(self.request.user):
+            return qs
+        return qs.filter(id=getattr(self.request.user, "organization_id", None))
 
     @audited(action="create", entity_type="organization")
     def create(self, request, *args, **kwargs):
