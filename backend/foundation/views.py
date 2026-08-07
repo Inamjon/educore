@@ -4,7 +4,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from common.audit import audited
+from common.audit import audit_log, audited
 from common.permissions import HasModulePermission, is_platform_user, user_has_permission
 from foundation.filters import AuditLogFilter, BranchFilter, OrganizationFilter, UserFilter
 from foundation.models import AuditLog, Organization, Branch, Permission, Role, User
@@ -162,11 +162,27 @@ class UserViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         is_self = serializer.instance.id == self.request.user.id
-        if is_self and not user_has_permission(self.request.user, "administrators", "update"):
-            disallowed = set(serializer.validated_data) - self.SELF_EDITABLE_FIELDS
-            if disallowed:
-                raise PermissionDenied(f"You can only update: {', '.join(sorted(self.SELF_EDITABLE_FIELDS))}.")
+        new_password = serializer.validated_data.get("password")
+        if is_self:
+            # Self-service password changes require proving the current
+            # password regardless of the caller's RBAC grant — an
+            # administrators:update permission is about editing OTHER
+            # users' records (no old-password prompt makes sense there,
+            # same as the Super-Admin Administrators page today), not a
+            # license to silently rotate your own credential. Checked via
+            # raw request.data since `current_password` isn't a real model
+            # field and has no reason to be a serializer field.
+            if new_password:
+                current_password = self.request.data.get("current_password")
+                if not current_password or not serializer.instance.check_password(current_password):
+                    raise PermissionDenied("Current password is incorrect.")
+            if not user_has_permission(self.request.user, "administrators", "update"):
+                disallowed = set(serializer.validated_data) - self.SELF_EDITABLE_FIELDS
+                if disallowed:
+                    raise PermissionDenied(f"You can only update: {', '.join(sorted(self.SELF_EDITABLE_FIELDS))}.")
         serializer.save()
+        if is_self and new_password:
+            audit_log(self.request, action="update", entity_type="user", entity_id=str(serializer.instance.id), metadata={"field": "password"})
 
     @audited(action="create", entity_type="user")
     def create(self, request, *args, **kwargs):

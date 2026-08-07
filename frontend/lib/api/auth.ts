@@ -59,3 +59,9 @@ export interface Session {
 export async function getSessions(): Promise<Session[]> {
   return apiFetch<Session[]>("/api/v1/auth/sessions/");
 }
+
+/** Backend rejects revoking the caller's own current session with a 400
+ * ("use logout instead") — see auth_custom/views.py::SessionRevokeView. */
+export async function revokeSession(sessionId: string): Promise<void> {
+  await apiFetch<null>(`/api/v1/auth/sessions/${sessionId}/revoke/`, { method: "POST" });
+}

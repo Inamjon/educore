@@ -28,6 +28,9 @@ interface ListResponse<T> {
 
 export interface ListAuditLogsParams {
   organizationId?: string;
+  /** Backed by AuditLogFilter's `user` field — used by the Profile page's
+   * "My Recent Actions" widget to scope the log to the logged-in user. */
+  userId?: string;
   action?: AuditAction;
   entityType?: string;
   dateFrom?: string;
@@ -38,6 +41,7 @@ export interface ListAuditLogsParams {
 export async function listAuditLogs(params: ListAuditLogsParams = {}): Promise<AuditLog[]> {
   const query = new URLSearchParams();
   if (params.organizationId) query.set("organization", params.organizationId);
+  if (params.userId) query.set("user", params.userId);
   if (params.action) query.set("action", params.action);
   if (params.entityType) query.set("entity_type", params.entityType);
   if (params.dateFrom) query.set("date_from", params.dateFrom);
