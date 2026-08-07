@@ -1,29 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, Users, Clock, MapPin, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { ChevronLeft, Users, Clock, MapPin, TrendingUp, TrendingDown, Minus, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Badge, StatusBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
-import {
-  TEACHER_GROUPS,
-  TEACHER_ATTENDANCE,
-  TEACHER_ASSIGNMENTS,
-  TEACHER_GRADES,
-} from '@/lib/teacher-data';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { useMyTeacherProfileQuery } from '@/lib/queries/teachers';
+import { useGroupMembersQuery, useGroupsQuery } from '@/lib/queries/groups';
+import { useAttendanceQuery } from '@/lib/queries/attendance';
+import { TEACHER_ASSIGNMENTS, TEACHER_GRADES } from '@/lib/teacher-data';
+import type { Group } from '@/lib/api/groups';
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
-
-type Group = (typeof TEACHER_GROUPS)[number];
 type Tab = 'students' | 'attendance' | 'homework' | 'grades';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function formatDate(dateStr: string) {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function levelVariant(level: string): 'success' | 'warning' | 'danger' {
@@ -34,79 +28,49 @@ function levelVariant(level: string): 'success' | 'warning' | 'danger' {
 
 // ─── Group Card ────────────────────────────────────────────────────────────────
 
-function GroupCard({
-  group,
-  onOpen,
-}: {
-  group: Group;
-  onOpen: (g: Group) => void;
-}) {
-  const fillPct = Math.round((group.studentCount / group.capacity) * 100);
+function GroupCard({ group, onOpen }: { group: Group; onOpen: (g: Group) => void }) {
+  const fillPct = Math.round((group.enrolled_count / group.max_students) * 100);
 
   return (
-    <div
-      className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col"
-      style={{ borderTop: `4px solid ${group.courseColor}` }}
-    >
-      {/* Header */}
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col border-t-4 border-t-indigo-500">
       <div className="p-5 pb-0">
         <div className="flex items-start justify-between gap-2">
           <div>
             <h3 className="text-base font-bold text-slate-900">{group.name}</h3>
-            <p className="text-xs text-slate-500 mt-0.5">{group.courseName}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{group.course_name}</p>
           </div>
-          <Badge label={group.level} variant={levelVariant(group.level)} />
+          <Badge label={group.course_level} variant={levelVariant(group.course_level)} />
         </div>
       </div>
 
-      {/* Stats */}
       <div className="px-5 pt-4 space-y-3">
-        {/* Student count + progress */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs text-slate-500 flex items-center gap-1">
               <Users className="h-3.5 w-3.5" />
-              {group.studentCount} / {group.capacity} students
-            </span>
-            <span className="text-xs text-slate-400">
-              Next:{' '}
-              <span className="font-medium text-slate-700">{formatDate(group.nextLesson)}</span>
+              {group.enrolled_count} / {group.max_students} students
             </span>
           </div>
           <div className="h-1.5 w-full rounded-full bg-slate-100">
-            <div
-              className="h-1.5 rounded-full bg-indigo-500 transition-all"
-              style={{ width: `${fillPct}%` }}
-            />
+            <div className="h-1.5 rounded-full bg-indigo-500 transition-all" style={{ width: `${Math.min(100, fillPct)}%` }} />
           </div>
         </div>
 
-        {/* Days + time */}
         <div className="flex items-center gap-1.5 text-xs text-slate-600">
           <Clock className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-          <span>{group.days.join(', ')}</span>
+          <span>{group.days_of_week.join(', ') || '—'}</span>
           <span className="text-slate-300">·</span>
-          <span>
-            {group.startTime} – {group.endTime}
-          </span>
+          <span>{group.start_time?.slice(0, 5) ?? '—'} – {group.end_time?.slice(0, 5) ?? '—'}</span>
         </div>
 
-        {/* Room */}
         <div className="flex items-center gap-1.5">
           <MapPin className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-          <span className="text-xs font-medium text-slate-600 bg-slate-100 rounded-full px-2 py-0.5">
-            {group.room}
-          </span>
+          <span className="text-xs font-medium text-slate-600 bg-slate-100 rounded-full px-2 py-0.5">{group.room || '—'}</span>
         </div>
       </div>
 
-      {/* Footer */}
       <div className="p-5 pt-4 mt-auto">
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => onOpen(group)}
-        >
+        <Button variant="outline" className="w-full" onClick={() => onOpen(group)}>
           Open Group
         </Button>
       </div>
@@ -116,16 +80,12 @@ function GroupCard({
 
 // ─── Detail Panel ──────────────────────────────────────────────────────────────
 
-function GroupDetailPanel({
-  group,
-  onBack,
-}: {
-  group: Group;
-  onBack: () => void;
-}) {
+function GroupDetailPanel({ group, onBack }: { group: Group; onBack: () => void }) {
   const [activeTab, setActiveTab] = useState<Tab>('students');
 
-  const groupAttendance = TEACHER_ATTENDANCE.filter((a) => a.groupId === group.id);
+  // Homework/Grades have no backend yet — same mock arrays as before,
+  // filtered by the (now real, UUID) group id, which will honestly never
+  // match, same as Admin's still-mock Finance/Homework sections elsewhere.
   const groupAssignments = TEACHER_ASSIGNMENTS.filter((a) => a.groupId === group.id);
   const groupGrades = TEACHER_GRADES.filter((g) => g.groupId === group.id);
 
@@ -138,34 +98,23 @@ function GroupDetailPanel({
 
   return (
     <Card className="mt-6" noPadding>
-      {/* Panel Header */}
-      <div
-        className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 rounded-t-2xl"
-        style={{ borderTop: `4px solid ${group.courseColor}` }}
-      >
-        <button
-          onClick={onBack}
-          className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-500"
-          aria-label="Back"
-        >
+      <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 rounded-t-2xl border-t-4 border-t-indigo-500">
+        <button onClick={onBack} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-500" aria-label="Back">
           <ChevronLeft className="h-5 w-5" />
         </button>
         <div>
           <h2 className="text-base font-bold text-slate-900">{group.name}</h2>
-          <p className="text-xs text-slate-500">{group.courseName}</p>
+          <p className="text-xs text-slate-500">{group.course_name}</p>
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex border-b border-slate-100 px-6">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab.key
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+              activeTab === tab.key ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
             {tab.label}
@@ -173,136 +122,116 @@ function GroupDetailPanel({
         ))}
       </div>
 
-      {/* Tab Content */}
       <div className="p-6">
-        {activeTab === 'students' && (
-          <StudentsTab group={group} />
-        )}
-        {activeTab === 'attendance' && (
-          <AttendanceTab records={groupAttendance} />
-        )}
-        {activeTab === 'homework' && (
-          <HomeworkTab assignments={groupAssignments} />
-        )}
-        {activeTab === 'grades' && (
-          <GradesTab grades={groupGrades} />
-        )}
+        {activeTab === 'students' && <StudentsTab group={group} />}
+        {activeTab === 'attendance' && <AttendanceTab group={group} />}
+        {activeTab === 'homework' && <HomeworkTab assignments={groupAssignments} />}
+        {activeTab === 'grades' && <GradesTab grades={groupGrades} />}
       </div>
     </Card>
   );
 }
 
-// ─── Students Tab ──────────────────────────────────────────────────────────────
+// ─── Students Tab (real roster) ────────────────────────────────────────────────
 
 function StudentsTab({ group }: { group: Group }) {
-  const students = TEACHER_GRADES.filter((g) => g.groupId === group.id);
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const { data: members, isLoading } = useGroupMembersQuery(group.id);
+  const { data: attendance } = useAttendanceQuery({ organizationId: organizationId ?? '', group: group.id });
+  const activeMembers = (members ?? []).filter((m) => m.status === 'active');
+
+  function rateFor(studentProfileId: string): number {
+    const records = (attendance ?? []).filter((r) => r.student_profile === studentProfileId);
+    if (records.length === 0) return 0;
+    const present = records.filter((r) => r.status === 'present').length;
+    return Math.round((present / records.length) * 100);
+  }
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" />Loading roster…</div>;
+  }
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[560px]">
+      <table className="w-full min-w-[480px]">
         <thead>
           <tr className="border-b border-slate-100">
-            <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">
-              Student
-            </th>
-            <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">
-              Attendance
-            </th>
-            <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">
-              Avg Grade
-            </th>
-            <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">
-              Status
-            </th>
+            <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">Student</th>
+            <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">Attendance</th>
+            <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">Status</th>
           </tr>
         </thead>
         <tbody>
-          {group.students.map((s) => {
-            const gradeRecord = students.find((g) => g.studentId === s.id);
-            return (
-              <tr key={s.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
-                <td className="py-3.5 px-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar name={s.name} size="sm" />
-                    <span className="text-sm font-medium text-slate-800">{s.name}</span>
-                  </div>
-                </td>
-                <td className="py-3.5 px-3">
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-20 rounded-full bg-slate-100">
-                      <div
-                        className="h-1.5 rounded-full bg-indigo-500"
-                        style={{ width: `${s.attendanceRate}%` }}
-                      />
+          {activeMembers.length === 0 ? (
+            <tr><td colSpan={3} className="py-8 text-center text-sm text-slate-400">No students enrolled.</td></tr>
+          ) : (
+            activeMembers.map((m) => {
+              const rate = rateFor(m.student_profile);
+              return (
+                <tr key={m.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+                  <td className="py-3.5 px-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar name={m.student_name} size="sm" />
+                      <span className="text-sm font-medium text-slate-800">{m.student_name}</span>
                     </div>
-                    <span className="text-xs text-slate-600 font-medium">{s.attendanceRate}%</span>
-                  </div>
-                </td>
-                <td className="py-3.5 px-3">
-                  <span className="text-sm font-semibold text-slate-800">
-                    {gradeRecord ? `${gradeRecord.finalGrade} (${gradeRecord.letterGrade})` : `${s.avgGrade}`}
-                  </span>
-                </td>
-                <td className="py-3.5 px-3">
-                  <StatusBadge status={s.attendanceRate >= 70 ? 'active' : 'inactive'} />
-                </td>
-              </tr>
-            );
-          })}
+                  </td>
+                  <td className="py-3.5 px-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-20 rounded-full bg-slate-100">
+                        <div className="h-1.5 rounded-full bg-indigo-500" style={{ width: `${rate}%` }} />
+                      </div>
+                      <span className="text-xs text-slate-600 font-medium">{rate}%</span>
+                    </div>
+                  </td>
+                  <td className="py-3.5 px-3">
+                    <StatusBadge status={m.status} />
+                  </td>
+                </tr>
+              );
+            })
+          )}
         </tbody>
       </table>
     </div>
   );
 }
 
-// ─── Attendance Tab ────────────────────────────────────────────────────────────
+// ─── Attendance Tab (real) ─────────────────────────────────────────────────────
 
-function AttendanceTab({
-  records,
-}: {
-  records: typeof TEACHER_ATTENDANCE;
-}) {
+function AttendanceTab({ group }: { group: Group }) {
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const { data: records, isLoading } = useAttendanceQuery({ organizationId: organizationId ?? '', group: group.id });
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" />Loading attendance…</div>;
+  }
+
   return (
     <div className="overflow-x-auto">
-      {records.length === 0 ? (
+      {!records || records.length === 0 ? (
         <p className="text-sm text-slate-400 text-center py-8">No attendance records found.</p>
       ) : (
         <table className="w-full min-w-[480px]">
           <thead>
             <tr className="border-b border-slate-100">
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">
-                Student
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">
-                Date
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">
-                Status
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">
-                Note
-              </th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">Student</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">Date</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">Status</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">Note</th>
             </tr>
           </thead>
           <tbody>
             {records.map((rec) => (
-              <tr
-                key={rec.id}
-                className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors"
-              >
+              <tr key={rec.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
                 <td className="py-3.5 px-3">
                   <div className="flex items-center gap-2">
-                    <Avatar name={rec.studentName} size="sm" />
-                    <span className="text-sm text-slate-700">{rec.studentName}</span>
+                    <Avatar name={rec.student_name} size="sm" />
+                    <span className="text-sm text-slate-700">{rec.student_name}</span>
                   </div>
                 </td>
                 <td className="py-3.5 px-3 text-sm text-slate-600">{formatDate(rec.date)}</td>
-                <td className="py-3.5 px-3">
-                  <StatusBadge status={rec.status} />
-                </td>
-                <td className="py-3.5 px-3 text-xs text-slate-400">
-                  {'note' in rec ? rec.note ?? '—' : '—'}
-                </td>
+                <td className="py-3.5 px-3"><StatusBadge status={rec.status} /></td>
+                <td className="py-3.5 px-3 text-xs text-slate-400">{rec.notes ?? '—'}</td>
               </tr>
             ))}
           </tbody>
@@ -312,23 +241,16 @@ function AttendanceTab({
   );
 }
 
-// ─── Homework Tab ──────────────────────────────────────────────────────────────
+// ─── Homework Tab (still mock — no backend) ────────────────────────────────────
 
-function HomeworkTab({
-  assignments,
-}: {
-  assignments: typeof TEACHER_ASSIGNMENTS;
-}) {
+function HomeworkTab({ assignments }: { assignments: typeof TEACHER_ASSIGNMENTS }) {
   return (
     <div className="space-y-3">
       {assignments.length === 0 ? (
         <p className="text-sm text-slate-400 text-center py-8">No assignments for this group.</p>
       ) : (
         assignments.map((asgn) => (
-          <div
-            key={asgn.id}
-            className="rounded-xl border border-slate-100 p-4 hover:border-indigo-100 hover:bg-slate-50/50 transition-colors"
-          >
+          <div key={asgn.id} className="rounded-xl border border-slate-100 p-4 hover:border-indigo-100 hover:bg-slate-50/50 transition-colors">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-slate-800 truncate">{asgn.title}</p>
@@ -341,9 +263,7 @@ function HomeworkTab({
               <span className="text-slate-300">·</span>
               <span className="text-emerald-600 font-medium">✓ {asgn.submitted} submitted</span>
               <span className="text-amber-600 font-medium">⏳ {asgn.pending} pending</span>
-              {asgn.late > 0 && (
-                <span className="text-red-500 font-medium">⚠ {asgn.late} late</span>
-              )}
+              {asgn.late > 0 && <span className="text-red-500 font-medium">⚠ {asgn.late} late</span>}
               <span className="text-slate-400">Max: {asgn.maxScore}pts</span>
             </div>
           </div>
@@ -353,7 +273,7 @@ function HomeworkTab({
   );
 }
 
-// ─── Grades Tab ────────────────────────────────────────────────────────────────
+// ─── Grades Tab (still mock — no backend) ──────────────────────────────────────
 
 function GradesTab({ grades }: { grades: typeof TEACHER_GRADES }) {
   return (
@@ -364,32 +284,17 @@ function GradesTab({ grades }: { grades: typeof TEACHER_GRADES }) {
         <table className="w-full min-w-[600px]">
           <thead>
             <tr className="border-b border-slate-100">
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">
-                Student
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">
-                Assignments
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">
-                Exams
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">
-                Participation
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">
-                Final Grade
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">
-                Trend
-              </th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">Student</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">Assignments</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">Exams</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">Participation</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">Final Grade</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-3">Trend</th>
             </tr>
           </thead>
           <tbody>
             {grades.map((g) => (
-              <tr
-                key={g.id}
-                className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors"
-              >
+              <tr key={g.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
                 <td className="py-3.5 px-3">
                   <div className="flex items-center gap-2">
                     <Avatar name={g.studentName} size="sm" />
@@ -401,20 +306,12 @@ function GradesTab({ grades }: { grades: typeof TEACHER_GRADES }) {
                 <td className="py-3.5 px-3 text-sm text-slate-600">{g.participation}</td>
                 <td className="py-3.5 px-3">
                   <span className="text-sm font-bold text-slate-900">{g.finalGrade}</span>
-                  <span className="ml-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 rounded-full px-1.5 py-0.5">
-                    {g.letterGrade}
-                  </span>
+                  <span className="ml-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 rounded-full px-1.5 py-0.5">{g.letterGrade}</span>
                 </td>
                 <td className="py-3.5 px-3">
-                  {g.trend === 'up' && (
-                    <TrendingUp className="h-4 w-4 text-emerald-500" />
-                  )}
-                  {g.trend === 'down' && (
-                    <TrendingDown className="h-4 w-4 text-red-500" />
-                  )}
-                  {g.trend === 'stable' && (
-                    <Minus className="h-4 w-4 text-slate-400" />
-                  )}
+                  {g.trend === 'up' && <TrendingUp className="h-4 w-4 text-emerald-500" />}
+                  {g.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
+                  {g.trend === 'stable' && <Minus className="h-4 w-4 text-slate-400" />}
                 </td>
               </tr>
             ))}
@@ -428,11 +325,14 @@ function GradesTab({ grades }: { grades: typeof TEACHER_GRADES }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TeacherGroupsPage() {
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const { data: myProfile } = useMyTeacherProfileQuery();
+  const { data: groups, isLoading } = useGroupsQuery({ organizationId: organizationId ?? '', teacher: myProfile?.id });
+
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
 
   function handleOpen(group: Group) {
     setSelectedGroup(group);
-    // Scroll to detail panel after state update
     setTimeout(() => {
       document.getElementById('group-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
@@ -442,21 +342,27 @@ export default function TeacherGroupsPage() {
     setSelectedGroup(null);
   }
 
+  const list = groups ?? [];
+
   return (
     <div>
-      <PageHeader
-        title="My Groups"
-        subtitle={`${TEACHER_GROUPS.length} active groups`}
-      />
+      <PageHeader title="My Groups" subtitle={`${list.length} active groups`} />
 
-      {/* Group Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {TEACHER_GROUPS.map((group) => (
-          <GroupCard key={group.id} group={group} onOpen={handleOpen} />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-400">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading groups…
+        </div>
+      ) : list.length === 0 ? (
+        <p className="text-sm text-slate-400 text-center py-12">No groups assigned yet.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {list.map((group) => (
+            <GroupCard key={group.id} group={group} onOpen={handleOpen} />
+          ))}
+        </div>
+      )}
 
-      {/* Detail Panel */}
       {selectedGroup && (
         <div id="group-detail">
           <GroupDetailPanel group={selectedGroup} onBack={handleBack} />

@@ -10,7 +10,8 @@ import {
   type UpdateStudentInput,
 } from "@/lib/api/students";
 import { findRoleBySlug, listRoles } from "@/lib/api/roles";
-import { getUser } from "@/lib/api/users";
+
+export { useUserQuery } from "@/lib/queries/users";
 
 const studentsKey = (params: ListStudentsParams) => ["students", params] as const;
 
@@ -18,16 +19,6 @@ export function useStudentsQuery(params: ListStudentsParams) {
   return useQuery({
     queryKey: studentsKey(params),
     queryFn: () => listStudents(params),
-  });
-}
-
-/** Only StudentProfile.user_full_name/user_phone are on the list endpoint —
- * editing first/last name, gender, or DOB needs the real User record. */
-export function useUserQuery(userId: string | null) {
-  return useQuery({
-    queryKey: ["user", userId],
-    queryFn: () => getUser(userId as string),
-    enabled: !!userId,
   });
 }
 

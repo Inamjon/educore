@@ -1,28 +1,38 @@
 "use client";
 
-import { useMemo } from "react";
-import { ChevronLeft, KeyRound, Phone, Star, Pencil, Trash2 } from "lucide-react";
+import { ChevronLeft, KeyRound, Phone, Briefcase, DollarSign, Pencil, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/badge";
-import { useGroupsStore } from "@/lib/store/groups-store";
-import { formatCurrency } from "@/lib/utils";
-import type { Teacher } from "@/types";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { useGroupsQuery } from "@/lib/queries/groups";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { useTeacherSalariesQuery, useTeacherSpecializationsQuery } from "@/lib/queries/teachers";
+import type { TeacherProfile } from "@/lib/api/teachers";
+
+const EMPLOYMENT_LABELS: Record<string, string> = {
+  full_time: "Full Time",
+  part_time: "Part Time",
+  contract: "Contract",
+  freelance: "Freelance",
+  intern: "Intern",
+};
 
 interface TeacherDetailPanelProps {
-  teacher: Teacher;
+  teacher: TeacherProfile;
   onBack: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }
 
 export function TeacherDetailPanel({ teacher, onBack, onEdit, onDelete }: TeacherDetailPanelProps) {
-  const groupItems = useGroupsStore((s) => s.items);
-  const groups = useMemo(
-    () => groupItems.filter((g) => !g.deletedAt && g.teacherId === teacher.id),
-    [groupItems, teacher.id]
-  );
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const { data: groups } = useGroupsQuery({ organizationId: organizationId ?? "", teacher: teacher.id });
+
+  const { data: specializations } = useTeacherSpecializationsQuery(teacher.id);
+  const { data: salaries } = useTeacherSalariesQuery(teacher.id);
+  const activeSalary = salaries?.find((s) => s.is_active) ?? salaries?.[0];
 
   return (
     <Card noPadding>
@@ -32,10 +42,10 @@ export function TeacherDetailPanel({ teacher, onBack, onEdit, onDelete }: Teache
           Back
         </Button>
         <div className="flex items-center gap-3">
-          <Avatar name={teacher.name} size="md" />
+          <Avatar name={teacher.user_full_name} size="md" />
           <div>
-            <p className="font-semibold text-slate-900">{teacher.name}</p>
-            <p className="text-xs text-slate-500">{teacher.specialization}</p>
+            <p className="font-semibold text-slate-900">{teacher.user_full_name}</p>
+            <p className="text-xs text-slate-500">{teacher.teacher_code}</p>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -53,17 +63,30 @@ export function TeacherDetailPanel({ teacher, onBack, onEdit, onDelete }: Teache
 
       <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Contact Information</h4>
+          <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
+            Contact Information
+          </h4>
           <div className="space-y-3">
-            <InfoRow icon={<KeyRound className="h-4 w-4" />} label="Login ID" value={teacher.loginId} />
-            <InfoRow icon={<Phone className="h-4 w-4" />} label="Phone" value={teacher.phone} />
-            <InfoRow icon={<Star className="h-4 w-4" />} label="Rating" value={`${teacher.rating}`} />
-            <InfoRow icon={<Star className="h-4 w-4" />} label="Monthly Salary" value={formatCurrency(teacher.salary)} />
+            <InfoRow icon={<KeyRound className="h-4 w-4" />} label="Login ID" value={teacher.user_login_id} />
+            <InfoRow icon={<Phone className="h-4 w-4" />} label="Phone" value={teacher.user_phone} />
+            <InfoRow
+              icon={<Briefcase className="h-4 w-4" />}
+              label="Employment"
+              value={EMPLOYMENT_LABELS[teacher.employment_type] ?? teacher.employment_type}
+            />
+            <InfoRow icon={<KeyRound className="h-4 w-4" />} label="Hired" value={formatDate(teacher.hire_date)} />
+            {activeSalary && (
+              <InfoRow
+                icon={<DollarSign className="h-4 w-4" />}
+                label="Salary"
+                value={`${formatCurrency(Number(activeSalary.amount))} / ${activeSalary.salary_type.replace("_", " ")}`}
+              />
+            )}
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {teacher.subjects.map((s) => (
-              <span key={s} className="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full font-medium">
-                {s}
+            {(specializations ?? []).map((s) => (
+              <span key={s.id} className="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full font-medium">
+                {s.subject_name}
               </span>
             ))}
           </div>
@@ -71,7 +94,7 @@ export function TeacherDetailPanel({ teacher, onBack, onEdit, onDelete }: Teache
 
         <div className="space-y-3">
           <h4 className="text-sm font-semibold text-slate-700 mb-2">Assigned Groups</h4>
-          {groups.length === 0 ? (
+          {!groups || groups.length === 0 ? (
             <p className="text-sm text-slate-400">No groups assigned.</p>
           ) : (
             <div className="space-y-1.5">
@@ -79,7 +102,7 @@ export function TeacherDetailPanel({ teacher, onBack, onEdit, onDelete }: Teache
                 <div key={g.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
                   <span className="text-xs text-slate-700">{g.name}</span>
                   <span className="text-xs text-slate-500">
-                    {g.enrolledCount}/{g.capacity} students
+                    {g.enrolled_count}/{g.max_students} students
                   </span>
                 </div>
               ))}
