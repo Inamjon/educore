@@ -13,302 +13,231 @@ import {
   X,
   Eye,
   EyeOff,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge, StatusBadge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
 import { StatCard } from '@/components/ui/stat-card';
 import { DataTable, Column } from '@/components/ui/data-table';
 import { Input, SearchInput, Select } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { SA_CENTERS, SA_BRANCHES, AdminRole, AdminStatus } from '@/lib/super-admin-data';
-import { useSAAdministratorsStore, type SAAdmin } from '@/lib/store/sa-administrators-store';
 import { toast } from '@/lib/store/toast-store';
-import { generateLoginId } from '@/lib/utils';
+import { useOrganizationsQuery } from '@/lib/queries/organizations';
+import { useBranchesQuery } from '@/lib/queries/branches';
+import {
+  useAdministratorsQuery,
+  useCenterAdminRoleQuery,
+  useCreateAdministratorMutation,
+  useUpdateAdministratorMutation,
+  useSuspendAdministratorMutation,
+  useDeleteAdministratorMutation,
+} from '@/lib/queries/administrators';
+import type { Administrator, AdminStatus } from '@/lib/api/administrators';
+import { ApiError } from '@/lib/api/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface AdminFormData {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   phone: string;
   password: string;
   confirmPassword: string;
-  centerId: string;
-  branchId: string;
-  role: string;
-  permissions: string[];
+  organization: string;
+  branch: string;
+  status: AdminStatus;
 }
 
-const ALL_PERMISSIONS = [
-  { key: 'manage_students', label: 'Manage Students' },
-  { key: 'manage_teachers', label: 'Manage Teachers' },
-  { key: 'view_reports', label: 'View Reports' },
-  { key: 'manage_finance', label: 'Manage Finance' },
-  { key: 'send_notifications', label: 'Send Notifications' },
-  { key: 'manage_schedule', label: 'Manage Schedule' },
-  { key: 'edit_settings', label: 'Edit Settings' },
-  { key: 'view_audit_logs', label: 'View Audit Logs' },
-];
-
 const emptyForm: AdminFormData = {
-  fullName: '',
+  firstName: '',
+  lastName: '',
   phone: '',
   password: '',
   confirmPassword: '',
-  centerId: '',
-  branchId: '',
-  role: '',
-  permissions: [],
+  organization: '',
+  branch: '',
+  status: 'active',
 };
 
-// ─── Role Badge ───────────────────────────────────────────────────────────────
+const STATUS_OPTIONS: { value: AdminStatus; label: string }[] = [
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+  { value: 'suspended', label: 'Suspended' },
+  { value: 'pending', label: 'Pending' },
+];
 
-function RoleBadge({ role }: { role: AdminRole }) {
-  const map: Record<AdminRole, { label: string; variant: 'purple' | 'info' | 'default' }> = {
-    center_admin: { label: 'Center Admin', variant: 'purple' },
-    branch_admin: { label: 'Branch Admin', variant: 'info' },
-    moderator: { label: 'Moderator', variant: 'default' },
-  };
-  const cfg = map[role] ?? { label: role, variant: 'default' as const };
-  return <Badge label={cfg.label} variant={cfg.variant} />;
-}
-
-// ─── Date formatter ───────────────────────────────────────────────────────────
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+function formatDate(iso: string | null) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdministratorsPage() {
-  const adminItems = useSAAdministratorsStore((s) => s.items);
-  const admins = adminItems.filter((a) => !a.deletedAt);
-  const addAdmin = useSAAdministratorsStore((s) => s.add);
-  const updateAdmin = useSAAdministratorsStore((s) => s.update);
-  const removeAdmin = useSAAdministratorsStore((s) => s.softDelete);
-
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [deletingAdmin, setDeletingAdmin] = useState<SAAdmin | null>(null);
+  const [editingAdmin, setEditingAdmin] = useState<Administrator | null>(null);
+  const [deletingAdmin, setDeletingAdmin] = useState<Administrator | null>(null);
   const [form, setForm] = useState<AdminFormData>(emptyForm);
+  const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [search, setSearch] = useState('');
-  const [filterRole, setFilterRole] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterCenter, setFilterCenter] = useState('');
+  const [filterStatus, setFilterStatus] = useState<AdminStatus | ''>('');
+
+  const { data: centers } = useOrganizationsQuery();
+  const { data: allBranches } = useBranchesQuery({ organization: form.organization || undefined });
+  const { data: centerAdminRole } = useCenterAdminRoleQuery(form.organization || undefined);
+  const { data: admins, isLoading, isError, error } = useAdministratorsQuery({
+    organization: filterCenter || undefined,
+    status: filterStatus || undefined,
+  });
+  const createMutation = useCreateAdministratorMutation();
+  const updateMutation = useUpdateAdministratorMutation();
+  const suspendMutation = useSuspendAdministratorMutation();
+  const deleteMutation = useDeleteAdministratorMutation();
+
+  const list = admins ?? [];
+  const centerOptions = (centers ?? []).map((c) => ({ value: c.id, label: c.name }));
+  const branchOptions = (allBranches ?? []).map((b) => ({ value: b.id, label: b.name }));
 
   // ── Stats ──────────────────────────────────────────────────────────────────
 
-  const total = admins.length;
-  const active = admins.filter((a) => a.status === 'active').length;
-  const inactiveSuspended = admins.filter(
-    (a) => a.status === 'inactive' || a.status === 'suspended'
-  ).length;
-  const centerAdmins = admins.filter((a) => a.role === 'center_admin').length;
-  const branchAdmins = admins.filter((a) => a.role === 'branch_admin').length;
+  const total = list.length;
+  const active = list.filter((a) => a.status === 'active').length;
+  const inactiveSuspended = list.filter((a) => a.status === 'inactive' || a.status === 'suspended').length;
+  const withBranch = list.filter((a) => a.branch).length;
 
   // ── Filtered data ──────────────────────────────────────────────────────────
 
   const filtered = useMemo(() => {
-    return admins.filter((a) => {
-      const q = search.toLowerCase();
-      const matchSearch =
-        !q ||
-        a.name.toLowerCase().includes(q) ||
-        a.loginId.toLowerCase().includes(q) ||
-        a.centerName.toLowerCase().includes(q);
-      const matchRole = !filterRole || a.role === filterRole;
-      const matchStatus = !filterStatus || a.status === filterStatus;
-      return matchSearch && matchRole && matchStatus;
-    });
-  }, [admins, search, filterRole, filterStatus]);
+    const q = search.toLowerCase();
+    return list.filter(
+      (a) => !q || a.full_name.toLowerCase().includes(q) || a.login_id.toLowerCase().includes(q) || (a.organization_name ?? '').toLowerCase().includes(q)
+    );
+  }, [list, search]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  const handleFormChange = (field: keyof AdminFormData, value: string) => {
+  function handleFormChange<K extends keyof AdminFormData>(field: K, value: AdminFormData[K]) {
     setForm((prev) => ({ ...prev, [field]: value }));
-  };
+  }
 
-  const handlePermissionToggle = (key: string) => {
-    setForm((prev) => ({
-      ...prev,
-      permissions: prev.permissions.includes(key)
-        ? prev.permissions.filter((p) => p !== key)
-        : [...prev.permissions, key],
-    }));
-  };
-
-  const handleCancel = () => {
+  function handleCancel() {
     setShowForm(false);
-    setEditingId(null);
+    setEditingAdmin(null);
     setForm(emptyForm);
-  };
+  }
 
-  const handleEdit = (admin: SAAdmin) => {
-    setEditingId(admin.id);
+  function handleEdit(admin: Administrator) {
+    setEditingAdmin(admin);
     setForm({
-      fullName: admin.name,
+      firstName: admin.first_name,
+      lastName: admin.last_name,
       phone: admin.phone,
       password: '',
       confirmPassword: '',
-      centerId: admin.centerId,
-      branchId: admin.branchId,
-      role: admin.role,
-      permissions: admin.permissions,
+      organization: admin.organization,
+      branch: admin.branch ?? '',
+      status: admin.status,
     });
     setShowForm(true);
-  };
+  }
 
-  const handleSuspendToggle = (admin: SAAdmin) => {
-    const nextStatus: AdminStatus = admin.status === 'suspended' ? 'active' : 'suspended';
-    updateAdmin(admin.id, { status: nextStatus });
-    toast.success(nextStatus === 'suspended' ? 'Administrator suspended' : 'Administrator reactivated');
-  };
+  async function handleSuspendToggle(admin: Administrator) {
+    try {
+      await suspendMutation.mutateAsync(admin.id);
+      toast.success(admin.status === 'suspended' ? 'Administrator reactivated' : 'Administrator suspended');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+    }
+  }
 
-  const handleSubmit = () => {
-    if (!form.fullName.trim() || !form.role) {
-      toast.error('Name and role are required');
+  async function handleSubmit() {
+    if (!form.firstName.trim() || !form.lastName.trim() || !form.organization) {
+      toast.error('Name and center are required');
       return;
     }
-    if (!editingId || form.password) {
+    if (!editingAdmin || form.password) {
       if (!form.password || form.password !== form.confirmPassword) {
         toast.error('Passwords must match and cannot be empty');
         return;
       }
     }
-    const center = SA_CENTERS.find((c) => c.id === form.centerId);
-    const branch = SA_BRANCHES.find((b) => b.id === form.branchId);
-
-    if (editingId) {
-      updateAdmin(editingId, {
-        name: form.fullName,
-        phone: form.phone,
-        centerId: form.centerId,
-        centerName: center?.name ?? '',
-        branchId: form.branchId,
-        branchName: branch?.name ?? '',
-        role: form.role as AdminRole,
-        permissions: form.permissions,
-      });
-      toast.success('Administrator updated');
-    } else {
-      addAdmin({
-        name: form.fullName,
-        loginId: generateLoginId('EDU'),
-        phone: form.phone,
-        centerId: form.centerId,
-        centerName: center?.name ?? '',
-        branchId: form.branchId,
-        branchName: branch?.name ?? '',
-        role: form.role as AdminRole,
-        status: 'active',
-        lastLogin: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        permissions: form.permissions,
-      });
-      toast.success('Administrator created');
+    if (!editingAdmin && !centerAdminRole) {
+      toast.error('This center has no Center Admin role provisioned yet.');
+      return;
     }
-    setShowForm(false);
-    setEditingId(null);
-    setForm(emptyForm);
-  };
 
-  // ── Center & branch options ────────────────────────────────────────────────
-
-  const centerOptions = SA_CENTERS.map((c) => ({ value: c.id, label: c.name }));
-  const branchOptions = SA_BRANCHES
-    .filter((b) => !form.centerId || b.centerId === form.centerId)
-    .map((b) => ({ value: b.id, label: b.name }));
+    setSaving(true);
+    try {
+      if (editingAdmin) {
+        await updateMutation.mutateAsync({
+          id: editingAdmin.id,
+          input: {
+            firstName: form.firstName,
+            lastName: form.lastName,
+            phone: form.phone,
+            branch: form.branch,
+            password: form.password || undefined,
+          },
+        });
+        toast.success('Administrator updated');
+      } else {
+        await createMutation.mutateAsync({
+          organization: form.organization,
+          branch: form.branch,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          phone: form.phone,
+          password: form.password,
+          roleId: centerAdminRole!.id,
+        });
+        toast.success('Administrator created');
+      }
+      handleCancel();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // ── Columns ────────────────────────────────────────────────────────────────
 
-  const columns: Column<SAAdmin>[] = [
+  const columns: Column<Administrator>[] = [
     {
-      key: 'name',
+      key: 'full_name',
       label: 'Admin',
       render: (_, row) => (
         <div className="flex items-center gap-3">
-          <Avatar name={row.name} size="sm" />
-          <span className="font-medium text-slate-900">{row.name}</span>
+          <Avatar name={row.full_name} size="sm" />
+          <span className="font-medium text-slate-900">{row.full_name}</span>
         </div>
       ),
     },
-    {
-      key: 'loginId',
-      label: 'Login ID',
-      render: (_, row) => (
-        <span className="text-slate-600 text-xs">{row.loginId}</span>
-      ),
-    },
-    {
-      key: 'phone',
-      label: 'Phone',
-      render: (_, row) => (
-        <span className="text-slate-600 text-xs whitespace-nowrap">{row.phone}</span>
-      ),
-    },
-    {
-      key: 'centerName',
-      label: 'Center',
-      render: (_, row) => (
-        <span className="text-slate-700 text-sm">{row.centerName}</span>
-      ),
-    },
-    {
-      key: 'branchName',
-      label: 'Branch',
-      render: (_, row) => (
-        <span className="text-slate-600 text-sm">{row.branchName}</span>
-      ),
-    },
-    {
-      key: 'role',
-      label: 'Role',
-      render: (_, row) => <RoleBadge role={row.role} />,
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (_, row) => <StatusBadge status={row.status} />,
-    },
-    {
-      key: 'lastLogin',
-      label: 'Last Login',
-      render: (_, row) => (
-        <span className="text-slate-500 text-xs whitespace-nowrap">{formatDate(row.lastLogin)}</span>
-      ),
-    },
+    { key: 'login_id', label: 'Login ID', render: (_, row) => <span className="text-slate-600 text-xs">{row.login_id}</span> },
+    { key: 'phone', label: 'Phone', render: (_, row) => <span className="text-slate-600 text-xs whitespace-nowrap">{row.phone}</span> },
+    { key: 'organization_name', label: 'Center', render: (_, row) => <span className="text-slate-700 text-sm">{row.organization_name}</span> },
+    { key: 'branch_name', label: 'Branch', render: (_, row) => <span className="text-slate-600 text-sm">{row.branch_name ?? '—'}</span> },
+    { key: 'status', label: 'Status', render: (_, row) => <Badge label={row.status} variant={row.status === 'active' ? 'success' : row.status === 'suspended' ? 'danger' : 'secondary'} /> },
+    { key: 'last_login', label: 'Last Login', render: (_, row) => <span className="text-slate-500 text-xs whitespace-nowrap">{formatDate(row.last_login)}</span> },
     {
       key: 'id',
       label: 'Actions',
       render: (_, row) => (
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => handleEdit(row)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-            title="Edit"
-          >
+          <button onClick={() => handleEdit(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" title="Edit">
             <Pencil className="h-4 w-4" />
           </button>
-          <button
-            onClick={() => handleSuspendToggle(row)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
-            title={row.status === 'suspended' ? 'Reactivate' : 'Suspend'}
-          >
+          <button onClick={() => handleSuspendToggle(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors" title={row.status === 'suspended' ? 'Reactivate' : 'Suspend'}>
             <Ban className="h-4 w-4" />
           </button>
-          <button
-            onClick={() => setDeletingAdmin(row)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-            title="Delete"
-          >
+          <button onClick={() => setDeletingAdmin(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
@@ -316,21 +245,18 @@ export default function AdministratorsPage() {
     },
   ];
 
-  // ─────────────────────────────────────────────────────────────────────────
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
         title="Administrators"
-        subtitle="Manage platform administrators and their permissions"
+        subtitle="Manage center administrator accounts across the platform"
         actions={
           <Button
             onClick={() => {
-              if (showForm) {
-                handleCancel();
-              } else {
-                setEditingId(null);
+              if (showForm) handleCancel();
+              else {
+                setEditingAdmin(null);
                 setForm(emptyForm);
                 setShowForm(true);
               }
@@ -344,111 +270,50 @@ export default function AdministratorsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Total Admins"
-          value={total}
-          icon={<ShieldCheck className="h-5 w-5 text-indigo-600" />}
-          iconBg="bg-indigo-50"
-        />
-        <StatCard
-          label="Active"
-          value={active}
-          icon={<Users className="h-5 w-5 text-emerald-600" />}
-          iconBg="bg-emerald-50"
-        />
-        <StatCard
-          label="Inactive / Suspended"
-          value={inactiveSuspended}
-          icon={<UserX className="h-5 w-5 text-red-500" />}
-          iconBg="bg-red-50"
-        />
-        {/* Ratio card */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <div className="flex items-start gap-3">
-            <div className="p-3 rounded-xl bg-violet-50 flex-shrink-0">
-              <BarChart3 className="h-5 w-5 text-violet-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-slate-500 font-medium">Center vs Branch</p>
-              <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-2xl font-bold text-slate-900">{centerAdmins}</span>
-                <span className="text-sm text-slate-400">:</span>
-                <span className="text-2xl font-bold text-slate-900">{branchAdmins}</span>
-              </div>
-              <div className="flex items-center gap-3 mt-1.5">
-                <span className="text-xs text-violet-600 font-medium">Center Admins</span>
-                <span className="text-xs text-blue-600 font-medium">Branch Admins</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <StatCard label="Total Admins" value={total} icon={<ShieldCheck className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label="Active" value={active} icon={<Users className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label="Inactive / Suspended" value={inactiveSuspended} icon={<UserX className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
+        <StatCard label="Assigned to a Branch" value={withBranch} icon={<BarChart3 className="h-5 w-5 text-violet-600" />} iconBg="bg-violet-50" />
       </div>
 
-      {/* Add Administrator Form */}
+      {/* Add/Edit Administrator Form */}
       {showForm && (
         <Card>
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-base font-semibold text-slate-900">
-              {editingId ? 'Edit Administrator' : 'Add New Administrator'}
-            </h3>
-            <button
-              onClick={handleCancel}
-              className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-            >
+            <h3 className="text-base font-semibold text-slate-900">{editingAdmin ? 'Edit Administrator' : 'Add New Administrator'}</h3>
+            <button onClick={handleCancel} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Personal Info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Full Name</label>
-              <Input
-                placeholder="Jane Doe"
-                value={form.fullName}
-                onChange={(e) => handleFormChange('fullName', e.target.value)}
-              />
+              <label className="text-xs font-medium text-slate-600">First Name</label>
+              <Input placeholder="Jane" value={form.firstName} onChange={(e) => handleFormChange('firstName', e.target.value)} />
             </div>
 
-            {editingId ? (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-600">Last Name</label>
+              <Input placeholder="Doe" value={form.lastName} onChange={(e) => handleFormChange('lastName', e.target.value)} />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-600">Phone</label>
+              <Input placeholder="+1 555-000-0000" value={form.phone} onChange={(e) => handleFormChange('phone', e.target.value)} />
+            </div>
+
+            {editingAdmin && (
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-600">Login ID</label>
-                <Input value={admins.find((a) => a.id === editingId)?.loginId ?? ''} disabled />
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-600">Login ID</label>
-                <Input value="Generated automatically" disabled />
+                <Input value={editingAdmin.login_id} disabled />
               </div>
             )}
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Phone</label>
-              <Input
-                placeholder="+1 555-000-0000"
-                value={form.phone}
-                onChange={(e) => handleFormChange('phone', e.target.value)}
-              />
-            </div>
-
-            {/* Password */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">
-                Password{editingId && ' (leave blank to keep current)'}
-              </label>
+              <label className="text-xs font-medium text-slate-600">Password{editingAdmin && ' (leave blank to keep current)'}</label>
               <div className="relative">
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={form.password}
-                  onChange={(e) => handleFormChange('password', e.target.value)}
-                  className="pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
+                <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={form.password} onChange={(e) => handleFormChange('password', e.target.value)} className="pr-10" />
+                <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
@@ -457,18 +322,8 @@ export default function AdministratorsPage() {
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-600">Confirm Password</label>
               <div className="relative">
-                <Input
-                  type={showConfirm ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={form.confirmPassword}
-                  onChange={(e) => handleFormChange('confirmPassword', e.target.value)}
-                  className="pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
+                <Input type={showConfirm ? 'text' : 'password'} placeholder="••••••••" value={form.confirmPassword} onChange={(e) => handleFormChange('confirmPassword', e.target.value)} className="pr-10" />
+                <button type="button" onClick={() => setShowConfirm((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                   {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
@@ -478,75 +333,39 @@ export default function AdministratorsPage() {
               <label className="text-xs font-medium text-slate-600">Assign Center</label>
               <Select
                 className="w-full"
-                value={form.centerId}
+                value={form.organization}
                 placeholder="Select center"
                 options={centerOptions}
+                disabled={!!editingAdmin}
                 onChange={(e) => {
-                  handleFormChange('centerId', e.target.value);
-                  handleFormChange('branchId', '');
+                  handleFormChange('organization', e.target.value);
+                  handleFormChange('branch', '');
                 }}
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Assign Branch</label>
-              <Select
-                className="w-full"
-                value={form.branchId}
-                placeholder="Select branch"
-                options={branchOptions}
-                onChange={(e) => handleFormChange('branchId', e.target.value)}
-              />
+              <label className="text-xs font-medium text-slate-600">Assign Branch (optional)</label>
+              <Select className="w-full" value={form.branch} placeholder="Select branch" options={branchOptions} onChange={(e) => handleFormChange('branch', e.target.value)} />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-600">Role</label>
-              <Select
-                className="w-full"
-                value={form.role}
-                placeholder="Select role"
-                options={[
-                  { value: 'center_admin', label: 'Center Admin' },
-                  { value: 'branch_admin', label: 'Branch Admin' },
-                  { value: 'moderator', label: 'Moderator' },
-                ]}
-                onChange={(e) => handleFormChange('role', e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Permissions */}
-          <div className="mt-5 pt-5 border-t border-slate-100">
-            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3">
-              Permissions
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-              {ALL_PERMISSIONS.map((perm) => (
-                <label
-                  key={perm.key}
-                  className="flex items-center gap-2.5 cursor-pointer group"
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.permissions.includes(perm.key)}
-                    onChange={() => handlePermissionToggle(perm.key)}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                  />
-                  <span className="text-sm text-slate-700 group-hover:text-slate-900 transition-colors">
-                    {perm.label}
-                  </span>
-                </label>
-              ))}
+              {/* Read-only: the org's auto-provisioned Center Admin role is
+                  the only administrator-type role this platform has — no
+                  custom per-user permission overrides exist (RBAC here is
+                  role-based, not a per-admin checkbox grid). */}
+              <Input value="Center Admin" disabled />
             </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-slate-100">
-            <Button variant="secondary" onClick={handleCancel}>
+            <Button variant="secondary" onClick={handleCancel} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit}>
+            <Button onClick={handleSubmit} loading={saving}>
               <Plus className="h-4 w-4" />
-              {editingId ? 'Save Changes' : 'Add Administrator'}
+              {editingAdmin ? 'Save Changes' : 'Add Administrator'}
             </Button>
           </div>
         </Card>
@@ -556,36 +375,14 @@ export default function AdministratorsPage() {
       <Card noPadding>
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-b border-slate-50">
-          <SearchInput
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search administrators..."
-          />
-          <Select
-            value={filterRole}
-            placeholder="All Roles"
-            options={[
-              { value: 'center_admin', label: 'Center Admin' },
-              { value: 'branch_admin', label: 'Branch Admin' },
-              { value: 'moderator', label: 'Moderator' },
-            ]}
-            onChange={(e) => setFilterRole(e.target.value)}
-          />
-          <Select
-            value={filterStatus}
-            placeholder="All Statuses"
-            options={[
-              { value: 'active', label: 'Active' },
-              { value: 'inactive', label: 'Inactive' },
-              { value: 'suspended', label: 'Suspended' },
-            ]}
-            onChange={(e) => setFilterStatus(e.target.value)}
-          />
-          {(search || filterRole || filterStatus) && (
+          <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search administrators..." />
+          <Select value={filterCenter} placeholder="All Centers" options={centerOptions} onChange={(e) => setFilterCenter(e.target.value)} />
+          <Select value={filterStatus} placeholder="All Statuses" options={STATUS_OPTIONS} onChange={(e) => setFilterStatus(e.target.value as AdminStatus | '')} />
+          {(search || filterCenter || filterStatus) && (
             <button
               onClick={() => {
                 setSearch('');
-                setFilterRole('');
+                setFilterCenter('');
                 setFilterStatus('');
               }}
               className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
@@ -596,24 +393,36 @@ export default function AdministratorsPage() {
           <span className="ml-auto text-xs text-slate-400">{filtered.length} administrators</span>
         </div>
 
-        <DataTable<SAAdmin>
-          columns={columns}
-          data={filtered}
-          keyField="id"
-          emptyMessage="No administrators found"
-        />
+        {isError ? (
+          <div className="flex items-center gap-2 px-6 py-8 text-sm text-red-500">
+            <AlertCircle className="h-4 w-4" />
+            {error instanceof ApiError ? error.message : 'Failed to load administrators.'}
+          </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-slate-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading administrators…
+          </div>
+        ) : (
+          <DataTable<Administrator> columns={columns} data={filtered} keyField="id" emptyMessage="No administrators found" />
+        )}
       </Card>
 
       <ConfirmDialog
         open={!!deletingAdmin}
         onOpenChange={(open) => !open && setDeletingAdmin(null)}
         title="Delete administrator"
-        description={`Are you sure you want to delete "${deletingAdmin?.name}"? This can be restored later if needed.`}
+        description={`Are you sure you want to delete "${deletingAdmin?.full_name}"? This can be restored later if needed.`}
         confirmLabel="Delete"
-        onConfirm={() => {
-          if (deletingAdmin) {
-            removeAdmin(deletingAdmin.id);
+        onConfirm={async () => {
+          if (!deletingAdmin) return;
+          try {
+            await deleteMutation.mutateAsync(deletingAdmin.id);
             toast.success('Administrator deleted');
+          } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+          } finally {
+            setDeletingAdmin(null);
           }
         }}
       />

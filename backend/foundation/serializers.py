@@ -114,16 +114,18 @@ class UserSerializer(serializers.ModelSerializer):
     )
     roles = serializers.SerializerMethodField(read_only=True)
     full_name = serializers.CharField(source="get_full_name", read_only=True)
+    organization_name = serializers.CharField(source="organization.name", read_only=True, default=None)
+    branch_name = serializers.CharField(source="branch.name", read_only=True, default=None)
 
     class Meta:
         model = User
         fields = [
-            "id", "organization", "branch", "login_id", "member_code",
+            "id", "organization", "organization_name", "branch", "branch_name", "login_id", "member_code",
             "first_name", "last_name", "middle_name", "full_name", "phone",
             "password", "avatar_url", "gender", "date_of_birth", "status", "language",
-            "role_ids", "roles", "created_at", "updated_at",
+            "role_ids", "roles", "last_login", "created_at", "updated_at",
         ]
-        read_only_fields = ["id", "login_id", "member_code", "created_at", "updated_at"]
+        read_only_fields = ["id", "login_id", "member_code", "last_login", "created_at", "updated_at"]
 
     def get_roles(self, obj):
         return [
