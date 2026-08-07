@@ -1,11 +1,7 @@
 import type {
   Student,
   Teacher,
-  Course,
-  Group,
   Lesson,
-  AttendanceRecord,
-  Invoice,
   Transaction,
   Notification,
 } from "@/types";
@@ -38,29 +34,12 @@ export const TEACHERS: Teacher[] = [
   { id: "t6", name: "Mr. David Nguyen", loginId: "TCH-2006", phone: "+1 555-0206", gender: "male", specialization: "Computer Science", subjects: ["Programming", "Data Structures", "Web Dev"], groupCount: 2, studentCount: 35, status: "inactive", joinedAt: "2023-06-01", salary: 5000, rating: 4.5 },
 ];
 
-// ─── Courses ──────────────────────────────────────────────────────────────────
-
-export const COURSES: Course[] = [
-  { id: "c1", name: "Algebra Fundamentals", category: "Mathematics", level: "beginner", description: "Core algebra concepts including equations, functions, and graphs.", duration: 16, lessonsCount: 48, groupCount: 3, studentCount: 45, price: 299, status: "active", createdAt: "2024-01-01", color: "#6366f1" },
-  { id: "c2", name: "Classical Physics", category: "Science", level: "intermediate", description: "Mechanics, thermodynamics, waves, and electromagnetism.", duration: 20, lessonsCount: 60, groupCount: 2, studentCount: 30, price: 349, status: "active", createdAt: "2024-01-01", color: "#3b82f6" },
-  { id: "c3", name: "English Communication", category: "Languages", level: "beginner", description: "Speaking, writing, and comprehension for everyday use.", duration: 12, lessonsCount: 36, groupCount: 4, studentCount: 60, price: 249, status: "active", createdAt: "2024-02-01", color: "#22c55e" },
-  { id: "c4", name: "Advanced Chemistry", category: "Science", level: "advanced", description: "Organic and inorganic chemistry with lab practicals.", duration: 18, lessonsCount: 54, groupCount: 2, studentCount: 28, price: 399, status: "active", createdAt: "2024-01-15", color: "#f59e0b" },
-  { id: "c5", name: "Biology & Life Sciences", category: "Science", level: "intermediate", description: "Cell biology, genetics, ecology and human anatomy.", duration: 16, lessonsCount: 48, groupCount: 3, studentCount: 42, price: 329, status: "active", createdAt: "2024-02-01", color: "#ec4899" },
-  { id: "c6", name: "Web Development", category: "Technology", level: "beginner", description: "HTML, CSS, JavaScript and modern frontend frameworks.", duration: 24, lessonsCount: 72, groupCount: 2, studentCount: 35, price: 449, status: "active", createdAt: "2024-03-01", color: "#a855f7" },
-];
-
-// ─── Groups ───────────────────────────────────────────────────────────────────
-
-export const GROUPS: Group[] = [
-  { id: "g1", name: "Algebra A1", courseId: "c1", courseName: "Algebra Fundamentals", teacherId: "t1", teacherName: "Dr. Sarah Connor", room: "Room 101", days: ["Mon", "Wed", "Fri"], startTime: "09:00", endTime: "10:30", capacity: 20, enrolledCount: 15, status: "active", startDate: "2024-09-01", endDate: "2025-01-15", level: "beginner" },
-  { id: "g2", name: "Physics B2", courseId: "c2", courseName: "Classical Physics", teacherId: "t2", teacherName: "Prof. James Wilson", room: "Room 205", days: ["Tue", "Thu"], startTime: "11:00", endTime: "13:00", capacity: 18, enrolledCount: 16, status: "active", startDate: "2024-09-01", endDate: "2025-02-28", level: "intermediate" },
-  { id: "g3", name: "English C1", courseId: "c3", courseName: "English Communication", teacherId: "t3", teacherName: "Ms. Emily Carter", room: "Room 303", days: ["Mon", "Wed"], startTime: "14:00", endTime: "15:30", capacity: 20, enrolledCount: 18, status: "active", startDate: "2024-08-15", endDate: "2024-12-15", level: "beginner" },
-  { id: "g4", name: "Chemistry D1", courseId: "c4", courseName: "Advanced Chemistry", teacherId: "t4", teacherName: "Dr. Robert Chen", room: "Lab 102", days: ["Tue", "Thu", "Sat"], startTime: "10:00", endTime: "12:00", capacity: 15, enrolledCount: 12, status: "active", startDate: "2024-09-01", endDate: "2025-02-01", level: "advanced" },
-  { id: "g5", name: "Biology E2", courseId: "c5", courseName: "Biology & Life Sciences", teacherId: "t5", teacherName: "Ms. Lisa Park", room: "Lab 201", days: ["Mon", "Wed", "Fri"], startTime: "13:00", endTime: "14:30", capacity: 20, enrolledCount: 14, status: "active", startDate: "2024-09-01", endDate: "2025-01-31", level: "intermediate" },
-  { id: "g6", name: "WebDev F1", courseId: "c6", courseName: "Web Development", teacherId: "t6", teacherName: "Mr. David Nguyen", room: "Lab 303", days: ["Sat", "Sun"], startTime: "10:00", endTime: "13:00", capacity: 20, enrolledCount: 20, status: "active", startDate: "2024-10-01", endDate: "2025-04-01", level: "beginner" },
-];
-
 // ─── Lessons / Schedule ───────────────────────────────────────────────────────
+// Courses/Groups mock arrays were removed here (2026-08) once both got a
+// real backend + real Admin pages — see lib/api/courses.ts, lib/api/groups.ts.
+// Schedule below still references course/group names as plain string
+// literals (not the removed exports) since Schedule itself has no backend
+// yet.
 
 export const LESSONS: Lesson[] = [
   { id: "l1", groupId: "g1", groupName: "Algebra A1", courseId: "c1", courseName: "Algebra Fundamentals", teacherId: "t1", teacherName: "Dr. Sarah Connor", room: "Room 101", date: "2026-07-07", startTime: "09:00", endTime: "10:30", status: "scheduled", topic: "Linear Equations", color: "#6366f1" },
@@ -73,35 +52,17 @@ export const LESSONS: Lesson[] = [
   { id: "l8", groupId: "g2", groupName: "Physics B2", courseId: "c2", courseName: "Classical Physics", teacherId: "t2", teacherName: "Prof. James Wilson", room: "Room 205", date: "2026-07-04", startTime: "11:00", endTime: "13:00", status: "completed", topic: "Kinematics", color: "#3b82f6" },
 ];
 
-// ─── Attendance ───────────────────────────────────────────────────────────────
-
-export const ATTENDANCE_RECORDS: AttendanceRecord[] = [
-  { id: "a1", studentId: "s1", studentName: "Alice Johnson", groupId: "g1", groupName: "Algebra A1", lessonId: "l1", date: "2026-07-07", status: "present" },
-  { id: "a2", studentId: "s2", studentName: "Bob Smith", groupId: "g1", groupName: "Algebra A1", lessonId: "l1", date: "2026-07-07", status: "late" },
-  { id: "a3", studentId: "s11", studentName: "Kate Adams", groupId: "g1", groupName: "Algebra A1", lessonId: "l1", date: "2026-07-07", status: "present" },
-  { id: "a4", studentId: "s3", studentName: "Carol White", groupId: "g2", groupName: "Physics B2", lessonId: "l8", date: "2026-07-04", status: "present" },
-  { id: "a5", studentId: "s4", studentName: "Daniel Brown", groupId: "g2", groupName: "Physics B2", lessonId: "l8", date: "2026-07-04", status: "absent" },
-  { id: "a6", studentId: "s12", studentName: "Liam Turner", groupId: "g2", groupName: "Physics B2", lessonId: "l8", date: "2026-07-04", status: "absent" },
-  { id: "a7", studentId: "s5", studentName: "Eva Martinez", groupId: "g3", groupName: "English C1", lessonId: "l3", date: "2026-07-07", status: "present" },
-  { id: "a8", studentId: "s6", studentName: "Frank Lee", groupId: "g3", groupName: "English C1", lessonId: "l3", date: "2026-07-07", status: "present" },
-  { id: "a9", studentId: "s7", studentName: "Grace Kim", groupId: "g4", groupName: "Chemistry D1", lessonId: "l5", date: "2026-07-08", status: "present" },
-  { id: "a10", studentId: "s8", studentName: "Henry Davis", groupId: "g4", groupName: "Chemistry D1", lessonId: "l5", date: "2026-07-08", status: "excused", note: "Doctor's appointment" },
-];
+// Admin's ATTENDANCE_RECORDS mock array was removed here (2026-08) once the
+// real Attendance backend + Admin page landed — see lib/api/attendance.ts.
+// The Teacher portal's own mock (lib/teacher-data.ts::TEACHER_ATTENDANCE)
+// is untouched — that portal hasn't been wired to real data yet.
 
 // ─── Finance ──────────────────────────────────────────────────────────────────
 
-export const INVOICES: Invoice[] = [
-  { id: "inv1", studentId: "s1", studentName: "Alice Johnson", groupName: "Algebra A1", amount: 299, paid: 299, balance: 0, dueDate: "2026-07-01", status: "paid", createdAt: "2026-06-01" },
-  { id: "inv2", studentId: "s2", studentName: "Bob Smith", groupName: "Algebra A1", amount: 299, paid: 149, balance: 150, dueDate: "2026-07-01", status: "pending", createdAt: "2026-06-01" },
-  { id: "inv3", studentId: "s3", studentName: "Carol White", groupName: "Physics B2", amount: 349, paid: 349, balance: 0, dueDate: "2026-07-01", status: "paid", createdAt: "2026-06-01" },
-  { id: "inv4", studentId: "s4", studentName: "Daniel Brown", groupName: "Physics B2", amount: 349, paid: 49, balance: 300, dueDate: "2026-06-15", status: "overdue", createdAt: "2026-05-15" },
-  { id: "inv5", studentId: "s5", studentName: "Eva Martinez", groupName: "English C1", amount: 249, paid: 249, balance: 0, dueDate: "2026-07-01", status: "paid", createdAt: "2026-06-01" },
-  { id: "inv6", studentId: "s6", studentName: "Frank Lee", groupName: "English C1", amount: 249, paid: 174, balance: 75, dueDate: "2026-07-15", status: "pending", createdAt: "2026-06-15" },
-  { id: "inv7", studentId: "s7", studentName: "Grace Kim", groupName: "Chemistry D1", amount: 399, paid: 399, balance: 0, dueDate: "2026-07-01", status: "paid", createdAt: "2026-06-01" },
-  { id: "inv8", studentId: "s8", studentName: "Henry Davis", groupName: "Chemistry D1", amount: 399, paid: 0, balance: 399, dueDate: "2026-06-01", status: "overdue", createdAt: "2026-05-01" },
-  { id: "inv9", studentId: "s9", studentName: "Iris Chen", groupName: "Biology E2", amount: 329, paid: 329, balance: 0, dueDate: "2026-07-01", status: "paid", createdAt: "2026-06-01" },
-  { id: "inv10", studentId: "s12", studentName: "Liam Turner", groupName: "Physics B2", amount: 349, paid: 0, balance: 349, dueDate: "2026-05-01", status: "overdue", createdAt: "2026-04-01" },
-];
+// Admin's INVOICES mock array was removed here (2026-08) once the real
+// Finance backend + Admin page landed — see lib/api/finance.ts. TRANSACTIONS
+// below is untouched: the Admin Dashboard's "Recent Transactions" widget
+// still reads it and hasn't been wired to real Payment data yet.
 
 export const TRANSACTIONS: Transaction[] = [
   { id: "tr1", studentName: "Alice Johnson", amount: 299, method: "card", description: "Monthly tuition - Algebra A1", date: "2026-06-28", status: "paid" },

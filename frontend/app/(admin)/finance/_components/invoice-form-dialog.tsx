@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,17 +11,20 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
-import { useInvoicesStore } from "@/lib/store/invoices-store";
-import { useStudentsStore } from "@/lib/store/students-store";
 import { toast } from "@/lib/store/toast-store";
-import { invoiceSchema, type InvoiceFormValues } from "@/lib/schemas/invoice-schema";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { useStudentsQuery } from "@/lib/queries/students";
+import { useGroupsQuery } from "@/lib/queries/groups";
+import { useCreateInvoiceMutation } from "@/lib/queries/finance";
+import { invoiceProfileSchema, type InvoiceProfileFormValues } from "@/lib/schemas/invoice-profile-schema";
+import { ApiError } from "@/lib/api/client";
 
-const EMPTY_VALUES: InvoiceFormValues = {
-  studentId: "",
-  studentName: "",
-  groupName: "",
-  amount: 0,
+const EMPTY_VALUES: InvoiceProfileFormValues = {
+  studentProfile: "",
+  group: "",
+  totalAmount: 0,
   dueDate: "",
+  notes: "",
 };
 
 interface InvoiceFormDialogProps {
@@ -43,45 +46,60 @@ export function InvoiceFormDialog({ open, onOpenChange }: InvoiceFormDialogProps
 }
 
 function InvoiceFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => void }) {
-  const addInvoice = useInvoicesStore((s) => s.add);
-  const studentItems = useStudentsStore((s) => s.items);
-  const students = useMemo(() => studentItems.filter((s) => !s.deletedAt), [studentItems]);
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const { data: students } = useStudentsQuery({ organizationId: organizationId ?? "" });
+  const { data: groups } = useGroupsQuery({ organizationId: organizationId ?? "" });
+  const createMutation = useCreateInvoiceMutation();
 
-  const [values, setValues] = useState<InvoiceFormValues>(EMPTY_VALUES);
-  const [errors, setErrors] = useState<Partial<Record<keyof InvoiceFormValues, string>>>({});
+  const [values, setValues] = useState<InvoiceProfileFormValues>(EMPTY_VALUES);
+  const [errors, setErrors] = useState<Partial<Record<keyof InvoiceProfileFormValues, string>>>({});
+  const [submitting, setSubmitting] = useState(false);
 
-  function setField<K extends keyof InvoiceFormValues>(key: K, value: InvoiceFormValues[K]) {
+  function setField<K extends keyof InvoiceProfileFormValues>(key: K, value: InvoiceProfileFormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined }));
   }
 
-  function handleStudentChange(studentId: string) {
-    const student = students.find((s) => s.id === studentId);
-    setValues((v) => ({ ...v, studentId, studentName: student?.name ?? "" }));
-    setErrors((e) => ({ ...e, studentId: undefined }));
-  }
-
-  function handleSubmit() {
-    const result = invoiceSchema.safeParse(values);
+  async function handleSubmit() {
+    const result = invoiceProfileSchema.safeParse(values);
     if (!result.success) {
-      const fieldErrors: Partial<Record<keyof InvoiceFormValues, string>> = {};
+      const fieldErrors: Partial<Record<keyof InvoiceProfileFormValues, string>> = {};
       for (const issue of result.error.issues) {
-        const key = issue.path[0] as keyof InvoiceFormValues;
+        const key = issue.path[0] as keyof InvoiceProfileFormValues;
         if (!fieldErrors[key]) fieldErrors[key] = issue.message;
       }
       setErrors(fieldErrors);
       return;
     }
+    if (!organizationId) return;
 
-    addInvoice({
-      ...result.data,
-      paid: 0,
-      balance: result.data.amount,
-      status: "pending",
-      createdAt: new Date().toISOString().slice(0, 10),
-    });
-    toast.success("Invoice created");
-    onOpenChange(false);
+    setSubmitting(true);
+    try {
+      await createMutation.mutateAsync({
+        organizationId,
+        studentProfile: result.data.studentProfile,
+        group: result.data.group || undefined,
+        totalAmount: result.data.totalAmount,
+        dueDate: result.data.dueDate,
+        notes: result.data.notes,
+      });
+      toast.success("Invoice created");
+      onOpenChange(false);
+    } catch (err) {
+      if (err instanceof ApiError && err.fieldErrors) {
+        const mapped: Partial<Record<keyof InvoiceProfileFormValues, string>> = {};
+        for (const [key, messages] of Object.entries(err.fieldErrors)) {
+          const field = key === "student_profile" ? "studentProfile" : key === "total_amount" ? "totalAmount" : key === "due_date" ? "dueDate" : (key as keyof InvoiceProfileFormValues);
+          mapped[field] = messages[0];
+        }
+        setErrors(mapped);
+        toast.error("Please fix the highlighted fields.");
+      } else {
+        toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -90,18 +108,25 @@ function InvoiceFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => 
         <div className="grid grid-cols-2 gap-3">
           <Select
             placeholder="Select student"
-            options={students.map((s) => ({ value: s.id, label: s.name }))}
-            value={values.studentId}
-            onChange={(e) => handleStudentChange(e.target.value)}
+            options={(students ?? []).map((s) => ({ value: s.id, label: s.user_full_name }))}
+            value={values.studentProfile}
+            onChange={(e) => setField("studentProfile", e.target.value)}
             className="col-span-2"
           />
-          {errors.studentId && <p className="col-span-2 -mt-2 text-xs text-red-500">{errors.studentId}</p>}
+          {errors.studentProfile && <p className="col-span-2 -mt-2 text-xs text-red-500">{errors.studentProfile}</p>}
+          <Select
+            placeholder="Select group (optional)"
+            options={(groups ?? []).map((g) => ({ value: g.id, label: g.name }))}
+            value={values.group ?? ""}
+            onChange={(e) => setField("group", e.target.value)}
+            className="col-span-2"
+          />
           <Input
             type="number"
-            placeholder="Amount"
-            value={values.amount}
-            onChange={(e) => setField("amount", Number(e.target.value))}
-            error={errors.amount}
+            placeholder="Total amount"
+            value={values.totalAmount}
+            onChange={(e) => setField("totalAmount", Number(e.target.value))}
+            error={errors.totalAmount}
           />
           <Input
             type="date"
@@ -109,13 +134,21 @@ function InvoiceFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => 
             onChange={(e) => setField("dueDate", e.target.value)}
             error={errors.dueDate}
           />
+          <Input
+            placeholder="Notes (optional)"
+            value={values.notes}
+            onChange={(e) => setField("notes", e.target.value)}
+            className="col-span-2"
+          />
         </div>
       </DialogBody>
       <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
           Cancel
         </Button>
-        <Button onClick={handleSubmit}>Create</Button>
+        <Button onClick={handleSubmit} loading={submitting}>
+          Create
+        </Button>
       </DialogFooter>
     </>
   );

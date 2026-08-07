@@ -1,11 +1,12 @@
-# EduCore Backend — Phase 0 (Foundation & Auth)
+# EduCore Backend
 
-Django + DRF backend for EduCore. Phase 0 covers only the `foundation` and
-`auth_custom` apps — organizations, branches, users, RBAC, and JWT auth with
-real session tracking. Every other module (students, teachers, courses,
-attendance, homework, exams, finance, notifications, reports/AI) is a later
-phase; see `C:\Users\qrina\.claude\plans\stateful-gliding-perlis.md` for the
-full architecture plan this was built from.
+Django + DRF backend for EduCore. `foundation` and `auth_custom` (organizations,
+branches, users, RBAC, JWT auth with real session tracking) shipped first as
+Phase 0; `student`, `teacher`, `course`, `groups`, `attendance`, and `finance`
+have since been added on top of it. Every other module (homework, exams,
+notifications, reports/AI) is still a later phase; see
+`C:\Users\qrina\.claude\plans\stateful-gliding-perlis.md` for the full
+architecture plan this was built from.
 
 ## Prerequisites
 
@@ -30,10 +31,18 @@ CREATE DATABASE educore;
 
 -- Regular app connection — NOT the owner, NOT superuser, no BYPASSRLS.
 -- This is what every normal request uses; RLS applies to it in full.
+-- Every app schema needs this — not just foundation/auth. Each new app
+-- (course, groups, ...) adds its own CREATE SCHEMA IF NOT EXISTS in its
+-- 0001_initial migration, but that migration runs as the superuser/owner;
+-- it does NOT grant educore_app/educore_auth_bypass access to what it just
+-- created — do that here, once per app, or every request against the new
+-- app 500s with "permission denied for schema <name>" even though
+-- `manage.py migrate` itself succeeded (RLS policies also don't help here:
+-- this is plain schema/table privilege, evaluated before RLS ever runs).
 CREATE ROLE educore_app LOGIN PASSWORD 'change-me';
-GRANT USAGE ON SCHEMA foundation, auth TO educore_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foundation, auth TO educore_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth
+GRANT USAGE ON SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance TO educore_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance TO educore_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO educore_app;
 
 -- Used ONLY by the login endpoint's initial login_id -> user lookup, which
@@ -42,9 +51,9 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth
 -- but still not a superuser — keep this role's blast radius as narrow as
 -- the login/session/refresh-token code paths that actually use it.
 CREATE ROLE educore_auth_bypass LOGIN PASSWORD 'change-me-too' BYPASSRLS;
-GRANT USAGE ON SCHEMA foundation, auth TO educore_auth_bypass;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foundation, auth TO educore_auth_bypass;
-ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth
+GRANT USAGE ON SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance TO educore_auth_bypass;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance TO educore_auth_bypass;
+ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO educore_auth_bypass;
 ```
 
@@ -109,7 +118,6 @@ contact info, unrelated to how an individual user logs in.
 
 No `django.contrib.admin` (the schema has no `is_staff`/`is_superuser` —
 "super admin" is an RBAC role assignment, not a user flag; the Super-Admin
-frontend portal + this API is the real admin surface). No student, teacher,
-course, group, schedule, attendance, homework, exam, finance, notification,
-or report/AI app — each is its own future phase once this foundation is
-verified working end-to-end against a real Postgres instance.
+frontend portal + this API is the real admin surface). No schedule, homework,
+exam, finance, notification, or report/AI app yet — each is its own future
+phase.

@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { DollarSign, TrendingUp, AlertCircle, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -10,26 +10,34 @@ import { Button } from "@/components/ui/button";
 import { SearchInput, Select } from "@/components/ui/input";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useInvoicesStore } from "@/lib/store/invoices-store";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { useInvoicesQuery, usePaymentsQuery, useDeleteInvoiceMutation } from "@/lib/queries/finance";
 import { toast } from "@/lib/store/toast-store";
-import { TRANSACTIONS } from "@/lib/data";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { Invoice } from "@/types";
+import { ApiError } from "@/lib/api/client";
+import type { Invoice } from "@/lib/api/finance";
 import { FinanceRevenueChart } from "@/components/charts/finance-chart";
 import { InvoiceFormDialog } from "./_components/invoice-form-dialog";
 import { InvoiceDetailPanel } from "./_components/invoice-detail-panel";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Status" },
-  { value: "paid", label: "Paid" },
   { value: "pending", label: "Pending" },
+  { value: "partially_paid", label: "Partially Paid" },
+  { value: "paid", label: "Paid" },
   { value: "overdue", label: "Overdue" },
+  { value: "cancelled", label: "Cancelled" },
 ];
 
 export default function FinancePage() {
-  const invoiceItems = useInvoicesStore((s) => s.items);
-  const invoices = useMemo(() => invoiceItems.filter((i) => !i.deletedAt), [invoiceItems]);
-  const softDelete = useInvoicesStore((s) => s.softDelete);
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const { data: invoicesData, isLoading } = useInvoicesQuery({ organizationId: organizationId ?? "" });
+  const invoices = invoicesData ?? [];
+  const { data: paymentsData } = usePaymentsQuery({ organizationId: organizationId ?? "" });
+  const recentPayments = [...(paymentsData ?? [])]
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+    .slice(0, 5);
+  const deleteMutation = useDeleteInvoiceMutation();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -38,38 +46,40 @@ export default function FinancePage() {
   const [deletingInvoice, setDeletingInvoice] = useState<Invoice | null>(null);
 
   const filtered = invoices.filter((inv) => {
-    const matchesSearch = !search || inv.studentName.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = !search || inv.student_name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = !statusFilter || inv.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   const selectedInvoice = invoices.find((i) => i.id === selectedId) ?? null;
-  const totalRevenue = invoices.reduce((s, i) => s + i.paid, 0);
-  const totalPending = invoices.filter((i) => i.status === "pending").reduce((s, i) => s + i.balance, 0);
-  const totalOverdue = invoices.filter((i) => i.status === "overdue").reduce((s, i) => s + i.balance, 0);
+  const totalRevenue = invoices.reduce((s, i) => s + Number(i.paid_amount), 0);
+  const totalPending = invoices
+    .filter((i) => i.status === "pending" || i.status === "partially_paid")
+    .reduce((s, i) => s + Number(i.balance), 0);
+  const totalOverdue = invoices.filter((i) => i.status === "overdue").reduce((s, i) => s + Number(i.balance), 0);
   const paidCount = invoices.filter((i) => i.status === "paid").length;
 
   const INVOICE_COLUMNS: Column<Invoice>[] = [
     {
-      key: "studentName",
+      key: "student_name",
       label: "Student",
       render: (_, row) => (
         <div className="flex items-center gap-3">
-          <Avatar name={row.studentName} size="sm" />
+          <Avatar name={row.student_name} size="sm" />
           <div>
-            <p className="font-medium text-slate-900">{row.studentName}</p>
-            <p className="text-xs text-slate-400">{row.groupName}</p>
+            <p className="font-medium text-slate-900">{row.student_name}</p>
+            <p className="text-xs text-slate-400">{row.group_name ?? row.invoice_number}</p>
           </div>
         </div>
       ),
     },
     {
-      key: "amount",
+      key: "total_amount",
       label: "Amount",
       render: (val) => <span className="font-medium text-slate-900">{formatCurrency(Number(val))}</span>,
     },
     {
-      key: "paid",
+      key: "paid_amount",
       label: "Paid",
       render: (val) => <span className="text-emerald-600 font-medium">{formatCurrency(Number(val))}</span>,
     },
@@ -83,7 +93,7 @@ export default function FinancePage() {
       ),
     },
     {
-      key: "dueDate",
+      key: "due_date",
       label: "Due Date",
       render: (val) => formatDate(String(val)),
     },
@@ -108,7 +118,7 @@ export default function FinancePage() {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Collected" value={formatCurrency(totalRevenue)} change={14} changeLabel="vs last month" icon={<DollarSign className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label="Total Collected" value={formatCurrency(totalRevenue)} icon={<DollarSign className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
         <StatCard label="Pending" value={formatCurrency(totalPending)} icon={<TrendingUp className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
         <StatCard label="Overdue" value={formatCurrency(totalOverdue)} icon={<AlertCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
         <StatCard label="Paid Invoices" value={`${paidCount}/${invoices.length}`} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
@@ -121,19 +131,23 @@ export default function FinancePage() {
 
         <Card title="Recent Transactions" subtitle="Latest payments">
           <div className="space-y-3">
-            {TRANSACTIONS.map((tx) => (
-              <div key={tx.id} className="flex items-center gap-3">
-                <Avatar name={tx.studentName} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">{tx.studentName}</p>
-                  <p className="text-xs text-slate-400 capitalize">{tx.method}</p>
+            {recentPayments.length === 0 ? (
+              <p className="text-sm text-slate-400">No payments recorded yet.</p>
+            ) : (
+              recentPayments.map((tx) => (
+                <div key={tx.id} className="flex items-center gap-3">
+                  <Avatar name={tx.student_name} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{tx.student_name}</p>
+                    <p className="text-xs text-slate-400 capitalize">{tx.payment_method.replace("_", " ")}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-sm font-semibold text-emerald-600">+{formatCurrency(Number(tx.amount))}</p>
+                    <p className="text-xs text-slate-400">{formatDate(tx.payment_date)}</p>
+                  </div>
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-semibold text-emerald-600">+{formatCurrency(tx.amount)}</p>
-                  <p className="text-xs text-slate-400">{formatDate(tx.date)}</p>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </Card>
       </div>
@@ -145,11 +159,17 @@ export default function FinancePage() {
         actions={
           <div className="flex items-center gap-2">
             <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search student..." />
-            <Select options={STATUS_OPTIONS} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-32" />
+            <Select options={STATUS_OPTIONS} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-40" />
           </div>
         }
       >
-        <DataTable columns={INVOICE_COLUMNS} data={filtered} keyField="id" emptyMessage="No invoices found" onRowClick={(row) => setSelectedId(row.id)} />
+        <DataTable
+          columns={INVOICE_COLUMNS}
+          data={filtered}
+          keyField="id"
+          emptyMessage={isLoading ? "Loading invoices…" : "No invoices found"}
+          onRowClick={(row) => setSelectedId(row.id)}
+        />
       </Card>
 
       {selectedInvoice && (
@@ -166,13 +186,16 @@ export default function FinancePage() {
         open={!!deletingInvoice}
         onOpenChange={(open) => !open && setDeletingInvoice(null)}
         title="Delete invoice"
-        description={`Are you sure you want to remove this invoice for ${deletingInvoice?.studentName}?`}
+        description={`Are you sure you want to remove this invoice for ${deletingInvoice?.student_name}?`}
         confirmLabel="Delete"
-        onConfirm={() => {
-          if (deletingInvoice) {
-            softDelete(deletingInvoice.id);
+        onConfirm={async () => {
+          if (!deletingInvoice) return;
+          try {
+            await deleteMutation.mutateAsync(deletingInvoice.id);
             toast.success("Invoice removed");
             if (selectedId === deletingInvoice.id) setSelectedId(null);
+          } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
           }
         }}
       />
