@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from foundation.models import Branch, Organization, Permission, Role, User
+from foundation.models import AuditLog, Branch, Organization, Permission, Role, User
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
@@ -113,3 +113,18 @@ class UserSerializer(serializers.ModelSerializer):
         UserRole.objects.filter(user=user).exclude(role__in=roles).delete()
         for role in roles:
             UserRole.objects.get_or_create(user=user, role=role, organization=user.organization)
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(source="organization.name", read_only=True, default=None)
+    user_name = serializers.CharField(source="user.get_full_name", read_only=True, default=None)
+    user_login_id = serializers.CharField(source="user.login_id", read_only=True, default=None)
+
+    class Meta:
+        model = AuditLog
+        fields = [
+            "id", "organization", "organization_name", "user", "user_name", "user_login_id", "action",
+            "entity_type", "entity_id", "old_values", "new_values", "ip_address", "user_agent", "metadata",
+            "created_at",
+        ]
+        read_only_fields = fields

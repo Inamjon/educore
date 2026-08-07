@@ -6,9 +6,10 @@ from rest_framework.response import Response
 
 from common.audit import audited
 from common.permissions import HasModulePermission, user_has_permission
-from foundation.filters import BranchFilter, OrganizationFilter, UserFilter
-from foundation.models import Organization, Branch, Permission, Role, User
+from foundation.filters import AuditLogFilter, BranchFilter, OrganizationFilter, UserFilter
+from foundation.models import AuditLog, Organization, Branch, Permission, Role, User
 from foundation.serializers import (
+    AuditLogSerializer,
     BranchSerializer,
     OrganizationSerializer,
     PermissionSerializer,
@@ -186,3 +187,22 @@ class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PermissionSerializer
     permission_classes = [HasModulePermission]
     permission_map = {"list": ("roles", "view"), "retrieve": ("roles", "view")}
+
+
+class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only, immutable/append-only by design (AuditLog is never
+    updated or soft-deleted — see common/audit.py). RLS already scopes rows
+    to the caller's own org (audit_logs is nullable_org=True in
+    foundation/migrations/0004_rls.py, so org-less system rows are visible
+    too); a super_admin's platform-user RLS bypass sees every org's rows,
+    which is exactly what the Super-Admin Audit Logs page needs — no
+    separate "platform view" query shape required, unlike Teachers/Students
+    where the Admin portal's existing API functions needed an
+    organizationId-optional mode added.
+    """
+
+    queryset = AuditLog.objects.all().select_related("organization", "user").order_by("-created_at")
+    serializer_class = AuditLogSerializer
+    permission_classes = [HasModulePermission]
+    filterset_class = AuditLogFilter
+    permission_map = {"list": ("audit_logs", "view"), "retrieve": ("audit_logs", "view")}

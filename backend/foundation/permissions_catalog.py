@@ -9,9 +9,11 @@ exist yet (homework, exams, ...). Extend this list — and the data
 migration that loads it — as new apps/ViewSets are added.
 
 `notifications`, `schedule`, `assignments`, and `submissions` were added
-2026-08-07. `exams` is deliberately still not here — out of scope for that
-pass, possibly getting dropped from the product entirely; don't add it
-without checking first.
+2026-08-07. `audit_logs` was added the same day, for the read-only
+Super-Admin/Admin Audit Logs surface — see `foundation/views.py::AuditLogViewSet`.
+`exams` is deliberately still not here — out of scope for that pass,
+possibly getting dropped from the product entirely; don't add it without
+checking first.
 """
 
 PERMISSIONS_CATALOG: list[tuple[str, str, str]] = [
@@ -69,6 +71,7 @@ PERMISSIONS_CATALOG: list[tuple[str, str, str]] = [
     ("submissions", "create", "Submit homework"),
     ("submissions", "update", "Update/grade homework submissions"),
     ("submissions", "delete", "Delete homework submissions"),
+    ("audit_logs", "view", "View audit logs"),
 ]
 
 # Default permission grants for the three org-scoped roles every
@@ -136,6 +139,10 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("submissions", "create"),
         ("submissions", "update"),
         ("submissions", "delete"),
+        # audit_logs is deliberately center_admin-only, same reasoning as
+        # finance — it's org-wide security/change history, not something a
+        # teacher or student grant should ever cover.
+        ("audit_logs", "view"),
         ("roles", "view"),
     ],
     "teacher": [
