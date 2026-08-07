@@ -93,6 +93,18 @@ export async function deleteInvoice(invoiceId: string): Promise<void> {
   await apiFetch(`/api/v1/finance/invoices/${invoiceId}/`, { method: "DELETE" });
 }
 
+/** Student-only: generates an Invoice for a group they're already a member
+ * of (a center_admin often adds a student to a group without getting
+ * around to creating the matching invoice) — idempotent, returns the
+ * existing invoice on replay rather than a duplicate. See
+ * finance.views.InvoiceViewSet.self_create. */
+export async function createSelfInvoice(groupId: string): Promise<Invoice> {
+  return apiFetch<Invoice>("/api/v1/finance/invoices/self-create/", {
+    method: "POST",
+    body: JSON.stringify({ group: groupId }),
+  });
+}
+
 export interface ListPaymentsParams {
   organizationId: string;
   invoice?: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DollarSign, AlertCircle, CheckCircle2, CreditCard } from "lucide-react";
+import { DollarSign, AlertCircle, CheckCircle2, CreditCard, FileText } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,8 +17,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useAuthStore } from "@/lib/store/auth-store";
-import { useInvoicesQuery, usePaymentsQuery } from "@/lib/queries/finance";
+import { useInvoicesQuery, usePaymentsQuery, useCreateSelfInvoiceMutation } from "@/lib/queries/finance";
 import { useGatewayAccountsQuery, useInitiateCheckoutMutation } from "@/lib/queries/payment-gateways";
+import { useGroupsQuery, useMyGroupMembershipsQuery } from "@/lib/queries/groups";
 import { toast } from "@/lib/store/toast-store";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ApiError } from "@/lib/api/client";
@@ -39,8 +40,29 @@ export default function StudentPaymentsPage() {
   const availableProviders = (gatewayAccounts ?? []).filter((a) => a.is_active).map((a) => a.provider);
   const checkoutMutation = useInitiateCheckoutMutation();
 
+  // Groups a center_admin has already added this student to, but never got
+  // around to invoicing — the student can generate their own invoice for
+  // one (never join a group themselves; that stays admin-only).
+  const { data: myMemberships } = useMyGroupMembershipsQuery();
+  const { data: allGroups } = useGroupsQuery({ organizationId: organizationId ?? "" });
+  const invoicedGroupIds = new Set(invoices.map((i) => i.group).filter(Boolean));
+  const groupsNeedingInvoice = (myMemberships ?? [])
+    .filter((m) => m.status === "active" && !invoicedGroupIds.has(m.group))
+    .map((m) => allGroups?.find((g) => g.id === m.group))
+    .filter((g): g is NonNullable<typeof g> => !!g && g.price != null);
+  const selfInvoiceMutation = useCreateSelfInvoiceMutation();
+
   const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
   const [redirecting, setRedirecting] = useState(false);
+
+  async function handleGenerateInvoice(groupId: string) {
+    try {
+      await selfInvoiceMutation.mutateAsync(groupId);
+      toast.success("Invoice created — find it below to pay.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+    }
+  }
 
   const totalDue = invoices.reduce((s, i) => s + Number(i.balance), 0);
   const overdue = invoices.filter((i) => i.status === "overdue");
@@ -122,6 +144,36 @@ export default function StudentPaymentsPage() {
         <StatCard label="Overdue" value={formatCurrency(totalOverdue)} icon={<AlertCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
         <StatCard label="Paid Invoices" value={`${paidCount}/${invoices.length}`} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
       </div>
+
+      {groupsNeedingInvoice.length > 0 && (
+        <Card title="Groups awaiting an invoice" subtitle="Your center added you to these — generate an invoice to pay">
+          <div className="space-y-2">
+            {groupsNeedingInvoice.map((group) => (
+              <div key={group.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-9 w-9 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                    <FileText className="h-4 w-4 text-indigo-500" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-900 truncate">{group.name}</p>
+                    <p className="text-xs text-slate-400">{group.course_name}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <span className="text-sm font-semibold text-slate-900">{formatCurrency(Number(group.price))}</span>
+                  <Button
+                    size="sm"
+                    onClick={() => handleGenerateInvoice(group.id)}
+                    loading={selfInvoiceMutation.isPending}
+                  >
+                    Generate Invoice
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card noPadding title="Invoices" subtitle={`${invoices.length} invoices`}>
         <DataTable

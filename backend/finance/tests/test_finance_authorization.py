@@ -16,11 +16,14 @@ from django.db import transaction as db_transaction
 from rest_framework.test import APIClient
 
 from common.context import apply_org_context
+from course.models import Course
 from finance.models import Invoice
 from finance.numbering import generate_invoice_number
 from foundation.models import Organization, Role, User, UserRole
+from groups.models import Group, GroupMember
 from payment_gateways.models import PaymentGatewayAccount
 from student.models import StudentProfile
+from teacher.models import TeacherProfile
 
 pytestmark = pytest.mark.django_db(databases=["default", "auth_bypass_rls"], transaction=True)
 
@@ -70,6 +73,29 @@ def _make_invoice(org, student_profile, **kwargs):
     )
     invoice.refresh_from_db(using=BYPASS_ALIAS)
     return invoice
+
+
+def _make_group(org, price="150000.00"):
+    course = Course.objects.using(BYPASS_ALIAS).create(
+        organization=org, name="Course", code=f"CRS-{uuid.uuid4().hex[:8]}", category="General",
+        price=price if price is not None else None,
+    )
+    teacher_user = User.objects.db_manager(BYPASS_ALIAS).create_user(
+        organization=org, first_name="T", last_name="Teacher", password="pw123456", phone=f"+998907{uuid.uuid4().hex[:6]}",
+    )
+    teacher = TeacherProfile.objects.using(BYPASS_ALIAS).create(
+        organization=org, user=teacher_user, teacher_code=f"TCH-{uuid.uuid4().hex[:6]}"
+    )
+    return Group.objects.using(BYPASS_ALIAS).create(
+        organization=org, course=course, teacher=teacher, code=f"GRP-{uuid.uuid4().hex[:8]}", name="Group",
+        start_date="2026-09-01", price=price,
+    )
+
+
+def _make_group_member(org, group, student_profile, status="active"):
+    return GroupMember.objects.using(BYPASS_ALIAS).create(
+        organization=org, group=group, student_profile=student_profile, status=status
+    )
 
 
 def _make_gateway_account(org, provider="payme"):
@@ -170,6 +196,59 @@ def test_center_admin_can_still_initiate_checkout_for_any_invoice():
     )
 
     assert response.status_code == 200
+
+
+def test_student_can_self_create_invoice_for_own_group():
+    org = _make_org()
+    group = _make_group(org, price="150000.00")
+    client = APIClient()
+    _user, profile = _make_student_login(client, org, "+998910000011")
+    _make_group_member(org, group, profile)
+
+    response = client.post("/api/v1/finance/invoices/self-create/", {"group": str(group.id)}, format="json")
+
+    assert response.status_code == 201
+    body = response.json()["data"]
+    assert body["total_amount"] == "150000.00"
+    assert body["group"] == str(group.id)
+    assert body["student_profile"] == str(profile.id)
+
+
+def test_self_create_invoice_is_idempotent():
+    org = _make_org()
+    group = _make_group(org, price="150000.00")
+    client = APIClient()
+    _user, profile = _make_student_login(client, org, "+998910000012")
+    _make_group_member(org, group, profile)
+
+    first = client.post("/api/v1/finance/invoices/self-create/", {"group": str(group.id)}, format="json")
+    second = client.post("/api/v1/finance/invoices/self-create/", {"group": str(group.id)}, format="json")
+
+    assert first.json()["data"]["id"] == second.json()["data"]["id"]
+    assert Invoice.objects.using(BYPASS_ALIAS).filter(group=group, student_profile=profile).count() == 1
+
+
+def test_student_cannot_self_create_invoice_for_a_group_they_are_not_in():
+    org = _make_org()
+    group = _make_group(org, price="150000.00")
+    client = APIClient()
+    _make_student_login(client, org, "+998910000013")
+
+    response = client.post("/api/v1/finance/invoices/self-create/", {"group": str(group.id)}, format="json")
+
+    assert response.status_code == 403
+
+
+def test_student_cannot_self_create_invoice_for_a_group_with_no_price():
+    org = _make_org()
+    group = _make_group(org, price=None)
+    client = APIClient()
+    _user, profile = _make_student_login(client, org, "+998910000014")
+    _make_group_member(org, group, profile)
+
+    response = client.post("/api/v1/finance/invoices/self-create/", {"group": str(group.id)}, format="json")
+
+    assert response.status_code == 400
 
 
 def test_student_sees_which_gateways_are_configured():

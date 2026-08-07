@@ -88,6 +88,15 @@ export async function getStudentGroupMemberships(studentProfileId: string): Prom
   return data.results;
 }
 
+/** Student portal only — deliberately doesn't take a student_profile id.
+ * GroupMemberViewSet.get_queryset() auto-scopes to "my own" for a student
+ * caller (see backend), so there's no need to know your own student_profile
+ * id client-side just to ask for your own memberships. */
+export async function getMyGroupMemberships(): Promise<GroupMember[]> {
+  const data = await apiFetch<ListResponse<GroupMember>>("/api/v1/groups/members/?page_size=50");
+  return data.results;
+}
+
 export interface GroupInput {
   organizationId: string;
   course: string;

@@ -1,12 +1,21 @@
-from rest_framework import viewsets
+from datetime import timedelta
 
-from common.audit import audited
+from django.utils import timezone
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from common.audit import audit_log, audited
 from common.permissions import HasModulePermission
 from finance.filters import InvoiceFilter, PaymentFilter
 from finance.models import Invoice, Payment
+from finance.numbering import generate_invoice_number
 from finance.serializers import InvoiceSerializer, PaymentSerializer
 from finance.services import recompute_invoice_status
 from foundation.views import SoftDeleteDestroyMixin
+from groups.models import Group, GroupMember
 
 FINANCE_PERMISSION_MAP = {
     "list": ("finance", "view"),
@@ -46,6 +55,56 @@ class InvoiceViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
     @audited(action="delete", entity_type="invoice")
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
+
+    @action(detail=False, methods=["post"], url_path="self-create", permission_classes=[IsAuthenticated])
+    def self_create(self, request):
+        """A center_admin often adds a student to a Group without ever
+        getting around to creating the matching Invoice (the two are
+        independent rows — nothing enforces one implies the other). Lets a
+        student generate their own Invoice for a group they're *already* a
+        member of (never a group they merely wish to join — no self-
+        enrollment/GroupMember creation here, see the plan's Context),
+        deliberately NOT gated by the module-wide `finance:create` (that
+        stays center_admin-only) — an explicit ownership/membership check
+        instead, same style as payment_gateways.views.CheckoutInitiateView.
+        Idempotent: replays return the invoice already created rather than
+        a duplicate.
+        """
+        student_profile = getattr(request.user, "student_profile", None)
+        if student_profile is None:
+            raise PermissionDenied("Only students can self-create an invoice.")
+
+        group = Group.objects.filter(pk=request.data.get("group")).select_related("course").first()
+        if group is None:
+            raise ValidationError({"group": "Group not found."})
+        if not GroupMember.objects.filter(group=group, student_profile=student_profile, status="active").exists():
+            raise PermissionDenied("You are not enrolled in this group.")
+
+        price = group.price if group.price is not None else group.course.price
+        if price is None:
+            raise ValidationError({"group": "This group has no price set. Contact your center."})
+
+        existing = (
+            Invoice.objects.filter(student_profile=student_profile, group=group).exclude(status="cancelled").first()
+        )
+        if existing is not None:
+            return Response(InvoiceSerializer(existing).data)
+
+        invoice = Invoice.objects.create(
+            organization=group.organization,
+            student_profile=student_profile,
+            group=group,
+            invoice_number=generate_invoice_number(Invoice, group.organization),
+            total_amount=price,
+            currency=group.currency,
+            due_date=timezone.now().date() + timedelta(days=7),
+            created_by=request.user.id,
+        )
+        audit_log(
+            request, action="create", entity_type="invoice", entity_id=str(invoice.id),
+            metadata={"self_created": True, "group": str(group.id)},
+        )
+        return Response(InvoiceSerializer(invoice).data, status=201)
 
 
 class PaymentViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
