@@ -1,6 +1,6 @@
 "use client";
-import { useMemo, useState } from "react";
-import { Plus, Users2, Clock, Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Plus, Users2, Clock, Pencil, Trash2, Loader2, AlertCircle } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { DataTable, Column } from "@/components/ui/data-table";
@@ -10,44 +10,49 @@ import { Button } from "@/components/ui/button";
 import { SearchInput, Select } from "@/components/ui/input";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useGroupsStore } from "@/lib/store/groups-store";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { toast } from "@/lib/store/toast-store";
-import type { Group } from "@/types";
+import { useDeleteGroupMutation, useGroupsQuery } from "@/lib/queries/groups";
+import type { Group, GroupStatus } from "@/lib/api/groups";
+import { ApiError } from "@/lib/api/client";
 import { Users, BookOpen } from "lucide-react";
 import { GroupFormDialog } from "./_components/group-form-dialog";
 import { GroupDetailPanel } from "./_components/group-detail-panel";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Status" },
+  { value: "forming", label: "Forming" },
   { value: "active", label: "Active" },
-  { value: "inactive", label: "Inactive" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "archived", label: "Archived" },
 ];
 
 export default function GroupsPage() {
-  const groupItems = useGroupsStore((s) => s.items);
-  const groups = useMemo(() => groupItems.filter((g) => !g.deletedAt), [groupItems]);
-  const softDelete = useGroupsStore((s) => s.softDelete);
-
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<GroupStatus | "">("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [deletingGroup, setDeletingGroup] = useState<Group | null>(null);
 
-  const filtered = groups.filter((g) => {
-    const matchesSearch =
-      !search ||
-      g.name.toLowerCase().includes(search.toLowerCase()) ||
-      g.courseName.toLowerCase().includes(search.toLowerCase()) ||
-      g.teacherName.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = !statusFilter || g.status === statusFilter;
-    return matchesSearch && matchesStatus;
+  const {
+    data: groups,
+    isLoading,
+    isError,
+    error,
+  } = useGroupsQuery({
+    organizationId: organizationId ?? "",
+    status: statusFilter || undefined,
+    search: search || undefined,
   });
+  const deleteMutation = useDeleteGroupMutation();
 
-  const selectedGroup = groups.find((g) => g.id === selectedId) ?? null;
-  const totalEnrolled = groups.reduce((s, g) => s + g.enrolledCount, 0);
-  const totalCapacity = groups.reduce((s, g) => s + g.capacity, 0);
+  const list = groups ?? [];
+  const selectedGroup = list.find((g) => g.id === selectedId) ?? null;
+  const totalEnrolled = list.reduce((s, g) => s + g.enrolled_count, 0);
+  const totalCapacity = list.reduce((s, g) => s + g.max_students, 0);
 
   function openEdit(group: Group) {
     setEditingGroup(group);
@@ -61,45 +66,47 @@ export default function GroupsPage() {
       render: (_, row) => (
         <div>
           <p className="font-medium text-slate-900">{row.name}</p>
-          <p className="text-xs text-slate-400">{row.courseName}</p>
+          <p className="text-xs text-slate-400">{row.course_name}</p>
         </div>
       ),
     },
     {
-      key: "teacherName",
+      key: "teacher_name",
       label: "Teacher",
       render: (_, row) => (
         <div className="flex items-center gap-2">
-          <Avatar name={row.teacherName} size="xs" />
-          <span className="text-sm text-slate-700">{row.teacherName}</span>
+          <Avatar name={row.teacher_name} size="xs" />
+          <span className="text-sm text-slate-700">{row.teacher_name}</span>
         </div>
       ),
     },
     {
-      key: "days",
+      key: "days_of_week",
       label: "Schedule",
       render: (_, row) => (
         <div>
-          <p className="text-sm text-slate-700">{row.days.join(", ")}</p>
-          <p className="text-xs text-slate-400">{row.startTime} – {row.endTime}</p>
+          <p className="text-sm text-slate-700">{row.days_of_week.join(", ") || "—"}</p>
+          <p className="text-xs text-slate-400">
+            {row.start_time && row.end_time ? `${row.start_time.slice(0, 5)} – ${row.end_time.slice(0, 5)}` : "—"}
+          </p>
         </div>
       ),
     },
     { key: "room", label: "Room" },
     {
-      key: "enrolledCount",
+      key: "enrolled_count",
       label: "Students",
       render: (_, row) => (
         <div className="flex items-center gap-2">
           <div className="flex-1 h-1.5 bg-slate-100 rounded-full w-16">
-            <div className="h-full rounded-full bg-indigo-500" style={{ width: `${(row.enrolledCount / row.capacity) * 100}%` }} />
+            <div className="h-full rounded-full bg-indigo-500" style={{ width: `${Math.min(100, (row.enrolled_count / row.max_students) * 100)}%` }} />
           </div>
-          <span className="text-sm text-slate-600 whitespace-nowrap">{row.enrolledCount}/{row.capacity}</span>
+          <span className="text-sm text-slate-600 whitespace-nowrap">{row.enrolled_count}/{row.max_students}</span>
         </div>
       ),
     },
     {
-      key: "level",
+      key: "course_level",
       label: "Level",
       render: (val) => <StatusBadge status={String(val)} />,
     },
@@ -128,7 +135,7 @@ export default function GroupsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Groups & Classes"
-        subtitle={`${groups.length} groups running`}
+        subtitle={`${list.length} groups running`}
         actions={
           <Button
             onClick={() => {
@@ -143,7 +150,7 @@ export default function GroupsPage() {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Groups" value={groups.length} icon={<Users2 className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label="Total Groups" value={list.length} icon={<Users2 className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
         <StatCard label="Total Enrolled" value={totalEnrolled} icon={<Users className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
         <StatCard label="Total Capacity" value={totalCapacity} icon={<BookOpen className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
         <StatCard label="Occupancy Rate" value={totalCapacity ? `${Math.round((totalEnrolled / totalCapacity) * 100)}%` : "0%"} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
@@ -152,15 +159,27 @@ export default function GroupsPage() {
       <Card
         noPadding
         title="All Groups"
-        subtitle={`${filtered.length} groups`}
+        subtitle={`${list.length} groups`}
         actions={
           <div className="flex items-center gap-2">
             <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search groups..." />
-            <Select options={STATUS_OPTIONS} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-36" />
+            <Select options={STATUS_OPTIONS} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as GroupStatus | "")} className="w-36" />
           </div>
         }
       >
-        <DataTable columns={COLUMNS} data={filtered} keyField="id" emptyMessage="No groups found" onRowClick={(row) => setSelectedId(row.id)} />
+        {isError ? (
+          <div className="flex items-center gap-2 px-6 py-8 text-sm text-red-500">
+            <AlertCircle className="h-4 w-4" />
+            {error instanceof ApiError ? error.message : "Failed to load groups."}
+          </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-slate-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading groups…
+          </div>
+        ) : (
+          <DataTable columns={COLUMNS} data={list} keyField="id" emptyMessage="No groups found" onRowClick={(row) => setSelectedId(row.id)} />
+        )}
       </Card>
 
       {selectedGroup && (
@@ -178,13 +197,16 @@ export default function GroupsPage() {
         open={!!deletingGroup}
         onOpenChange={(open) => !open && setDeletingGroup(null)}
         title="Delete group"
-        description={`Are you sure you want to remove ${deletingGroup?.name}?`}
+        description={`Are you sure you want to remove ${deletingGroup?.name}? This can be restored later from the database if needed.`}
         confirmLabel="Delete"
-        onConfirm={() => {
-          if (deletingGroup) {
-            softDelete(deletingGroup.id);
+        onConfirm={async () => {
+          if (!deletingGroup) return;
+          try {
+            await deleteMutation.mutateAsync(deletingGroup.id);
             toast.success("Group removed");
             if (selectedId === deletingGroup.id) setSelectedId(null);
+          } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to delete group.");
           }
         }}
       />

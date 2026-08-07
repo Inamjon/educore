@@ -1,27 +1,24 @@
 "use client";
 
-import { useMemo } from "react";
 import { ChevronLeft, Clock, DollarSign, BookOpen, Pencil, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
-import { useGroupsStore } from "@/lib/store/groups-store";
+import { useGroupsQuery } from "@/lib/queries/groups";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { formatCurrency } from "@/lib/utils";
-import type { Course } from "@/types";
+import type { CourseProfile } from "@/lib/api/courses";
 
 interface CourseDetailPanelProps {
-  course: Course;
+  course: CourseProfile;
   onBack: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }
 
 export function CourseDetailPanel({ course, onBack, onEdit, onDelete }: CourseDetailPanelProps) {
-  const groupItems = useGroupsStore((s) => s.items);
-  const groups = useMemo(
-    () => groupItems.filter((g) => !g.deletedAt && g.courseId === course.id),
-    [groupItems, course.id]
-  );
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const { data: groups } = useGroupsQuery({ organizationId: organizationId ?? "", course: course.id });
 
   return (
     <Card noPadding>
@@ -32,9 +29,9 @@ export function CourseDetailPanel({ course, onBack, onEdit, onDelete }: CourseDe
         </Button>
         <div
           className="h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: `${course.color}18` }}
+          style={{ backgroundColor: `${course.color ?? "#6366f1"}18` }}
         >
-          <BookOpen className="h-4 w-4" style={{ color: course.color }} />
+          <BookOpen className="h-4 w-4" style={{ color: course.color ?? "#6366f1" }} />
         </div>
         <div>
           <p className="font-semibold text-slate-900">{course.name}</p>
@@ -42,6 +39,7 @@ export function CourseDetailPanel({ course, onBack, onEdit, onDelete }: CourseDe
         </div>
         <div className="ml-auto flex items-center gap-2">
           <StatusBadge status={course.level} />
+          <StatusBadge status={course.status} />
           <Button variant="outline" size="sm" onClick={onEdit}>
             <Pencil className="h-3.5 w-3.5" />
             Edit
@@ -58,22 +56,25 @@ export function CourseDetailPanel({ course, onBack, onEdit, onDelete }: CourseDe
           <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Course Details</h4>
           <p className="text-sm text-slate-600">{course.description}</p>
           <div className="space-y-3">
-            <InfoRow icon={<Clock className="h-4 w-4" />} label="Duration" value={`${course.duration} weeks`} />
-            <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Price" value={formatCurrency(course.price)} />
-            <InfoRow icon={<BookOpen className="h-4 w-4" />} label="Lessons" value={`${course.lessonsCount}`} />
+            <InfoRow icon={<Clock className="h-4 w-4" />} label="Duration" value={course.duration_weeks ? `${course.duration_weeks} weeks` : "—"} />
+            <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Price" value={formatCurrency(Number(course.price ?? 0))} />
+            <InfoRow icon={<BookOpen className="h-4 w-4" />} label="Lessons" value={course.total_lessons ? `${course.total_lessons}` : "—"} />
+            <InfoRow icon={<BookOpen className="h-4 w-4" />} label="Code" value={course.code} />
           </div>
         </div>
 
         <div className="space-y-3">
           <h4 className="text-sm font-semibold text-slate-700 mb-2">Linked Groups</h4>
-          {groups.length === 0 ? (
+          {!groups || groups.length === 0 ? (
             <p className="text-sm text-slate-400">No groups for this course yet.</p>
           ) : (
             <div className="space-y-1.5">
               {groups.map((g) => (
                 <div key={g.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
                   <span className="text-xs text-slate-700">{g.name}</span>
-                  <span className="text-xs text-slate-500">{g.enrolledCount}/{g.capacity} students</span>
+                  <span className="text-xs text-slate-500">
+                    {g.enrolled_count}/{g.max_students} students
+                  </span>
                 </div>
               ))}
             </div>

@@ -1,16 +1,20 @@
 "use client";
-import { useMemo, useState } from "react";
-import { Plus, BookOpen, Users, Clock, DollarSign, Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Plus, BookOpen, Users, Clock, DollarSign, Pencil, Trash2, Loader2, AlertCircle } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { Card } from "@/components/ui/card";
+import { DataTable, Column } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchInput, Select } from "@/components/ui/input";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useCoursesStore } from "@/lib/store/courses-store";
 import { toast } from "@/lib/store/toast-store";
+import { useAuthStore } from "@/lib/store/auth-store";
+import { useCoursesQuery, useDeleteCourseMutation } from "@/lib/queries/courses";
+import type { CourseProfile, CourseLevel, CourseStatus } from "@/lib/api/courses";
+import { ApiError } from "@/lib/api/client";
 import { formatCurrency } from "@/lib/utils";
-import type { Course } from "@/types";
 import { CourseFormDialog } from "./_components/course-form-dialog";
 import { CourseDetailPanel } from "./_components/course-detail-panel";
 
@@ -21,116 +25,118 @@ const LEVEL_OPTIONS = [
   { value: "advanced", label: "Advanced" },
 ];
 
-function CourseCard({
-  course,
-  onView,
-  onEdit,
-  onDelete,
-}: {
-  course: Course;
-  onView: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={onView}>
-      <div className="h-1.5 w-full" style={{ backgroundColor: course.color }} />
-
-      <div className="p-5">
-        <div className="flex items-start justify-between mb-3">
-          <div
-            className="h-11 w-11 rounded-xl flex items-center justify-center"
-            style={{ backgroundColor: `${course.color}18` }}
-          >
-            <BookOpen className="h-5 w-5" style={{ color: course.color }} />
-          </div>
-          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" onClick={onEdit}>
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onDelete}>
-              <Trash2 className="h-4 w-4 text-red-500" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="font-semibold text-slate-900">{course.name}</h3>
-          <StatusBadge status={course.level} />
-        </div>
-        <p className="text-xs text-slate-400 mb-4 line-clamp-2">{course.description}</p>
-
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          <div className="text-center p-2 bg-slate-50 rounded-lg">
-            <p className="text-sm font-bold text-slate-900">{course.lessonsCount}</p>
-            <p className="text-[10px] text-slate-400">Lessons</p>
-          </div>
-          <div className="text-center p-2 bg-slate-50 rounded-lg">
-            <p className="text-sm font-bold text-slate-900">{course.groupCount}</p>
-            <p className="text-[10px] text-slate-400">Groups</p>
-          </div>
-          <div className="text-center p-2 bg-slate-50 rounded-lg">
-            <p className="text-sm font-bold text-slate-900">{course.studentCount}</p>
-            <p className="text-[10px] text-slate-400">Students</p>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between text-sm border-t border-slate-50 pt-3">
-          <div className="flex items-center gap-1.5 text-slate-500">
-            <Clock className="h-3.5 w-3.5" />
-            <span className="text-xs">{course.duration} weeks</span>
-          </div>
-          <div>
-            <span className="text-xs text-slate-400">{course.category}</span>
-          </div>
-          <p className="font-bold text-slate-900">{formatCurrency(course.price)}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
+const STATUS_OPTIONS = [
+  { value: "", label: "All Status" },
+  { value: "draft", label: "Draft" },
+  { value: "active", label: "Active" },
+  { value: "archived", label: "Archived" },
+  { value: "discontinued", label: "Discontinued" },
+];
 
 export default function CoursesPage() {
-  const courseItems = useCoursesStore((s) => s.items);
-  const courses = useMemo(() => courseItems.filter((c) => !c.deletedAt), [courseItems]);
-  const softDelete = useCoursesStore((s) => s.softDelete);
-
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
   const [search, setSearch] = useState("");
-  const [levelFilter, setLevelFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [levelFilter, setLevelFilter] = useState<CourseLevel | "">("");
+  const [statusFilter, setStatusFilter] = useState<CourseStatus | "">("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
-  const [deletingCourse, setDeletingCourse] = useState<Course | null>(null);
+  const [editingCourse, setEditingCourse] = useState<CourseProfile | null>(null);
+  const [deletingCourse, setDeletingCourse] = useState<CourseProfile | null>(null);
 
-  const categoryOptions = [
-    { value: "", label: "All Categories" },
-    ...Array.from(new Set(courses.map((c) => c.category))).map((cat) => ({ value: cat, label: cat })),
-  ];
-
-  const filtered = courses.filter((c) => {
-    const matchesSearch =
-      !search ||
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.category.toLowerCase().includes(search.toLowerCase());
-    const matchesLevel = !levelFilter || c.level === levelFilter;
-    const matchesCategory = !categoryFilter || c.category === categoryFilter;
-    return matchesSearch && matchesLevel && matchesCategory;
+  const {
+    data: courses,
+    isLoading,
+    isError,
+    error,
+  } = useCoursesQuery({
+    organizationId: organizationId ?? "",
+    status: statusFilter || undefined,
+    level: levelFilter || undefined,
+    search: search || undefined,
   });
+  const deleteMutation = useDeleteCourseMutation();
 
-  const selectedCourse = courses.find((c) => c.id === selectedId) ?? null;
-  const totalRevenuePotential = courses.reduce((sum, c) => sum + c.price * c.studentCount, 0);
+  const list = courses ?? [];
+  const selectedCourse = list.find((c) => c.id === selectedId) ?? null;
 
-  function openEdit(course: Course) {
-    setEditingCourse(course);
-    setFormOpen(true);
-  }
+  const stats = {
+    total: list.length,
+    students: list.reduce((sum, c) => sum + c.student_count, 0),
+    lessons: list.reduce((sum, c) => sum + (c.total_lessons ?? 0), 0),
+    revenuePotential: list.reduce((sum, c) => sum + Number(c.price ?? 0) * c.student_count, 0),
+  };
+
+  const COLUMNS: Column<CourseProfile>[] = [
+    {
+      key: "name",
+      label: "Course",
+      render: (_, row) => (
+        <div className="flex items-center gap-3">
+          <div
+            className="h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: `${row.color ?? "#6366f1"}18` }}
+          >
+            <BookOpen className="h-4 w-4" style={{ color: row.color ?? "#6366f1" }} />
+          </div>
+          <div>
+            <p className="font-medium text-slate-900">{row.name}</p>
+            <p className="text-xs text-slate-400">{row.code}</p>
+          </div>
+        </div>
+      ),
+    },
+    { key: "category", label: "Category" },
+    {
+      key: "level",
+      label: "Level",
+      render: (val) => <StatusBadge status={String(val)} />,
+    },
+    {
+      key: "group_count",
+      label: "Groups",
+    },
+    {
+      key: "student_count",
+      label: "Students",
+    },
+    {
+      key: "price",
+      label: "Price",
+      render: (val) => formatCurrency(Number(val ?? 0)),
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (val) => <StatusBadge status={String(val)} />,
+    },
+    {
+      key: "id",
+      label: "Actions",
+      render: (_, row) => (
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              setEditingCourse(row);
+              setFormOpen(true);
+            }}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setDeletingCourse(row)}>
+            <Trash2 className="h-4 w-4 text-red-500" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Courses"
-        subtitle={`${courses.length} courses available`}
+        subtitle={`${stats.total} courses available`}
         actions={
           <Button
             onClick={() => {
@@ -145,41 +151,53 @@ export default function CoursesPage() {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Courses" value={courses.length} icon={<BookOpen className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
-        <StatCard label="Total Students" value={courses.reduce((s, c) => s + c.studentCount, 0)} icon={<Users className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
-        <StatCard label="Total Lessons" value={courses.reduce((s, c) => s + c.lessonsCount, 0)} icon={<Clock className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
-        <StatCard label="Revenue Potential" value={formatCurrency(totalRevenuePotential)} icon={<DollarSign className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
+        <StatCard label="Total Courses" value={stats.total} icon={<BookOpen className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label="Total Students" value={stats.students} icon={<Users className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
+        <StatCard label="Total Lessons" value={stats.lessons} icon={<Clock className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label="Revenue Potential" value={formatCurrency(stats.revenuePotential)} icon={<DollarSign className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search courses..." className="w-64" />
-        <Select options={LEVEL_OPTIONS} value={levelFilter} onChange={(e) => setLevelFilter(e.target.value)} className="w-36" />
-        <Select options={categoryOptions} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-40" />
-        <span className="text-sm text-slate-400 ml-auto">{filtered.length} courses</span>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((course) => (
-          <CourseCard
-            key={course.id}
-            course={course}
-            onView={() => setSelectedId(course.id)}
-            onEdit={() => openEdit(course)}
-            onDelete={() => setDeletingCourse(course)}
-          />
-        ))}
-        {filtered.length === 0 && (
-          <div className="col-span-3 text-center py-16 text-slate-400">
-            No courses found
+      <Card
+        noPadding
+        title="All Courses"
+        subtitle={`Showing ${list.length} courses`}
+        actions={
+          <div className="flex items-center gap-2">
+            <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search courses..." />
+            <Select options={LEVEL_OPTIONS} value={levelFilter} onChange={(e) => setLevelFilter(e.target.value as CourseLevel | "")} className="w-36" />
+            <Select options={STATUS_OPTIONS} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as CourseStatus | "")} className="w-36" />
           </div>
+        }
+      >
+        {isError ? (
+          <div className="flex items-center gap-2 px-6 py-8 text-sm text-red-500">
+            <AlertCircle className="h-4 w-4" />
+            {error instanceof ApiError ? error.message : "Failed to load courses."}
+          </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-slate-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading courses…
+          </div>
+        ) : (
+          <DataTable
+            columns={COLUMNS}
+            data={list}
+            keyField="id"
+            emptyMessage="No courses found"
+            onRowClick={(row) => setSelectedId(row.id)}
+          />
         )}
-      </div>
+      </Card>
 
       {selectedCourse && (
         <CourseDetailPanel
           course={selectedCourse}
           onBack={() => setSelectedId(null)}
-          onEdit={() => openEdit(selectedCourse)}
+          onEdit={() => {
+            setEditingCourse(selectedCourse);
+            setFormOpen(true);
+          }}
           onDelete={() => setDeletingCourse(selectedCourse)}
         />
       )}
@@ -190,13 +208,16 @@ export default function CoursesPage() {
         open={!!deletingCourse}
         onOpenChange={(open) => !open && setDeletingCourse(null)}
         title="Delete course"
-        description={`Are you sure you want to remove ${deletingCourse?.name}?`}
+        description={`Are you sure you want to remove ${deletingCourse?.name}? This can be restored later from the database if needed.`}
         confirmLabel="Delete"
-        onConfirm={() => {
-          if (deletingCourse) {
-            softDelete(deletingCourse.id);
+        onConfirm={async () => {
+          if (!deletingCourse) return;
+          try {
+            await deleteMutation.mutateAsync(deletingCourse.id);
             toast.success("Course removed");
             if (selectedId === deletingCourse.id) setSelectedId(null);
+          } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to delete course.");
           }
         }}
       />

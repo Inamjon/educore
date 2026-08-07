@@ -12,10 +12,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useCoursesStore } from "@/lib/store/courses-store";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { toast } from "@/lib/store/toast-store";
-import { courseSchema, type CourseFormValues } from "@/lib/schemas/course-schema";
-import type { Course } from "@/types";
+import { courseProfileSchema, type CourseProfileFormValues } from "@/lib/schemas/course-profile-schema";
+import { useCreateCourseMutation, useUpdateCourseMutation } from "@/lib/queries/courses";
+import { ApiError } from "@/lib/api/client";
+import type { CourseProfile } from "@/lib/api/courses";
 
 const LEVEL_OPTIONS = [
   { value: "beginner", label: "Beginner" },
@@ -24,27 +26,27 @@ const LEVEL_OPTIONS = [
 ];
 
 const STATUS_OPTIONS = [
+  { value: "draft", label: "Draft" },
   { value: "active", label: "Active" },
-  { value: "inactive", label: "Inactive" },
-  { value: "pending", label: "Pending" },
-  { value: "suspended", label: "Suspended" },
+  { value: "archived", label: "Archived" },
+  { value: "discontinued", label: "Discontinued" },
 ];
 
-const EMPTY_VALUES: CourseFormValues = {
+const EMPTY_VALUES: CourseProfileFormValues = {
   name: "",
   category: "",
   level: "beginner",
   description: "",
-  duration: 12,
+  durationWeeks: 12,
   price: 0,
-  status: "active",
+  status: "draft",
   color: "#6366f1",
 };
 
 interface CourseFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  course?: Course | null;
+  course?: CourseProfile | null;
 }
 
 export function CourseFormDialog({ open, onOpenChange, course }: CourseFormDialogProps) {
@@ -66,44 +68,77 @@ function CourseFormFields({
   course,
   onOpenChange,
 }: {
-  course?: Course | null;
+  course?: CourseProfile | null;
   onOpenChange: (open: boolean) => void;
 }) {
-  const addCourse = useCoursesStore((s) => s.add);
-  const updateCourse = useCoursesStore((s) => s.update);
-
-  const [values, setValues] = useState<CourseFormValues>(() =>
-    course ? { ...EMPTY_VALUES, ...course } : EMPTY_VALUES
-  );
-  const [errors, setErrors] = useState<Partial<Record<keyof CourseFormValues, string>>>({});
-
   const mode = course ? "edit" : "create";
+  const organizationId = useAuthStore((s) => s.user?.organizationId);
+  const createMutation = useCreateCourseMutation();
+  const updateMutation = useUpdateCourseMutation();
 
-  function setField<K extends keyof CourseFormValues>(key: K, value: CourseFormValues[K]) {
+  const [values, setValues] = useState<CourseProfileFormValues>(() =>
+    course
+      ? {
+          name: course.name,
+          category: course.category,
+          level: course.level,
+          description: course.description ?? "",
+          durationWeeks: course.duration_weeks ?? 1,
+          price: Number(course.price ?? 0),
+          status: course.status,
+          color: course.color ?? "#6366f1",
+        }
+      : EMPTY_VALUES
+  );
+  const [errors, setErrors] = useState<Partial<Record<keyof CourseProfileFormValues, string>>>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  function setField<K extends keyof CourseProfileFormValues>(key: K, value: CourseProfileFormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined }));
   }
 
-  function handleSubmit() {
-    const result = courseSchema.safeParse(values);
+  async function handleSubmit() {
+    const result = courseProfileSchema.safeParse(values);
     if (!result.success) {
-      const fieldErrors: Partial<Record<keyof CourseFormValues, string>> = {};
+      const fieldErrors: Partial<Record<keyof CourseProfileFormValues, string>> = {};
       for (const issue of result.error.issues) {
-        const key = issue.path[0] as keyof CourseFormValues;
+        const key = issue.path[0] as keyof CourseProfileFormValues;
         if (!fieldErrors[key]) fieldErrors[key] = issue.message;
       }
       setErrors(fieldErrors);
       return;
     }
 
-    if (mode === "create") {
-      addCourse({ ...result.data, lessonsCount: 0, groupCount: 0, studentCount: 0, createdAt: new Date().toISOString().slice(0, 10) });
-      toast.success("Course created");
-    } else if (course) {
-      updateCourse(course.id, result.data);
-      toast.success("Course updated");
+    setSubmitting(true);
+    try {
+      if (mode === "create") {
+        if (!organizationId) {
+          toast.error("No organization on this account.");
+          return;
+        }
+        await createMutation.mutateAsync({ organizationId, ...result.data });
+        toast.success("Course created");
+      } else if (course) {
+        await updateMutation.mutateAsync({ courseId: course.id, input: result.data });
+        toast.success("Course updated");
+      }
+      onOpenChange(false);
+    } catch (err) {
+      if (err instanceof ApiError && err.fieldErrors) {
+        const mapped: Partial<Record<keyof CourseProfileFormValues, string>> = {};
+        for (const [key, messages] of Object.entries(err.fieldErrors)) {
+          const field = key === "duration_weeks" ? "durationWeeks" : (key as keyof CourseProfileFormValues);
+          mapped[field] = messages[0];
+        }
+        setErrors(mapped);
+        toast.error("Please fix the highlighted fields.");
+      } else {
+        toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      }
+    } finally {
+      setSubmitting(false);
     }
-    onOpenChange(false);
   }
 
   return (
@@ -126,7 +161,7 @@ function CourseFormFields({
           <Select
             options={LEVEL_OPTIONS}
             value={values.level}
-            onChange={(e) => setField("level", e.target.value as CourseFormValues["level"])}
+            onChange={(e) => setField("level", e.target.value as CourseProfileFormValues["level"])}
           />
           <Textarea
             placeholder="Description"
@@ -138,9 +173,9 @@ function CourseFormFields({
           <Input
             type="number"
             placeholder="Duration (weeks)"
-            value={values.duration}
-            onChange={(e) => setField("duration", Number(e.target.value))}
-            error={errors.duration}
+            value={values.durationWeeks}
+            onChange={(e) => setField("durationWeeks", Number(e.target.value))}
+            error={errors.durationWeeks}
           />
           <Input
             type="number"
@@ -152,7 +187,7 @@ function CourseFormFields({
           <Select
             options={STATUS_OPTIONS}
             value={values.status}
-            onChange={(e) => setField("status", e.target.value as CourseFormValues["status"])}
+            onChange={(e) => setField("status", e.target.value as CourseProfileFormValues["status"])}
           />
           <div className="flex items-center gap-2">
             <input
@@ -163,13 +198,19 @@ function CourseFormFields({
             />
             <span className="text-sm text-slate-500">Course color</span>
           </div>
+
+          {mode === "edit" && course && (
+            <Input value={course.code} disabled placeholder="Course code" className="col-span-2" />
+          )}
         </div>
       </DialogBody>
       <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
           Cancel
         </Button>
-        <Button onClick={handleSubmit}>{mode === "create" ? "Create" : "Save"}</Button>
+        <Button onClick={handleSubmit} loading={submitting}>
+          {mode === "create" ? "Create" : "Save"}
+        </Button>
       </DialogFooter>
     </>
   );
