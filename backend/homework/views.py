@@ -1,5 +1,5 @@
 from rest_framework import viewsets
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from common.audit import audited
 from common.permissions import HasModulePermission
@@ -99,6 +99,14 @@ class SubmissionViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
         student_profile = getattr(self.request.user, "student_profile", None)
         if student_profile is not None:
             serializer.save(student_profile=student_profile)
+        elif "student_profile" not in serializer.validated_data:
+            # student_profile is required=False at the serializer level
+            # purely so a student's own submit (which never sends it) isn't
+            # rejected before perform_create ever runs — a non-student
+            # omitting it entirely is still a real error, not something to
+            # let fall through to a raw IntegrityError from the NOT NULL
+            # column.
+            raise ValidationError({"student_profile": "This field is required."})
         else:
             serializer.save()
 
