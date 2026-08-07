@@ -9,6 +9,12 @@ PAYMENT_METHOD_CHOICES = [
     ("bank_transfer", "Bank Transfer"),
     ("online", "Online"),
     ("mobile_payment", "Mobile Payment"),
+    # Gateway-attributed payments, written by payment_gateways' webhook
+    # handlers (never chosen by an admin recording a payment by hand) —
+    # distinct from "online" so the ledger shows which rail actually moved
+    # the money.
+    ("payme", "Payme"),
+    ("click", "Click"),
     ("other", "Other"),
 ]
 

@@ -3,12 +3,14 @@
 Django + DRF backend for EduCore. `foundation` and `auth_custom` (organizations,
 branches, users, RBAC, JWT auth with real session tracking) shipped first as
 Phase 0; `student`, `teacher`, `course`, `groups`, `attendance`, `finance`,
-`notifications`, `schedule`, and `homework` (assignments + submissions) have
-since been added on top of it. `exams` and reports/AI are still a later
-phase — `exams` deliberately skipped for now, possibly getting dropped from
-the product entirely; see
+`notifications`, `schedule`, `homework` (assignments + submissions), and
+`payment_gateways` (Payme/Click checkout links + webhooks) have since been
+added on top of it. `exams` and reports/AI are still a later phase —
+`exams` deliberately skipped for now, possibly getting dropped from the
+product entirely; see
 `C:\Users\qrina\.claude\plans\stateful-gliding-perlis.md` for the full
-architecture plan this was built from.
+architecture plan this was built from (payment_gateways has its own plan,
+`C:\Users\qrina\.claude\plans\effervescent-foraging-puzzle.md`).
 
 ## Prerequisites
 
@@ -41,11 +43,17 @@ CREATE DATABASE educore;
 -- app 500s with "permission denied for schema <name>" even though
 -- `manage.py migrate` itself succeeded (RLS policies also don't help here:
 -- this is plain schema/table privilege, evaluated before RLS ever runs).
+-- REFERENCES too, not just the four DML verbs — a *new* app's migration
+-- (like payment_gateways's) creating a foreign key against a table owned
+-- by a different role fails otherwise, even though educore_app already has
+-- SELECT/INSERT/UPDATE/DELETE on that table. CREATEDB is also needed —
+-- `pytest` provisions its own `test_<name>` database per run.
+ALTER ROLE educore_app CREATEDB;
 CREATE ROLE educore_app LOGIN PASSWORD 'change-me';
-GRANT USAGE ON SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework TO educore_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework TO educore_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework
-    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO educore_app;
+GRANT USAGE ON SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways TO educore_app;
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES ON ALL TABLES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways TO educore_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways
+    GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES ON TABLES TO educore_app;
 
 -- Used ONLY by the login endpoint's initial login_id -> user lookup, which
 -- necessarily runs before any org context exists (see
@@ -53,15 +61,26 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "
 -- but still not a superuser — keep this role's blast radius as narrow as
 -- the login/session/refresh-token code paths that actually use it.
 CREATE ROLE educore_auth_bypass LOGIN PASSWORD 'change-me-too' BYPASSRLS;
-GRANT USAGE ON SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework TO educore_auth_bypass;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework TO educore_auth_bypass;
-ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework
+GRANT USAGE ON SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways TO educore_auth_bypass;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways TO educore_auth_bypass;
+ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO educore_auth_bypass;
 ```
 
 Run `manage.py migrate` as whatever role owns the database (a superuser is
 simplest for local dev) — **not** as `educore_app` or `educore_auth_bypass`,
 both of which lack the privileges to create schemas/extensions/functions.
+
+**Test database needs the exact same grants, separately.** `pytest` (see
+below) provisions its own `test_<DB_NAME>` database, which starts with
+*none* of the above — `manage.py migrate` there runs as `educore_app` itself
+(now that it has `CREATEDB`), so it ends up owning every schema/table it
+creates, but `educore_auth_bypass` still needs the block above re-run
+against that database specifically (`\c test_educore_test` first). This is
+lost every time the test database is dropped and recreated from scratch
+(plain `pytest` with no `--reuse-db`/`--keepdb` does this on every run) —
+use `pytest --reuse-db` day to day so it's a one-time cost, not a
+per-run one.
 
 ## Setup
 
@@ -111,15 +130,17 @@ contact info, unrelated to how an individual user logs in.
    then get `401` immediately (not just at token expiry) — this is what
    powers the "Revoke" button already built on the Teacher/Super-Admin
    Profile pages' Active Sessions UI.
-5. `uv run pytest` — unit tests for login_id/member_code generation,
-   soft-delete behavior, RBAC permission checks, and the login flow
-   end-to-end (requires both Postgres roles above to exist on the test
-   server too).
+5. `uv run pytest --reuse-db` — full suite (90 tests as of 2026-08-08),
+   including RBAC/ownership/RLS-isolation checks, run against the real
+   `educore_app`/`educore_auth_bypass` connections (not a superuser
+   override) — requires both Postgres roles above to exist, *with the same
+   grants*, on the test database too (see "Test database needs the exact
+   same grants" above).
 
 ## What's deliberately NOT here yet
 
 No `django.contrib.admin` (the schema has no `is_staff`/`is_superuser` —
 "super admin" is an RBAC role assignment, not a user flag; the Super-Admin
-frontend portal + this API is the real admin surface). No schedule, homework,
-exam, finance, notification, or report/AI app yet — each is its own future
-phase.
+frontend portal + this API is the real admin surface). No `exams` or
+report/AI app yet — each is its own future phase (`exams` deliberately
+skipped, possibly getting dropped from the product entirely).

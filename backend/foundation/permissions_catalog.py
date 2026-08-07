@@ -14,6 +14,16 @@ Super-Admin/Admin Audit Logs surface — see `foundation/views.py::AuditLogViewS
 `exams` is deliberately still not here — out of scope for that pass,
 possibly getting dropped from the product entirely; don't add it without
 checking first.
+
+`payment_gateways` was added 2026-08-08, for the Admin Settings "Payment
+Gateways" surface (a center's own Payme/Click merchant credentials) — see
+`payment_gateways/views.py::PaymentGatewayAccountViewSet`. center_admin-only,
+same reasoning as `finance`/`audit_logs`.
+
+`student` picked up `finance:view` and `payment_gateways:view` later the
+same day, for the Student portal's own "Pay" flow — see the comment next to
+those two grants below for why this doesn't reopen the module-wide-grant
+risk the rest of this file's `finance`/`audit_logs` comments warn about.
 """
 
 PERMISSIONS_CATALOG: list[tuple[str, str, str]] = [
@@ -72,6 +82,10 @@ PERMISSIONS_CATALOG: list[tuple[str, str, str]] = [
     ("submissions", "update", "Update/grade homework submissions"),
     ("submissions", "delete", "Delete homework submissions"),
     ("audit_logs", "view", "View audit logs"),
+    ("payment_gateways", "view", "View payment gateway (Payme/Click) settings"),
+    ("payment_gateways", "create", "Add payment gateway credentials"),
+    ("payment_gateways", "update", "Update payment gateway credentials"),
+    ("payment_gateways", "delete", "Remove payment gateway credentials"),
 ]
 
 # Default permission grants for the three org-scoped roles every
@@ -143,6 +157,13 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         # finance — it's org-wide security/change history, not something a
         # teacher or student grant should ever cover.
         ("audit_logs", "view"),
+        # payment_gateways is deliberately center_admin-only too — these are
+        # the center's own Payme/Click merchant secrets, same "no other role
+        # gets even :view" reasoning as finance.
+        ("payment_gateways", "view"),
+        ("payment_gateways", "create"),
+        ("payment_gateways", "update"),
+        ("payment_gateways", "delete"),
         ("roles", "view"),
     ],
     "teacher": [
@@ -184,6 +205,17 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("courses", "view"),
         ("groups", "view"),
         ("attendance", "view"),
+        # finance/payment_gateways :view is object-scoped for this role —
+        # InvoiceViewSet/PaymentViewSet's get_queryset() narrows a student
+        # caller to their own student_profile only, so this grant does NOT
+        # mean "see every student's balance" the way it would for finance's
+        # other, module-wide grants (see the comment on center_admin's own
+        # finance grant above). payment_gateways:view only ever exposes
+        # non-secret fields (merchant_id/is_active — never secret_key),
+        # needed so the Student portal's "Pay" button knows which providers
+        # a center has actually turned on.
+        ("finance", "view"),
+        ("payment_gateways", "view"),
         ("notifications", "view"),
         ("notifications", "update"),
         ("notifications", "delete"),

@@ -9,6 +9,7 @@ import {
   Globe,
   Save,
   ChevronRight,
+  CreditCard,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -16,17 +17,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/store/toast-store";
+import { PaymentGatewaysTab } from "./_components/payment-gateways-tab";
 
 const SETTINGS_TABS = [
   { id: "profile", label: "Profile", icon: User },
   { id: "organization", label: "Organization", icon: Building2 },
+  { id: "payment-gateways", label: "Payment Gateways", icon: CreditCard },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "security", label: "Security", icon: Lock },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "language", label: "Language & Region", icon: Globe },
 ];
 
-function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: () => void }) {
+export function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: () => void }) {
   return (
     <button
       role="switch"
@@ -264,6 +267,8 @@ export default function SettingsPage() {
               </div>
             </Card>
           )}
+
+          {activeTab === "payment-gateways" && <PaymentGatewaysTab />}
 
           {(activeTab === "appearance" || activeTab === "language") && (
             <Card title={activeTab === "appearance" ? "Appearance" : "Language & Region"} subtitle="Customize your experience">
