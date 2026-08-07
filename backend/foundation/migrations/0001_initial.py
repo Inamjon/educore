@@ -13,6 +13,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
+        ('foundation', '0000_create_schema'),
     ]
 
     operations = [
