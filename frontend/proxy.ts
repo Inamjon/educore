@@ -24,6 +24,13 @@ const PORTAL_GUARDS: { prefix: string; roles: string[] }[] = [
 ];
 const ADMIN_ROLES = ["center_admin", "admin"];
 
+// Slash-boundary-aware prefix match — plain `pathname.startsWith(prefix)`
+// would wrongly match "/students" (an Admin-portal page) against the
+// "/student" (Student-portal) prefix.
+function isUnderPrefix(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+
 /**
  * Presence + role guard. Presence: redirects to /login if neither auth
  * cookie is present. httpOnly cookies aren't readable by client JS, but
@@ -49,7 +56,7 @@ const ADMIN_ROLES = ["center_admin", "admin"];
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
+  if (PUBLIC_PATHS.some((path) => isUnderPrefix(pathname, path))) {
     return NextResponse.next();
   }
 
@@ -60,10 +67,11 @@ export function proxy(request: NextRequest) {
 
   const role = request.cookies.get("user_role")?.value;
   if (role) {
-    const guard = PORTAL_GUARDS.find((g) => pathname === g.prefix || pathname.startsWith(`${g.prefix}/`));
-    const inAdminPortal = !guard && !pathname.startsWith("/super-admin") && !pathname.startsWith("/teacher") && !pathname.startsWith("/student");
-
-    const allowed = guard ? guard.roles.includes(role) : inAdminPortal ? ADMIN_ROLES.includes(role) : true;
+    // Not under any of the three named portals = it's the Admin portal
+    // (route group `(admin)` maps to `/`), which has no dedicated prefix
+    // of its own to match against.
+    const guard = PORTAL_GUARDS.find((g) => isUnderPrefix(pathname, g.prefix));
+    const allowed = guard ? guard.roles.includes(role) : ADMIN_ROLES.includes(role);
 
     if (!allowed) {
       const home = ROLE_PORTAL_MAP[role];
