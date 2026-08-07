@@ -2,13 +2,24 @@ from django.conf import settings
 
 ACCESS_COOKIE = "access_token"
 REFRESH_COOKIE = "refresh_token"
+ROLE_COOKIE = "user_role"
 
 
-def set_auth_cookies(response, *, access: str, refresh: str) -> None:
+def set_auth_cookies(response, *, access: str, refresh: str, role: str | None = None) -> None:
     """httpOnly cookies are the only place the raw JWTs live client-side —
     the frontend never reads or stores them; the browser just carries them
     back automatically. `secure=not settings.DEBUG` because local dev runs
     over plain http.
+
+    `role` (the user's primary role slug, e.g. "teacher") rides along as a
+    third httpOnly cookie, same lifetime as the access token. It is NOT a
+    security boundary — the backend's own RBAC checks (HasModulePermission
+    etc.) are what actually authorize every request, unchanged by this. It
+    exists solely so `proxy.ts` can redirect a signed-in user away from a
+    portal that isn't theirs (e.g. a student hitting /teacher) without
+    decoding/verifying the JWT — same "presence-only" spirit as the existing
+    access/refresh cookie check, just extended to "which portal" instead of
+    just "signed in or not".
     """
 
     common = {
@@ -17,10 +28,14 @@ def set_auth_cookies(response, *, access: str, refresh: str) -> None:
         "secure": not settings.DEBUG,
         "path": "/",
     }
-    response.set_cookie(ACCESS_COOKIE, access, max_age=int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds()), **common)
+    access_max_age = int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
+    response.set_cookie(ACCESS_COOKIE, access, max_age=access_max_age, **common)
     response.set_cookie(REFRESH_COOKIE, refresh, max_age=int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()), **common)
+    if role:
+        response.set_cookie(ROLE_COOKIE, role, max_age=access_max_age, **common)
 
 
 def clear_auth_cookies(response) -> None:
     response.delete_cookie(ACCESS_COOKIE, path="/", samesite="Lax")
     response.delete_cookie(REFRESH_COOKIE, path="/", samesite="Lax")
+    response.delete_cookie(ROLE_COOKIE, path="/", samesite="Lax")

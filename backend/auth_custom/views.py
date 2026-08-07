@@ -49,6 +49,7 @@ class LoginView(APIView):
             raise AuthenticationFailed(f"Account is {user.status}.")
 
         tokens = token_service.issue_tokens_for_new_session(user=user, request=request)
+        role = primary_role_slug(user, using=BYPASS_ALIAS)
 
         User.objects.using(BYPASS_ALIAS).filter(pk=user.pk).update(last_login=timezone.now())
         self._log_attempt(request, login_id, user, "success", None)
@@ -65,12 +66,12 @@ class LoginView(APIView):
                         "full_name": user.get_full_name(),
                         "organization_id": str(user.organization_id),
                         "status": user.status,
-                        "role": primary_role_slug(user, using=BYPASS_ALIAS),
+                        "role": role,
                     },
                 },
             }
         )
-        set_auth_cookies(response, access=tokens["access"], refresh=tokens["refresh"])
+        set_auth_cookies(response, access=tokens["access"], refresh=tokens["refresh"], role=role)
         return response
 
     @staticmethod
@@ -112,7 +113,7 @@ class RefreshView(APIView):
             raise AuthenticationFailed(str(exc)) from exc
 
         response = Response({"success": True, "message": "", "data": None})
-        set_auth_cookies(response, access=tokens["access"], refresh=tokens["refresh"])
+        set_auth_cookies(response, access=tokens["access"], refresh=tokens["refresh"], role=tokens.get("role"))
         return response
 
 
