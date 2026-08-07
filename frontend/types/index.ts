@@ -117,21 +117,6 @@ export interface Transaction {
   status: PaymentStatus;
 }
 
-// ─── Notification ─────────────────────────────────────────────────────────────
-
-export type NotificationType = "info" | "success" | "warning" | "error";
-
-export interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: NotificationType;
-  read: boolean;
-  createdAt: string;
-  targetRole?: Role;
-  deletedAt?: string | null;
-}
-
 // ─── Stats ────────────────────────────────────────────────────────────────────
 
 export interface StatCard {

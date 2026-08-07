@@ -30,7 +30,7 @@ import { StatCard } from '@/components/ui/stat-card';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/badge';
 import { TEACHER_EXAMS, GRADE_DISTRIBUTION_DATA } from '@/lib/teacher-data';
-import { useTeacherNotificationsStore } from '@/lib/store/teacher-notifications-store';
+import { useNotificationsQuery } from '@/lib/queries/notifications';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useMyTeacherProfileQuery } from '@/lib/queries/teachers';
 import { useGroupsQuery, useMyRosterQuery } from '@/lib/queries/groups';
@@ -115,7 +115,7 @@ export default function TeacherDashboardPage() {
   const authUser = useAuthStore((s) => s.user);
   const organizationId = authUser?.organizationId;
   const { data: myProfile } = useMyTeacherProfileQuery();
-  const notifications = useTeacherNotificationsStore((s) => s.items);
+  const { data: notifications = [] } = useNotificationsQuery();
 
   const { data: groups } = useGroupsQuery({ organizationId: organizationId ?? '', teacher: myProfile?.id });
   const groupIds = (groups ?? []).map((g) => g.id);
@@ -260,8 +260,8 @@ export default function TeacherDashboardPage() {
         </Card>
       </div>
 
-      {/* Recent Activity (notifications) and Exam Reminders have no backend
-          yet (no Notifications/Exams module) — stay mock. */}
+      {/* Exam Reminders has no backend yet (Exams module deliberately
+          skipped this pass) — stays mock. Recent Activity is real. */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Card title="Recent Activity" subtitle="Latest notifications">
@@ -274,12 +274,15 @@ export default function TeacherDashboardPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-semibold text-slate-800 truncate">{notif.title}</p>
-                      <span className="text-xs text-slate-400 flex-shrink-0">{formatRelativeTime(notif.createdAt)}</span>
+                      <span className="text-xs text-slate-400 flex-shrink-0">{formatRelativeTime(notif.created_at)}</span>
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{notif.message}</p>
                   </div>
                 </div>
               ))}
+              {notifications.length === 0 && (
+                <p className="text-sm text-slate-400 text-center py-6">No recent notifications</p>
+              )}
             </div>
           </Card>
         </div>

@@ -29,10 +29,10 @@ import {
   STUDENT_STATS,
   STUDENT_SCHEDULE,
   STUDENT_HOMEWORK,
-  STUDENT_NOTIFICATIONS,
   STUDENT_EXAMS,
   GRADE_TREND_DATA,
 } from "@/lib/student-data";
+import { useNotificationsQuery } from "@/lib/queries/notifications";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -147,6 +147,7 @@ function ScheduleItem({ lesson }: { lesson: (typeof STUDENT_SCHEDULE)[number] })
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function StudentDashboardPage() {
+  const { data: notifications = [] } = useNotificationsQuery();
   const todayLabel = new Date(TODAY + "T00:00:00").toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
@@ -311,7 +312,10 @@ export default function StudentDashboardPage() {
         <div className="lg:col-span-2">
           <Card title="Recent Activity" subtitle="Latest notifications">
             <div className="space-y-4">
-              {STUDENT_NOTIFICATIONS.slice(0, 5).map((notif) => (
+              {notifications.length === 0 && (
+                <p className="text-sm text-slate-400 text-center py-6">No recent notifications</p>
+              )}
+              {notifications.slice(0, 5).map((notif) => (
                 <div key={notif.id} className="flex items-start gap-3">
                   <div className="mt-1.5 flex-shrink-0">
                     <span
@@ -322,7 +326,7 @@ export default function StudentDashboardPage() {
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-semibold text-slate-800 truncate">{notif.title}</p>
                       <span className="text-xs text-slate-400 flex-shrink-0">
-                        {formatRelativeTime(notif.createdAt)}
+                        {formatRelativeTime(notif.created_at)}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{notif.message}</p>

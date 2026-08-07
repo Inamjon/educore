@@ -10,25 +10,11 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
-import {
-  useTeacherNotificationsStore,
-  markAllTeacherNotificationsRead,
-  markTeacherNotificationRead,
-} from '@/lib/store/teacher-notifications-store';
+import { useNotificationsQuery, useMarkNotificationReadMutation } from '@/lib/queries/notifications';
+import type { NotificationType } from '@/lib/api/notifications';
 import { cn } from '@/lib/utils';
 
 type NotificationCategory = 'all' | 'class' | 'assignment' | 'exam' | 'message' | 'admin';
-type NotificationType = 'info' | 'success' | 'warning' | 'error';
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: NotificationType;
-  read: boolean;
-  createdAt: string;
-  category: Exclude<NotificationCategory, 'all'>;
-}
 
 const FILTER_TABS: { id: NotificationCategory; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -86,7 +72,8 @@ function formatTime(isoString: string): string {
 
 export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState<NotificationCategory>('all');
-  const notifications = useTeacherNotificationsStore((s) => s.items) as Notification[];
+  const { data: notifications = [] } = useNotificationsQuery();
+  const markReadMutation = useMarkNotificationReadMutation();
 
   const filtered = notifications.filter(
     (n) => activeTab === 'all' || n.category === activeTab
@@ -95,11 +82,11 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   function markRead(id: string) {
-    markTeacherNotificationRead(id);
+    markReadMutation.mutate({ id, read: true });
   }
 
   function markAllRead() {
-    markAllTeacherNotificationsRead();
+    notifications.filter((n) => !n.read).forEach((n) => markReadMutation.mutate({ id: n.id, read: true }));
   }
 
   return (
@@ -188,7 +175,7 @@ export default function NotificationsPage() {
                     {notification.message}
                   </p>
                   <p className="text-xs text-slate-400 mt-1.5">
-                    {formatTime(notification.createdAt)}
+                    {formatTime(notification.created_at)}
                   </p>
                 </div>
 

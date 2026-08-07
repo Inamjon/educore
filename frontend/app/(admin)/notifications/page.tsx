@@ -1,13 +1,13 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Bell, Info, CheckCircle2, AlertTriangle, XCircle, Check } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
-import { useNotificationsStore, markAllRead as markAllReadAction, markRead } from "@/lib/store/notifications-store";
+import { useNotificationsQuery, useMarkNotificationReadMutation } from "@/lib/queries/notifications";
+import type { Notification, NotificationType } from "@/lib/api/notifications";
 import { cn } from "@/lib/utils";
-import type { NotificationType, Notification } from "@/types";
 
 const TYPE_OPTIONS = [
   { value: "", label: "All Types" },
@@ -62,7 +62,7 @@ function NotificationItem({ notification, onRead }: { notification: Notification
             {notification.title}
             {!notification.read && <span className="ml-2 h-1.5 w-1.5 bg-indigo-500 rounded-full inline-block" />}
           </p>
-          <span className="text-xs text-slate-400 flex-shrink-0">{timeAgo(notification.createdAt)}</span>
+          <span className="text-xs text-slate-400 flex-shrink-0">{timeAgo(notification.created_at)}</span>
         </div>
         <p className="text-sm text-slate-500 mt-0.5">{notification.message}</p>
       </div>
@@ -80,23 +80,22 @@ function NotificationItem({ notification, onRead }: { notification: Notification
 }
 
 export default function NotificationsPage() {
-  const notificationItems = useNotificationsStore((s) => s.items);
-  const notifications = useMemo(() => notificationItems.filter((n) => !n.deletedAt), [notificationItems]);
+  const { data: notifications = [], isLoading } = useNotificationsQuery();
+  const markReadMutation = useMarkNotificationReadMutation();
   const [typeFilter, setTypeFilter] = useState("");
   const [readFilter, setReadFilter] = useState("");
 
   const markAsRead = (id: string) => {
-    markRead(id);
+    markReadMutation.mutate({ id, read: true });
   };
 
   const markAllRead = () => {
-    markAllReadAction();
+    notifications.filter((n) => !n.read).forEach((n) => markReadMutation.mutate({ id: n.id, read: true }));
   };
 
   const filtered = notifications.filter((n) => {
     const matchesType = !typeFilter || n.type === typeFilter;
-    const matchesRead =
-      !readFilter || (readFilter === "unread" ? !n.read : n.read);
+    const matchesRead = !readFilter || (readFilter === "unread" ? !n.read : n.read);
     return matchesType && matchesRead;
   });
 
@@ -111,7 +110,7 @@ export default function NotificationsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Notifications"
-        subtitle={`${unreadCount} unread notifications`}
+        subtitle={isLoading ? "Loading…" : `${unreadCount} unread notifications`}
         actions={
           <div className="flex items-center gap-2">
             <Select options={TYPE_OPTIONS} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-32" />
@@ -173,7 +172,7 @@ export default function NotificationsPage() {
           </div>
         )}
 
-        {filtered.length === 0 && (
+        {!isLoading && filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-slate-400">
             <Bell className="h-12 w-12 mb-3 opacity-30" />
             <p>No notifications found</p>

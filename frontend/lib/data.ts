@@ -3,7 +3,6 @@ import type {
   Teacher,
   Lesson,
   Transaction,
-  Notification,
 } from "@/types";
 
 // ─── Students ─────────────────────────────────────────────────────────────────
@@ -71,19 +70,6 @@ export const TRANSACTIONS: Transaction[] = [
   { id: "tr4", studentName: "Grace Kim", amount: 399, method: "online", description: "Monthly tuition - Chemistry D1", date: "2026-06-24", status: "paid" },
   { id: "tr5", studentName: "Iris Chen", amount: 329, method: "card", description: "Monthly tuition - Biology E2", date: "2026-06-23", status: "paid" },
   { id: "tr6", studentName: "Bob Smith", amount: 149, method: "cash", description: "Partial payment - Algebra A1", date: "2026-06-20", status: "paid" },
-];
-
-// ─── Notifications ────────────────────────────────────────────────────────────
-
-export const NOTIFICATIONS: Notification[] = [
-  { id: "n1", title: "New Student Enrolled", message: "Henry Davis has enrolled in Chemistry D1 group.", type: "info", read: false, createdAt: "2026-07-03T10:00:00Z" },
-  { id: "n2", title: "Payment Overdue", message: "Daniel Brown has an overdue payment of $300.", type: "warning", read: false, createdAt: "2026-07-03T09:30:00Z" },
-  { id: "n3", title: "Low Attendance Alert", message: "Liam Turner attendance dropped below 50%.", type: "error", read: false, createdAt: "2026-07-02T14:00:00Z" },
-  { id: "n4", title: "Lesson Completed", message: "Physics B2 completed lesson on Kinematics.", type: "success", read: true, createdAt: "2026-07-02T13:00:00Z" },
-  { id: "n5", title: "New Course Added", message: "Web Development course is now available.", type: "info", read: true, createdAt: "2026-07-01T11:00:00Z" },
-  { id: "n6", title: "Payment Received", message: "Alice Johnson paid $299 for Algebra A1.", type: "success", read: true, createdAt: "2026-06-28T16:00:00Z" },
-  { id: "n7", title: "Schedule Updated", message: "Biology E2 schedule has been updated for next week.", type: "info", read: true, createdAt: "2026-06-28T09:00:00Z" },
-  { id: "n8", title: "Teacher Report Due", message: "Monthly teacher performance reports are due July 10.", type: "warning", read: false, createdAt: "2026-07-03T08:00:00Z" },
 ];
 
 // ─── Dashboard Stats ──────────────────────────────────────────────────────────

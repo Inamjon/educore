@@ -22,7 +22,8 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { STUDENT_STATS, STUDENT_PROFILE } from "@/lib/student-data";
+import { STUDENT_PROFILE } from "@/lib/student-data";
+import { useNotificationsQuery } from "@/lib/queries/notifications";
 import { useLogout } from "@/lib/hooks/use-logout";
 
 // ─── Nav Config ───────────────────────────────────────────────────────────────
@@ -187,7 +188,8 @@ interface HeaderProps {
 function StudentHeader({ sidebarCollapsed }: HeaderProps) {
   const pathname = usePathname();
   const title = PAGE_TITLES[pathname] ?? "Student Portal";
-  const unreadCount = STUDENT_STATS.unreadMessages;
+  const { data: notifications = [] } = useNotificationsQuery();
+  const unreadCount = notifications.filter((n) => !n.read).length;
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const handleLogout = useLogout();
