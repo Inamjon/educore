@@ -7,6 +7,11 @@ module; the real code uses "view" and "administrators" — see
 `foundation/views.py::UserViewSet`) and includes modules for apps that don't
 exist yet (homework, exams, ...). Extend this list — and the data
 migration that loads it — as new apps/ViewSets are added.
+
+`notifications`, `schedule`, `assignments`, and `submissions` were added
+2026-08-07. `exams` is deliberately still not here — out of scope for that
+pass, possibly getting dropped from the product entirely; don't add it
+without checking first.
 """
 
 PERMISSIONS_CATALOG: list[tuple[str, str, str]] = [
@@ -48,6 +53,22 @@ PERMISSIONS_CATALOG: list[tuple[str, str, str]] = [
     ("finance", "create", "Create invoices and record payments"),
     ("finance", "update", "Update invoices"),
     ("finance", "delete", "Delete invoices"),
+    ("notifications", "view", "View own notifications"),
+    ("notifications", "create", "Send notifications"),
+    ("notifications", "update", "Mark own notifications read/unread"),
+    ("notifications", "delete", "Delete own notifications"),
+    ("schedule", "view", "View lessons"),
+    ("schedule", "create", "Schedule lessons"),
+    ("schedule", "update", "Update/cancel lessons"),
+    ("schedule", "delete", "Delete lessons"),
+    ("assignments", "view", "View homework assignments"),
+    ("assignments", "create", "Create homework assignments"),
+    ("assignments", "update", "Update homework assignments"),
+    ("assignments", "delete", "Delete homework assignments"),
+    ("submissions", "view", "View homework submissions"),
+    ("submissions", "create", "Submit homework"),
+    ("submissions", "update", "Update/grade homework submissions"),
+    ("submissions", "delete", "Delete homework submissions"),
 ]
 
 # Default permission grants for the three org-scoped roles every
@@ -99,6 +120,22 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("finance", "create"),
         ("finance", "update"),
         ("finance", "delete"),
+        ("notifications", "view"),
+        ("notifications", "create"),
+        ("notifications", "update"),
+        ("notifications", "delete"),
+        ("schedule", "view"),
+        ("schedule", "create"),
+        ("schedule", "update"),
+        ("schedule", "delete"),
+        ("assignments", "view"),
+        ("assignments", "create"),
+        ("assignments", "update"),
+        ("assignments", "delete"),
+        ("submissions", "view"),
+        ("submissions", "create"),
+        ("submissions", "update"),
+        ("submissions", "delete"),
         ("roles", "view"),
     ],
     "teacher": [
@@ -115,6 +152,24 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("attendance", "view"),
         ("attendance", "create"),
         ("attendance", "update"),
+        ("notifications", "view"),
+        ("notifications", "create"),
+        ("notifications", "update"),
+        ("notifications", "delete"),
+        ("schedule", "view"),
+        # No "schedule:delete" — same convention as attendance: a teacher
+        # cancels a lesson via a status update, not a hard/soft delete.
+        ("schedule", "create"),
+        ("schedule", "update"),
+        # No "assignments:delete" either, same reasoning — matches
+        # attendance's precedent of admin-only delete.
+        ("assignments", "view"),
+        ("assignments", "create"),
+        ("assignments", "update"),
+        # Teachers grade (update) submissions but never create/delete one —
+        # only the student who owns a submission does that.
+        ("submissions", "view"),
+        ("submissions", "update"),
         ("roles", "view"),
     ],
     "student": [
@@ -122,6 +177,17 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("courses", "view"),
         ("groups", "view"),
         ("attendance", "view"),
+        ("notifications", "view"),
+        ("notifications", "update"),
+        ("notifications", "delete"),
+        ("schedule", "view"),
+        ("assignments", "view"),
+        # A student creates/updates only their OWN submission —
+        # SubmissionViewSet enforces that at the object level, same pattern
+        # as AttendanceViewSet's teacher-owns-group check.
+        ("submissions", "view"),
+        ("submissions", "create"),
+        ("submissions", "update"),
         ("roles", "view"),
     ],
 }
