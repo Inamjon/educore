@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from billing.serializers import SubscriptionPlanSummarySerializer
 from foundation.models import AuditLog, Branch, Organization, Permission, Role, User
 
 
@@ -17,6 +18,10 @@ class OrganizationSerializer(serializers.ModelSerializer):
     branch_count = serializers.SerializerMethodField()
     student_count = serializers.SerializerMethodField()
     teacher_count = serializers.SerializerMethodField()
+    # `subscription_plan` (writable, plain FK id) is enough to assign a
+    # plan; this read-only nested field spares the frontend a second round
+    # trip to show the plan's name/price on the Centers table/detail panel.
+    subscription_plan_detail = SubscriptionPlanSummarySerializer(source="subscription_plan", read_only=True)
 
     class Meta:
         model = Organization
@@ -24,7 +29,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "id", "name", "slug", "legal_name", "tax_id", "logo_url", "website",
             "email", "phone", "address_line1", "address_line2", "city", "state",
             "country", "postal_code", "timezone", "locale", "currency", "status",
-            "subscription_plan", "max_students", "max_teachers", "max_branches",
+            "subscription_plan", "subscription_plan_detail", "max_students", "max_teachers", "max_branches",
             "trial_ends_at", "subscription_ends_at", "branch_count", "student_count",
             "teacher_count", "created_at", "updated_at",
         ]

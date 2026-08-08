@@ -11,15 +11,26 @@ import {
   X,
   Pencil,
   Building2,
+  Trash2,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/input';
-import { useSASubscriptionsStore, type SASubscription } from '@/lib/store/sa-subscriptions-store';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import {
+  useSubscriptionPlansQuery,
+  useCreateSubscriptionPlanMutation,
+  useUpdateSubscriptionPlanMutation,
+  useDeleteSubscriptionPlanMutation,
+} from '@/lib/queries/billing';
+import type { SubscriptionPlan } from '@/lib/api/billing';
 import { toast } from '@/lib/store/toast-store';
 import { formatCurrency } from '@/lib/utils';
+import { ApiError } from '@/lib/api/client';
 
 // ── Create Plan form default state ────────────────────────────────────────────
 const defaultForm = {
@@ -39,14 +50,24 @@ const billingOptions = [
 
 const PLAN_COLORS = ['#6366f1', '#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#ec4899'];
 
+// A slug is a stable id independent of display-name edits — see
+// billing.SubscriptionPlan's docstring — auto-derived so the form doesn't
+// need to ask for one; only set at creation, never changed on rename.
+function slugify(name: string) {
+  return `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}-${Date.now().toString(36)}`;
+}
+
 export default function SubscriptionsPage() {
-  const plans = useSASubscriptionsStore((s) => s.items);
-  const addPlan = useSASubscriptionsStore((s) => s.add);
-  const updatePlan = useSASubscriptionsStore((s) => s.update);
-  const totalActive = plans.reduce((sum, p) => sum + p.activeCount, 0);
+  const { data: plansData, isLoading, isError, error } = useSubscriptionPlansQuery();
+  const plans = plansData ?? [];
+  const createMutation = useCreateSubscriptionPlanMutation();
+  const updateMutation = useUpdateSubscriptionPlanMutation();
+  const deleteMutation = useDeleteSubscriptionPlanMutation();
+  const totalActive = plans.reduce((sum, p) => sum + p.active_count, 0);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingPlan, setDeletingPlan] = useState<SubscriptionPlan | null>(null);
   const [form, setForm] = useState(defaultForm);
 
   const handleField = (key: keyof typeof defaultForm, value: string) => {
@@ -59,49 +80,49 @@ export default function SubscriptionsPage() {
     setShowForm(false);
   };
 
-  const handleEdit = (plan: SASubscription) => {
+  const handleEdit = (plan: SubscriptionPlan) => {
     setEditingId(plan.id);
     setForm({
       name: plan.name,
       price: String(plan.price),
-      billingCycle: plan.billingCycle,
-      maxBranches: String(plan.maxBranches),
-      maxStudents: String(plan.maxStudents),
-      maxTeachers: String(plan.maxTeachers),
+      billingCycle: plan.billing_cycle,
+      maxBranches: String(plan.max_branches),
+      maxStudents: String(plan.max_students),
+      maxTeachers: String(plan.max_teachers),
       features: plan.features.join('\n'),
     });
     setShowForm(true);
   };
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     const features = form.features
       .split('\n')
       .map((f) => f.trim())
       .filter(Boolean);
     const payload = {
-      name: form.name as SASubscription['name'],
+      name: form.name,
       price: Number(form.price) || 0,
-      billingCycle: form.billingCycle as SASubscription['billingCycle'],
+      billingCycle: form.billingCycle as SubscriptionPlan['billing_cycle'],
       maxBranches: Number(form.maxBranches) || 0,
       maxStudents: Number(form.maxStudents) || 0,
       maxTeachers: Number(form.maxTeachers) || 0,
       features,
     };
-    if (editingId) {
-      updatePlan(editingId, payload);
-      toast.success('Plan updated');
-    } else {
-      addPlan({
-        ...payload,
-        activeCount: 0,
-        color: PLAN_COLORS[plans.length % PLAN_COLORS.length],
-      });
-      toast.success('Plan created');
+    try {
+      if (editingId) {
+        await updateMutation.mutateAsync({ id: editingId, input: payload });
+        toast.success('Plan updated');
+      } else {
+        await createMutation.mutateAsync({ ...payload, slug: slugify(form.name) });
+        toast.success('Plan created');
+      }
+      setShowForm(false);
+      setEditingId(null);
+      setForm(defaultForm);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
     }
-    setShowForm(false);
-    setEditingId(null);
-    setForm(defaultForm);
   };
 
   return (
@@ -242,7 +263,7 @@ export default function SubscriptionsPage() {
               <Button type="button" variant="outline" onClick={handleCancel}>
                 Cancel
               </Button>
-              <Button type="submit" variant="primary">
+              <Button type="submit" variant="primary" loading={createMutation.isPending || updateMutation.isPending}>
                 <Plus className="h-4 w-4" />
                 {editingId ? 'Save Changes' : 'Create Plan'}
               </Button>
@@ -251,69 +272,103 @@ export default function SubscriptionsPage() {
         </Card>
       )}
 
-      {/* ── Plan Cards Grid ───────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {plans.map((plan) => (
-          <PlanCard key={plan.id} plan={plan} onEdit={handleEdit} />
-        ))}
-      </div>
-
-      {/* ── Plan Distribution ─────────────────────────────────────────────────── */}
-      <Card title="Plan Distribution" subtitle="Active subscriptions per plan">
-        <div className="space-y-4">
-          {plans.map((plan) => {
-            const pct = totalActive > 0 ? (plan.activeCount / totalActive) * 100 : 0;
-            return (
-              <div key={plan.id} className="space-y-1.5">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: plan.color }}
-                    />
-                    <span className="font-medium text-slate-700">{plan.name}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-slate-500 text-xs">
-                    <span>{plan.activeCount} active</span>
-                    <span className="font-semibold text-slate-700">{pct.toFixed(1)}%</span>
-                  </div>
-                </div>
-                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${pct}%`,
-                      backgroundColor: plan.color,
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
+      {isError ? (
+        <div className="flex items-center gap-2 px-2 py-8 text-sm text-red-500">
+          <AlertCircle className="h-4 w-4" />
+          {error instanceof ApiError ? error.message : 'Failed to load subscription plans.'}
         </div>
-      </Card>
+      ) : isLoading ? (
+        <div className="flex items-center justify-center gap-2 px-2 py-12 text-sm text-slate-400">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading plans…
+        </div>
+      ) : (
+        <>
+          {/* ── Plan Cards Grid ───────────────────────────────────────────────── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {plans.map((plan, i) => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                color={PLAN_COLORS[i % PLAN_COLORS.length]}
+                onEdit={handleEdit}
+                onDelete={setDeletingPlan}
+              />
+            ))}
+          </div>
+
+          {/* ── Plan Distribution ─────────────────────────────────────────────── */}
+          <Card title="Plan Distribution" subtitle="Active subscriptions per plan">
+            <div className="space-y-4">
+              {plans.map((plan, i) => {
+                const pct = totalActive > 0 ? (plan.active_count / totalActive) * 100 : 0;
+                const color = PLAN_COLORS[i % PLAN_COLORS.length];
+                return (
+                  <div key={plan.id} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                        <span className="font-medium text-slate-700">{plan.name}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-slate-500 text-xs">
+                        <span>{plan.active_count} active</span>
+                        <span className="font-semibold text-slate-700">{pct.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%`, backgroundColor: color }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </>
+      )}
+
+      <ConfirmDialog
+        open={!!deletingPlan}
+        onOpenChange={(open) => !open && setDeletingPlan(null)}
+        title="Retire subscription plan"
+        description={`Are you sure you want to retire "${deletingPlan?.name}"? Centers already on it keep their assignment; it just won't be offered to new ones. This can be restored later if needed.`}
+        confirmLabel="Retire"
+        onConfirm={async () => {
+          if (!deletingPlan) return;
+          try {
+            await deleteMutation.mutateAsync(deletingPlan.id);
+            toast.success('Plan retired');
+          } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+          } finally {
+            setDeletingPlan(null);
+          }
+        }}
+      />
     </div>
   );
 }
 
 // ── Plan Card sub-component ────────────────────────────────────────────────────
-function PlanCard({ plan, onEdit }: { plan: SASubscription; onEdit: (plan: SASubscription) => void }) {
+function PlanCard({ plan, color, onEdit, onDelete }: {
+  plan: SubscriptionPlan;
+  color: string;
+  onEdit: (plan: SubscriptionPlan) => void;
+  onDelete: (plan: SubscriptionPlan) => void;
+}) {
   const router = useRouter();
   const isUnlimited = (n: number) => n >= 999;
 
   const handleViewCenters = () => {
-    const tier = plan.name.toLowerCase();
-    if (tier === 'basic' || tier === 'pro' || tier === 'enterprise') {
-      router.push(`/super-admin/centers?subscription=${tier}`);
-    } else {
-      router.push('/super-admin/centers');
-    }
+    router.push(`/super-admin/centers?subscription=${plan.id}`);
   };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
       {/* Colored top border accent */}
-      <div className="h-1 w-full flex-shrink-0" style={{ backgroundColor: plan.color }} />
+      <div className="h-1 w-full flex-shrink-0" style={{ backgroundColor: color }} />
 
       <div className="p-6 flex flex-col flex-1 gap-4">
         {/* Header */}
@@ -322,20 +377,20 @@ function PlanCard({ plan, onEdit }: { plan: SASubscription; onEdit: (plan: SASub
             <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-2xl font-bold text-slate-900">
-                {plan.price === 0 ? 'Custom' : formatCurrency(plan.price)}
+                {/* "Custom" (contact sales) is a per-plan choice, not just
+                    "whatever's priced at 0" — a genuinely free tier at $0
+                    should say so, not look unpriced. */}
+                {plan.slug === 'custom' ? 'Custom' : Number(plan.price) === 0 ? 'Free' : formatCurrency(Number(plan.price))}
               </span>
-              {plan.price > 0 && (
-                <Badge
-                  label={`/${plan.billingCycle === 'monthly' ? 'month' : 'year'}`}
-                  variant="secondary"
-                />
+              {Number(plan.price) > 0 && (
+                <Badge label={`/${plan.billing_cycle === 'monthly' ? 'month' : 'year'}`} variant="secondary" />
               )}
             </div>
           </div>
           {/* Active count badge */}
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium px-2.5 py-1 flex-shrink-0">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            {plan.activeCount} active
+            {plan.active_count} active
           </span>
         </div>
 
@@ -353,15 +408,15 @@ function PlanCard({ plan, onEdit }: { plan: SASubscription; onEdit: (plan: SASub
         <div className="flex items-center gap-4 pt-2 border-t border-slate-50">
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <GitBranch className="h-3.5 w-3.5 text-slate-400" />
-            <span>{isUnlimited(plan.maxBranches) ? '∞' : plan.maxBranches} branches</span>
+            <span>{isUnlimited(plan.max_branches) ? '∞' : plan.max_branches} branches</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <Users className="h-3.5 w-3.5 text-slate-400" />
-            <span>{isUnlimited(plan.maxStudents) ? '∞' : plan.maxStudents.toLocaleString()} students</span>
+            <span>{isUnlimited(plan.max_students) ? '∞' : plan.max_students.toLocaleString()} students</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <GraduationCap className="h-3.5 w-3.5 text-slate-400" />
-            <span>{isUnlimited(plan.maxTeachers) ? '∞' : plan.maxTeachers} teachers</span>
+            <span>{isUnlimited(plan.max_teachers) ? '∞' : plan.max_teachers} teachers</span>
           </div>
         </div>
 
@@ -374,6 +429,9 @@ function PlanCard({ plan, onEdit }: { plan: SASubscription; onEdit: (plan: SASub
           <Button variant="ghost" size="sm" className="flex-1 justify-center" onClick={handleViewCenters}>
             <Building2 className="h-3.5 w-3.5" />
             View Centers
+          </Button>
+          <Button variant="ghost" size="icon" title="Retire plan" onClick={() => onDelete(plan)}>
+            <Trash2 className="h-3.5 w-3.5 text-slate-400" />
           </Button>
         </div>
       </div>

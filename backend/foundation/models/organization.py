@@ -11,15 +11,6 @@ ORGANIZATION_STATUS_CHOICES = [
     ("cancelled", "Cancelled"),
 ]
 
-SUBSCRIPTION_PLAN_CHOICES = [
-    ("free", "Free"),
-    ("starter", "Starter"),
-    ("basic", "Basic"),
-    ("pro", "Pro"),
-    ("enterprise", "Enterprise"),
-    ("custom", "Custom"),
-]
-
 email_validator = RegexValidator(
     regex=r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$",
     message="Enter a valid email address.",
@@ -49,7 +40,20 @@ class Organization(UUIDPrimaryKeyMixin, TimestampedMixin, SoftDeleteMixin):
     locale = models.CharField(max_length=10, default="uz")
     currency = models.CharField(max_length=3, default="UZS")
     status = models.CharField(max_length=20, choices=ORGANIZATION_STATUS_CHOICES, default="trial")
-    subscription_plan = models.CharField(max_length=50, choices=SUBSCRIPTION_PLAN_CHOICES, default="free")
+    # FK, not the fixed 6-value enum this used to be (see
+    # foundation/migrations/0010_organization_subscription_plan_fk.py) — the
+    # subscription-plan catalog is now dynamic (billing.SubscriptionPlan).
+    # Nullable: an org with no plan assigned yet (e.g. brand new, still on
+    # trial) is a valid, unremarkable state, not an error. PROTECT is a
+    # hard-delete safety net only — plans are always soft-deleted in
+    # practice (SoftDeleteMixin), so this should never actually fire.
+    # These max_* fields stay independently editable — a plan's own limits
+    # (billing.SubscriptionPlan.max_students etc.) are informational/what a
+    # tier is sold as, not a second source of truth for what's enforced here
+    # (e.g. a negotiated "custom" deal above the nominal plan).
+    subscription_plan = models.ForeignKey(
+        "billing.SubscriptionPlan", null=True, blank=True, on_delete=models.PROTECT, db_column="subscription_plan_id",
+    )
     max_students = models.PositiveIntegerField(default=50)
     max_teachers = models.PositiveIntegerField(default=10)
     max_branches = models.PositiveIntegerField(default=1)

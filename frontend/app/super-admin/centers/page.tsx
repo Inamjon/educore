@@ -31,7 +31,9 @@ import {
   useSuspendOrganizationMutation,
   useDeleteOrganizationMutation,
 } from '@/lib/queries/organizations';
-import type { Organization, OrganizationStatus, SubscriptionPlan } from '@/lib/api/organizations';
+import { useSubscriptionPlansQuery } from '@/lib/queries/billing';
+import type { Organization, OrganizationStatus } from '@/lib/api/organizations';
+import type { SubscriptionPlanSummary } from '@/lib/api/billing';
 import { ApiError } from '@/lib/api/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -41,7 +43,9 @@ interface CenterFormData {
   email: string;
   city: string;
   country: string;
-  subscriptionPlan: SubscriptionPlan;
+  // Plan id, or '' for "no plan assigned" — the dynamic catalog (see
+  // lib/api/billing.ts) replaced the old fixed 6-value enum.
+  subscriptionPlan: string;
   status: OrganizationStatus;
 }
 
@@ -50,18 +54,20 @@ const emptyForm: CenterFormData = {
   email: '',
   city: '',
   country: 'UZB',
-  subscriptionPlan: 'free',
+  subscriptionPlan: '',
   status: 'trial',
 };
 
-const PLAN_OPTIONS: { value: SubscriptionPlan; label: string }[] = [
-  { value: 'free', label: 'Free' },
-  { value: 'starter', label: 'Starter' },
-  { value: 'basic', label: 'Basic' },
-  { value: 'pro', label: 'Pro' },
-  { value: 'enterprise', label: 'Enterprise' },
-  { value: 'custom', label: 'Custom' },
-];
+// Same visual treatment as before for the 6 originally-seeded tiers
+// (matched by slug); any newly-created plan falls back to 'purple'.
+const PLAN_BADGE_VARIANTS: Record<string, 'warning' | 'purple' | 'info' | 'secondary'> = {
+  enterprise: 'warning',
+  pro: 'purple',
+  basic: 'info',
+  starter: 'info',
+  free: 'secondary',
+  custom: 'purple',
+};
 
 const STATUS_OPTIONS: { value: OrganizationStatus; label: string }[] = [
   { value: 'active', label: 'Active' },
@@ -72,17 +78,9 @@ const STATUS_OPTIONS: { value: OrganizationStatus; label: string }[] = [
 
 // ─── Subscription Badge ───────────────────────────────────────────────────────
 
-function SubscriptionBadge({ plan }: { plan: SubscriptionPlan }) {
-  const map: Record<SubscriptionPlan, { variant: 'warning' | 'purple' | 'info' | 'secondary'; label: string }> = {
-    enterprise: { variant: 'warning', label: 'Enterprise' },
-    pro: { variant: 'purple', label: 'Pro' },
-    basic: { variant: 'info', label: 'Basic' },
-    starter: { variant: 'info', label: 'Starter' },
-    free: { variant: 'secondary', label: 'Free' },
-    custom: { variant: 'purple', label: 'Custom' },
-  };
-  const cfg = map[plan] ?? { variant: 'info' as const, label: plan };
-  return <Badge label={cfg.label} variant={cfg.variant} />;
+function SubscriptionBadge({ plan }: { plan: SubscriptionPlanSummary | null }) {
+  if (!plan) return <Badge label="No Plan" variant="secondary" />;
+  return <Badge label={plan.name} variant={PLAN_BADGE_VARIANTS[plan.slug] ?? 'purple'} />;
 }
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
@@ -113,21 +111,31 @@ export default function CentersPage() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<OrganizationStatus | ''>('');
-  const [filterPlan, setFilterPlan] = useState<SubscriptionPlan | ''>('');
+  const [filterPlan, setFilterPlan] = useState<string>('');
   const searchParams = useSearchParams();
 
   const { data: centers, isLoading, isError, error } = useOrganizationsQuery({
     status: filterStatus || undefined,
     subscriptionPlan: filterPlan || undefined,
   });
+  const { data: plans } = useSubscriptionPlansQuery();
+  // Two separate option lists sharing the same '' value with different
+  // meanings: the filter bar's '' + placeholder="All Plans" means "don't
+  // filter", the form's explicit "No Plan" entry means "clear/assign no
+  // plan" — matching how the Status filter/form pair already work here.
+  const planFilterOptions = (plans ?? []).map((p) => ({ value: p.id, label: p.name }));
+  const planFormOptions = [{ value: '', label: 'No Plan' }, ...planFilterOptions];
   const createMutation = useCreateOrganizationMutation();
   const updateMutation = useUpdateOrganizationMutation();
   const suspendMutation = useSuspendOrganizationMutation();
   const deleteMutation = useDeleteOrganizationMutation();
 
   useEffect(() => {
-    const plan = searchParams.get('subscription');
-    if (plan) setFilterPlan(plan as SubscriptionPlan);
+    // Subscriptions page's "View Centers" deep-links with the plan's real
+    // id now (?subscription=<uuid>), not a tier-name string — see
+    // app/super-admin/subscriptions/page.tsx.
+    const planId = searchParams.get('subscription');
+    if (planId) setFilterPlan(planId);
   }, [searchParams]);
 
   const list = centers ?? [];
@@ -167,7 +175,7 @@ export default function CentersPage() {
       email: center.email,
       city: center.city ?? '',
       country: center.country,
-      subscriptionPlan: center.subscription_plan,
+      subscriptionPlan: center.subscription_plan ?? '',
       status: center.status,
     });
     setShowForm(true);
@@ -197,7 +205,7 @@ export default function CentersPage() {
             email: form.email,
             city: form.city,
             country: form.country,
-            subscriptionPlan: form.subscriptionPlan,
+            subscriptionPlan: form.subscriptionPlan || null,
             status: form.status,
           },
         });
@@ -208,7 +216,7 @@ export default function CentersPage() {
           email: form.email,
           city: form.city,
           country: form.country,
-          subscriptionPlan: form.subscriptionPlan,
+          subscriptionPlan: form.subscriptionPlan || null,
           status: form.status,
         });
         toast.success('Center created');
@@ -253,7 +261,7 @@ export default function CentersPage() {
     { key: 'student_count', label: 'Students', render: (_, row) => <span className="font-medium text-slate-800">{row.student_count.toLocaleString()}</span> },
     { key: 'teacher_count', label: 'Teachers', render: (_, row) => <span className="font-medium text-slate-800">{row.teacher_count}</span> },
     { key: 'status', label: 'Status', render: (_, row) => <CenterStatusBadge status={row.status} /> },
-    { key: 'subscription_plan', label: 'Subscription', render: (_, row) => <SubscriptionBadge plan={row.subscription_plan} /> },
+    { key: 'subscription_plan', label: 'Subscription', render: (_, row) => <SubscriptionBadge plan={row.subscription_plan_detail} /> },
     {
       key: 'id',
       label: 'Actions',
@@ -337,7 +345,7 @@ export default function CentersPage() {
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-600">Subscription Plan</label>
-              <Select className="w-full" value={form.subscriptionPlan} options={PLAN_OPTIONS} onChange={(e) => handleFormChange('subscriptionPlan', e.target.value as SubscriptionPlan)} />
+              <Select className="w-full" value={form.subscriptionPlan} options={planFormOptions} onChange={(e) => handleFormChange('subscriptionPlan', e.target.value)} />
             </div>
 
             <div className="space-y-1.5">
@@ -371,8 +379,8 @@ export default function CentersPage() {
           <Select
             value={filterPlan}
             placeholder="All Plans"
-            options={PLAN_OPTIONS}
-            onChange={(e) => setFilterPlan(e.target.value as SubscriptionPlan | '')}
+            options={planFilterOptions}
+            onChange={(e) => setFilterPlan(e.target.value)}
           />
           {(search || filterStatus || filterPlan) && (
             <button

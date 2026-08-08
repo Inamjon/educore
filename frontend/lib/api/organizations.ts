@@ -1,7 +1,7 @@
 import { apiFetch } from "@/lib/api/client";
+import type { SubscriptionPlanSummary } from "@/lib/api/billing";
 
 export type OrganizationStatus = "active" | "suspended" | "trial" | "cancelled";
-export type SubscriptionPlan = "free" | "starter" | "basic" | "pro" | "enterprise" | "custom";
 
 export interface Organization {
   id: string;
@@ -23,7 +23,11 @@ export interface Organization {
   locale: string;
   currency: string;
   status: OrganizationStatus;
-  subscription_plan: SubscriptionPlan;
+  // A plan id (or null — no plan assigned yet), not a fixed enum anymore;
+  // `subscription_plan_detail` is the read-only nested name/price/limits
+  // for display, sparing a second round trip to the plan catalog.
+  subscription_plan: string | null;
+  subscription_plan_detail: SubscriptionPlanSummary | null;
   max_students: number;
   max_teachers: number;
   max_branches: number;
@@ -43,7 +47,7 @@ interface ListResponse<T> {
 
 export interface ListOrganizationsParams {
   status?: OrganizationStatus;
-  subscriptionPlan?: SubscriptionPlan;
+  subscriptionPlan?: string;
   country?: string;
   search?: string;
   pageSize?: number;
@@ -67,7 +71,9 @@ export interface OrganizationInput {
   city?: string;
   country?: string;
   status?: OrganizationStatus;
-  subscriptionPlan?: SubscriptionPlan;
+  // string = assign that plan id; null = explicitly clear the assigned plan
+  // (e.g. picking "No plan" in the Centers form); undefined = leave as-is.
+  subscriptionPlan?: string | null;
   maxStudents?: number;
   maxTeachers?: number;
   maxBranches?: number;

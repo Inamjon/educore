@@ -3,6 +3,7 @@ import getpass
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from billing.models import SubscriptionPlan
 from foundation.models import Organization, Role, User, UserRole
 
 PLATFORM_ORG_SLUG = "educore-platform"
@@ -30,13 +31,22 @@ class Command(BaseCommand):
         if not password:
             raise CommandError("A password is required.")
 
+        # subscription_plan is a FK into the dynamic billing.SubscriptionPlan
+        # catalog now, not a literal string — the "enterprise" tier is
+        # seeded by billing/migrations/0004_seed_plans.py, which always
+        # runs before this command in a normal `migrate` then `create_super_admin`
+        # flow. Falls back to None (no plan assigned) rather than erroring
+        # if it's somehow missing — a super-admin bootstrap shouldn't hard
+        # fail over billing metadata.
+        enterprise_plan = SubscriptionPlan.objects.filter(slug="enterprise").first()
+
         platform_org, _ = Organization.objects.get_or_create(
             slug=PLATFORM_ORG_SLUG,
             defaults={
                 "name": "EduCore Platform",
                 "email": "platform@educore.internal",
                 "status": "active",
-                "subscription_plan": "enterprise",
+                "subscription_plan": enterprise_plan,
             },
         )
 
