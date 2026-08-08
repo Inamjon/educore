@@ -3,14 +3,18 @@
 Django + DRF backend for EduCore. `foundation` and `auth_custom` (organizations,
 branches, users, RBAC, JWT auth with real session tracking) shipped first as
 Phase 0; `student`, `teacher`, `course`, `groups`, `attendance`, `finance`,
-`notifications`, `schedule`, `homework` (assignments + submissions), and
-`payment_gateways` (Payme/Click checkout links + webhooks) have since been
-added on top of it. `exams` and reports/AI are still a later phase —
-`exams` deliberately skipped for now, possibly getting dropped from the
-product entirely; see
+`notifications`, `schedule`, `homework` (assignments + submissions),
+`payment_gateways` (Payme/Click checkout links + webhooks), and `billing`
+(the platform's own subscription-plan catalog sold to organizations —
+distinct from `finance`, which is an organization billing its own students)
+have since been added on top of it. `exams` and reports/AI are still a
+later phase — `exams` deliberately skipped for now, possibly getting
+dropped from the product entirely; see
 `C:\Users\qrina\.claude\plans\stateful-gliding-perlis.md` for the full
 architecture plan this was built from (payment_gateways has its own plan,
-`C:\Users\qrina\.claude\plans\effervescent-foraging-puzzle.md`).
+`C:\Users\qrina\.claude\plans\effervescent-foraging-puzzle.md`; billing/
+platform-payments has its own plan too,
+`C:\Users\qrina\.claude\plans\hazy-orbiting-lantern.md`).
 
 ## Prerequisites
 
@@ -50,9 +54,9 @@ CREATE DATABASE educore;
 -- `pytest` provisions its own `test_<name>` database per run.
 ALTER ROLE educore_app CREATEDB;
 CREATE ROLE educore_app LOGIN PASSWORD 'change-me';
-GRANT USAGE ON SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways TO educore_app;
-GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES ON ALL TABLES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways TO educore_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways
+GRANT USAGE ON SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways, billing TO educore_app;
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES ON ALL TABLES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways, billing TO educore_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways, billing
     GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES ON TABLES TO educore_app;
 
 -- Used ONLY by the login endpoint's initial login_id -> user lookup, which
@@ -61,9 +65,9 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "
 -- but still not a superuser — keep this role's blast radius as narrow as
 -- the login/session/refresh-token code paths that actually use it.
 CREATE ROLE educore_auth_bypass LOGIN PASSWORD 'change-me-too' BYPASSRLS;
-GRANT USAGE ON SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways TO educore_auth_bypass;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways TO educore_auth_bypass;
-ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways
+GRANT USAGE ON SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways, billing TO educore_auth_bypass;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways, billing TO educore_auth_bypass;
+ALTER DEFAULT PRIVILEGES IN SCHEMA foundation, auth, student, teacher, course, "group", attendance, finance, notification, schedule, homework, payment_gateways, billing
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO educore_auth_bypass;
 ```
 

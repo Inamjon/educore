@@ -24,6 +24,16 @@ same reasoning as `finance`/`audit_logs`.
 same day, for the Student portal's own "Pay" flow — see the comment next to
 those two grants below for why this doesn't reopen the module-wide-grant
 risk the rest of this file's `finance`/`audit_logs` comments warn about.
+
+`billing` was added 2026-08-09, for the Super-Admin "Subscription Plans"
+catalog (platform <-> organization billing — EduCore selling a center a
+plan tier — distinct from both `finance` (a center billing its own
+students) and `payment_gateways` (a student paying that center online); see
+`billing/models/subscription_plan.py`'s docstring). Deliberately absent from
+every `DEFAULT_ROLE_PERMISSIONS` entry below, unlike every other module in
+this file — only a system-level role (super_admin) is ever meant to manage
+the catalog, and `common.permissions.user_has_permission`'s platform-role
+bypass already grants that with no per-module grant needed.
 """
 
 PERMISSIONS_CATALOG: list[tuple[str, str, str]] = [
@@ -86,6 +96,10 @@ PERMISSIONS_CATALOG: list[tuple[str, str, str]] = [
     ("payment_gateways", "create", "Add payment gateway credentials"),
     ("payment_gateways", "update", "Update payment gateway credentials"),
     ("payment_gateways", "delete", "Remove payment gateway credentials"),
+    ("billing", "view", "View subscription plans"),
+    ("billing", "create", "Create subscription plans"),
+    ("billing", "update", "Update subscription plans"),
+    ("billing", "delete", "Delete subscription plans"),
 ]
 
 # Default permission grants for the three org-scoped roles every

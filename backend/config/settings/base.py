@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "schedule",
     "homework",
     "payment_gateways",
+    "billing",
 ]
 
 MIDDLEWARE = [
