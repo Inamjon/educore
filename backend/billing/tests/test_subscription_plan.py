@@ -96,6 +96,40 @@ def test_super_admin_can_create_a_plan():
     assert body["active_count"] == 0
 
 
+def test_created_plan_is_appended_after_existing_ones_by_default():
+    """No display_order field on the create form — without a server-side
+    default, every new plan would land at display_order=0 and sort
+    intermixed with (or ahead of) the seeded tiers via
+    Meta.ordering = ["display_order", "price"]."""
+    highest_existing = SubscriptionPlan.objects.order_by("-display_order").values_list("display_order", flat=True).first() or 0
+    org = _make_org()
+    client = APIClient()
+    _make_super_admin_login(client, org, "+998900800005")
+
+    response = client.post(
+        "/api/v1/billing/subscription-plans/",
+        {"name": "Appended", "slug": f"appended-{uuid.uuid4().hex[:8]}", "price": "10.00"},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["data"]["display_order"] > highest_existing
+
+
+def test_negative_price_is_rejected():
+    org = _make_org()
+    client = APIClient()
+    _make_super_admin_login(client, org, "+998900800006")
+
+    response = client.post(
+        "/api/v1/billing/subscription-plans/",
+        {"name": "Bad", "slug": f"bad-{uuid.uuid4().hex[:8]}", "price": "-50.00"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+
+
 def test_center_admin_cannot_manage_plans():
     org = _make_org()
     client = APIClient()

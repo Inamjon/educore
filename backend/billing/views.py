@@ -1,3 +1,4 @@
+from django.db.models import Max
 from rest_framework import viewsets
 
 from billing.filters import SubscriptionPlanFilter
@@ -38,6 +39,20 @@ class SubscriptionPlanViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
     search_fields = ["name", "slug"]
     entity_type = "subscription_plan"
     permission_map = BILLING_PERMISSION_MAP
+
+    def perform_create(self, serializer):
+        # The Subscriptions page's "Create Plan" form has no display_order
+        # field — without a default here, every plan it creates lands at 0
+        # and sorts intermixed with (or ahead of) existing tiers via
+        # Meta.ordering = ["display_order", "price"]. Append after the
+        # current highest instead, so a new plan shows up last by default;
+        # an explicit display_order in the request (e.g. a future reorder
+        # UI) still wins over this.
+        if "display_order" not in serializer.validated_data:
+            highest = SubscriptionPlan.objects.aggregate(Max("display_order"))["display_order__max"] or 0
+            serializer.save(display_order=highest + 1)
+        else:
+            serializer.save()
 
     @audited(action="create", entity_type="subscription_plan")
     def create(self, request, *args, **kwargs):

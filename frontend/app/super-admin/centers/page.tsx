@@ -125,6 +125,10 @@ export default function CentersPage() {
   // plan" — matching how the Status filter/form pair already work here.
   const planFilterOptions = (plans ?? []).map((p) => ({ value: p.id, label: p.name }));
   const planFormOptions = [{ value: '', label: 'No Plan' }, ...planFilterOptions];
+  // Matches the pre-FK behavior (Organization.subscription_plan used to
+  // default to "free") — a new center created without touching the
+  // dropdown should still land on Free, not silently end up on no plan.
+  const defaultPlanId = (plans ?? []).find((p) => p.slug === 'free')?.id ?? '';
   const createMutation = useCreateOrganizationMutation();
   const updateMutation = useUpdateOrganizationMutation();
   const suspendMutation = useSuspendOrganizationMutation();
@@ -293,7 +297,7 @@ export default function CentersPage() {
               if (showForm) handleCancel();
               else {
                 setEditingOrg(null);
-                setForm(emptyForm);
+                setForm({ ...emptyForm, subscriptionPlan: defaultPlanId });
                 setShowForm(true);
               }
             }}

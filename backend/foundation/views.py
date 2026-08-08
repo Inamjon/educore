@@ -59,7 +59,10 @@ class OrganizationViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
         platform user (super_admin) sees the full list, which is what the
         Super-Admin Centers page needs.
         """
-        qs = Organization.objects.all().order_by("-created_at")
+        # select_related("subscription_plan") — OrganizationSerializer's
+        # subscription_plan_detail nested field would otherwise issue one
+        # extra query per row (N+1) on every list request.
+        qs = Organization.objects.all().select_related("subscription_plan").order_by("-created_at")
         if is_platform_user(self.request.user):
             return qs
         return qs.filter(id=getattr(self.request.user, "organization_id", None))

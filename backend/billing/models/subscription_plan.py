@@ -1,3 +1,4 @@
+from django.core.validators import MinValueValidator
 from django.db import models
 
 from common.db import schema_table
@@ -33,7 +34,11 @@ class SubscriptionPlan(UUIDPrimaryKeyMixin, TimestampedMixin, SoftDeleteMixin):
 
     name = models.CharField(max_length=100)
     slug = models.SlugField(max_length=100, unique=True)
-    price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    # MinValueValidator is a serializer/form-level check (DRF's ModelSerializer
+    # picks up model-field validators automatically); the CheckConstraint
+    # below is the DB-level backstop, same "belt and suspenders" pattern as
+    # finance.Payment's positive-amount constraint.
+    price = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     billing_cycle = models.CharField(max_length=20, choices=BILLING_CYCLE_CHOICES, default="monthly")
     max_branches = models.PositiveIntegerField(default=1)
     max_students = models.PositiveIntegerField(default=50)
@@ -45,6 +50,9 @@ class SubscriptionPlan(UUIDPrimaryKeyMixin, TimestampedMixin, SoftDeleteMixin):
     class Meta:
         db_table = schema_table("billing", "subscription_plans")
         ordering = ["display_order", "price"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(price__gte=0), name="chk_subscription_plans_price_non_negative"),
+        ]
         indexes = [
             models.Index(fields=["is_active"], name="idx_subscription_plans_active"),
         ]
