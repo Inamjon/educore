@@ -14,12 +14,26 @@ export function formatCurrency(amount: number, currency = "USD") {
   }).format(amount);
 }
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** `new Date("2026-08-15")` parses a bare date-only string as UTC midnight,
+ * per spec — formatting that in any timezone behind UTC silently shifts it
+ * back a day (a due_date of "2026-08-15" rendering as "Aug 14"). Parses it
+ * as a local calendar date instead. Mirrors the schedule pages' own
+ * toLocalIso() encoder; this is the matching decoder. A full ISO timestamp
+ * (has a "T") is a real point in time and is left to `new Date()` as-is. */
+function parseLocalDate(dateOnly: string): Date {
+  const [year, month, day] = dateOnly.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export function formatDate(date: string | Date) {
+  const parsed = typeof date === "string" && DATE_ONLY.test(date) ? parseLocalDate(date) : new Date(date);
   return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
-  }).format(new Date(date));
+  }).format(parsed);
 }
 
 export function formatTime(time: string) {
