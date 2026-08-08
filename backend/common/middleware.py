@@ -29,11 +29,11 @@ true)` returns NULL for them rather than erroring.
 
 from __future__ import annotations
 
-from django.db import connection, transaction
+from django.db import transaction
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import UntypedToken
 
-from common.context import set_current_org_id, set_current_user_id
+from common.context import apply_org_context, set_current_org_id, set_current_user_id
 from common.cookies import ACCESS_COOKIE
 
 
@@ -50,15 +50,7 @@ class OrganizationContextMiddleware:
             return self.get_response(request)
 
         with transaction.atomic():
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT set_config('app.current_org_id', %s, true)", [org_id])
-                # Also exposed to RLS policies: foundation.is_platform_user()
-                # reads this to let super-admin (system-role) users see across
-                # every organization, not just their own — see migration
-                # foundation/migrations/0004_rls.py.
-                cursor.execute("SELECT set_config('app.current_user_id', %s, true)", [user_id or ""])
-            set_current_org_id(org_id)
-            set_current_user_id(user_id)
+            apply_org_context(org_id, user_id)
             return self.get_response(request)
 
     @staticmethod

@@ -2,6 +2,8 @@
 Base Django settings for EduCore, shared by dev/prod/test.
 """
 
+import base64
+import hashlib
 from datetime import timedelta
 from pathlib import Path
 
@@ -15,6 +17,31 @@ if env_file.exists():
     environ.Env.read_env(str(env_file))
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="django-insecure-dev-key-change-me")
+
+
+def _default_payment_gateway_encryption_key() -> str:
+    """Deliberately NOT a fixed literal — a hardcoded Fernet key committed to
+    the repo would mean anyone who can read this source (a leaked clone, a
+    former contributor, a public fork) can decrypt every deployment's
+    Payme/Click merchant `secret_key` and forge valid webhook signatures,
+    fraudulently marking invoices paid (flagged in security review 2026-08-08).
+    Derived per-deployment from SECRET_KEY instead, via a fixed, unrelated
+    salt string (so it's a distinct key, not SECRET_KEY reused) — safe to
+    leave unset for local dev/tests (each clone's SECRET_KEY differs), and
+    an unset SECRET_KEY in production is already a much bigger, pre-existing
+    problem than this derived default makes it. A real deployment should
+    still set PAYMENT_GATEWAY_ENCRYPTION_KEY explicitly — see .env.example —
+    so it can be rotated independently of SECRET_KEY.
+    """
+    digest = hashlib.sha256(f"payment-gateway-encryption-key:{SECRET_KEY}".encode()).digest()
+    return base64.urlsafe_b64encode(digest).decode()
+
+
+# Fernet key (common/fields.py::EncryptedTextField) protecting Payme/Click
+# merchant secret_keys at rest.
+PAYMENT_GATEWAY_ENCRYPTION_KEY = env(
+    "PAYMENT_GATEWAY_ENCRYPTION_KEY", default=_default_payment_gateway_encryption_key()
+)
 
 INSTALLED_APPS = [
     # django.contrib.auth is required even though we don't use its User model
@@ -40,6 +67,7 @@ INSTALLED_APPS = [
     "notifications",
     "schedule",
     "homework",
+    "payment_gateways",
 ]
 
 MIDDLEWARE = [

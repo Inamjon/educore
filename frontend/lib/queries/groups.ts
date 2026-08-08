@@ -4,6 +4,7 @@ import {
   createGroup,
   deleteGroup,
   getGroupMembers,
+  getMyGroupMemberships,
   getStudentGroupMemberships,
   listGroups,
   removeGroupMember,
@@ -53,6 +54,13 @@ export function useStudentGroupMembershipsQuery(studentProfileId: string | null)
     queryKey: ["student-group-memberships", studentProfileId],
     queryFn: () => getStudentGroupMemberships(studentProfileId as string),
     enabled: !!studentProfileId,
+  });
+}
+
+export function useMyGroupMembershipsQuery() {
+  return useQuery({
+    queryKey: ["group-members", "me"],
+    queryFn: () => getMyGroupMemberships(),
   });
 }
 

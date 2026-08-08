@@ -6,8 +6,10 @@ BYPASSRLS) — same roles a real deployment needs, see .env.example.
 import uuid
 
 import pytest
+from django.db import transaction as db_transaction
 from rest_framework.test import APIClient
 
+from common.context import apply_org_context
 from foundation.models import Organization, User
 
 # transaction=True: LoginView reads/writes via the separate `auth_bypass_rls`
@@ -19,6 +21,8 @@ from foundation.models import Organization, User
 # via truncation after the test), so the bypass connection can see them.
 pytestmark = pytest.mark.django_db(databases=["default", "auth_bypass_rls"], transaction=True)
 
+BYPASS_ALIAS = "auth_bypass_rls"
+
 
 @pytest.fixture
 def user():
@@ -27,8 +31,18 @@ def user():
     # the default (unqualified) search_path — our tables live in named
     # schemas (foundation, auth, ...) outside it, so they never actually get
     # truncated between tests and a fixed slug would collide.
-    org = Organization.objects.create(name="Org", slug=f"org-login-test-{uuid.uuid4().hex[:8]}", email="a@example.com")
-    return User.objects.create_user(
+    #
+    # Created via the auth_bypass_rls alias, org id pre-generated and org
+    # context applied first — an Organization's own id can't satisfy its RLS
+    # policy at insert time otherwise (see finance/tests/test_finance.py's
+    # module docstring for the full chicken-and-egg reasoning).
+    org_id = uuid.uuid4()
+    with db_transaction.atomic():
+        apply_org_context(str(org_id))
+        org = Organization.objects.using(BYPASS_ALIAS).create(
+            id=org_id, name="Org", slug=f"org-login-test-{uuid.uuid4().hex[:8]}", email="a@example.com"
+        )
+    return User.objects.db_manager(BYPASS_ALIAS).create_user(
         organization=org, first_name="Alice", last_name="Doe", password="s3cret-pass", status="active",
         phone="+998901234567",
     )
@@ -60,7 +74,7 @@ def test_login_with_wrong_password_is_rejected(user):
 
 def test_login_for_suspended_account_is_rejected(user):
     user.status = "suspended"
-    user.save(update_fields=["status"])
+    user.save(using=BYPASS_ALIAS, update_fields=["status"])
 
     client = APIClient()
     response = client.post(

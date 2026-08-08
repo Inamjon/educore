@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createInvoice,
   createPayment,
+  createSelfInvoice,
   deleteInvoice,
   listInvoices,
   listPayments,
@@ -44,6 +45,16 @@ export function useDeleteInvoiceMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (invoiceId: string) => deleteInvoice(invoiceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+    },
+  });
+}
+
+export function useCreateSelfInvoiceMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (groupId: string) => createSelfInvoice(groupId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },

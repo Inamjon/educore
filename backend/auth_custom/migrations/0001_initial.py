@@ -11,6 +11,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
+        ('auth_custom', '0000_create_schema'),
         ('foundation', '0004_rls'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
