@@ -50,9 +50,16 @@ class GroupMemberViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
         student caller the same way finance.views.InvoiceViewSet/
         homework.views.SubmissionViewSet already are; center_admin/teacher
         (the only other roles with `groups` access) stay unrestricted.
+        Checked in this order (mirrors homework.views.SubmissionViewSet)
+        because nothing stops one User from holding both a TeacherProfile
+        and a StudentProfile — narrowing on student_profile alone would
+        wrongly cut a dual-role teacher's roster down to their own row.
         """
         qs = GroupMember.objects.all().select_related("student_profile__user", "group__course").order_by("-created_at")
-        student_profile = getattr(self.request.user, "student_profile", None)
+        user = self.request.user
+        if getattr(user, "teacher_profile", None) is not None:
+            return qs
+        student_profile = getattr(user, "student_profile", None)
         if student_profile is not None:
             return qs.filter(student_profile=student_profile)
         return qs

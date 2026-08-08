@@ -8,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from common.audit import audit_log, audited
-from common.permissions import HasModulePermission
+from common.permissions import HasModulePermission, user_has_permission
 from finance.filters import InvoiceFilter, PaymentFilter
 from finance.models import Invoice, Payment
 from finance.numbering import generate_invoice_number
@@ -40,11 +40,14 @@ class InvoiceViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
         comment on `DEFAULT_ROLE_PERMISSIONS["student"]`'s grant in
         foundation/permissions_catalog.py. Same pattern as
         homework.views.SubmissionViewSet.get_queryset(). center_admin (the
-        only other role holding any finance permission) is unrestricted.
+        only other role holding any finance permission) is unrestricted —
+        checked via the actual `finance:create` grant, not merely "has no
+        student_profile", since nothing stops one User from holding both a
+        center_admin role and a StudentProfile in the same org.
         """
         qs = Invoice.objects.all().select_related("student_profile__user", "group").order_by("-created_at")
         student_profile = getattr(self.request.user, "student_profile", None)
-        if student_profile is not None:
+        if student_profile is not None and not user_has_permission(self.request.user, "finance", "create"):
             return qs.filter(student_profile=student_profile)
         return qs
 
@@ -81,7 +84,12 @@ class InvoiceViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
             raise PermissionDenied("You are not enrolled in this group.")
 
         price = group.price if group.price is not None else group.course.price
-        if price is None:
+        if not price:
+            # Rejects both "no price set" (None) and a zero/free price — a
+            # zero-total Invoice could never be paid off through the
+            # gateway flow (build_checkout_url refuses a <= 0 balance) or
+            # via a direct Payment (amount > 0 DB constraint), so it would
+            # sit at status="pending" forever with no way to resolve it.
             raise ValidationError({"group": "This group has no price set. Contact your center."})
 
         existing = (
@@ -123,7 +131,7 @@ class PaymentViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
         """
         qs = Payment.objects.all().select_related("student_profile__user", "invoice").order_by("-created_at")
         student_profile = getattr(self.request.user, "student_profile", None)
-        if student_profile is not None:
+        if student_profile is not None and not user_has_permission(self.request.user, "finance", "create"):
             return qs.filter(student_profile=student_profile)
         return qs
 

@@ -45,7 +45,12 @@ export default function StudentPaymentsPage() {
   // one (never join a group themselves; that stays admin-only).
   const { data: myMemberships } = useMyGroupMembershipsQuery();
   const { data: allGroups } = useGroupsQuery({ organizationId: organizationId ?? "" });
-  const invoicedGroupIds = new Set(invoices.map((i) => i.group).filter(Boolean));
+  // Excludes cancelled invoices — the backend's self-create endpoint ignores
+  // them too (a cancelled invoice can be freely recreated), so a group
+  // whose only invoice was cancelled must still show "Generate Invoice".
+  const invoicedGroupIds = new Set(
+    invoices.filter((i) => i.status !== "cancelled").map((i) => i.group).filter(Boolean)
+  );
   const groupsNeedingInvoice = (myMemberships ?? [])
     .filter((m) => m.status === "active" && !invoicedGroupIds.has(m.group))
     .map((m) => allGroups?.find((g) => g.id === m.group))

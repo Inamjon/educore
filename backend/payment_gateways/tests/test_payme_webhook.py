@@ -200,6 +200,40 @@ def test_cancel_after_perform_soft_deletes_payment_and_reverts_invoice():
     assert Payment.all_objects.using(BYPASS_ALIAS).filter(invoice=invoice).exists()
 
 
+def test_perform_transaction_rejected_when_invoice_already_paid_by_another_transaction():
+    """A student can leave two checkout links pending on the same invoice
+    (e.g. opened Payme, went back, opened it again) before completing
+    either — the second one to actually settle must be rejected instead of
+    crediting the invoice twice."""
+    org = _make_org()
+    invoice = _make_invoice(org, total_amount="100000.00")
+    account = _make_gateway_account(org)
+    txn_a, _ = _checkout(invoice)
+    txn_b, _ = _checkout(invoice)
+    client = APIClient()
+    provider_id_a, provider_id_b = uuid.uuid4().hex, uuid.uuid4().hex
+
+    _post(client, account, "CreateTransaction", {"id": provider_id_a, "time": 0, "amount": 10000000, "account": {"merchant_trans_id": txn_a.merchant_trans_id}})
+    _post(client, account, "PerformTransaction", {"id": provider_id_a})
+
+    _post(client, account, "CreateTransaction", {"id": provider_id_b, "time": 0, "amount": 10000000, "account": {"merchant_trans_id": txn_b.merchant_trans_id}})
+    perform_b = _post(client, account, "PerformTransaction", {"id": provider_id_b})
+
+    assert perform_b.json()["error"]["code"] == -31008
+    assert _invoice_status(invoice) == "paid"
+    assert _payment_count(invoice, payment_method="payme") == 1
+
+
+def test_perform_transaction_missing_id_returns_json_rpc_error_not_500():
+    org = _make_org()
+    account = _make_gateway_account(org)
+
+    response = _post(APIClient(), account, "PerformTransaction", {})
+
+    assert response.status_code == 200
+    assert response.json()["error"]["code"] == -32600
+
+
 def test_create_transaction_for_unknown_order_returns_account_not_found():
     org = _make_org()
     account = _make_gateway_account(org)

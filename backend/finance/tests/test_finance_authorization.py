@@ -251,6 +251,21 @@ def test_student_cannot_self_create_invoice_for_a_group_with_no_price():
     assert response.status_code == 400
 
 
+def test_student_cannot_self_create_invoice_for_a_zero_price_group():
+    """A zero-total Invoice could never be resolved through either payment
+    path (build_checkout_url refuses a <= 0 balance; Payment.amount has a
+    > 0 DB constraint) — must be rejected the same as an unset price."""
+    org = _make_org()
+    group = _make_group(org, price="0.00")
+    client = APIClient()
+    _user, profile = _make_student_login(client, org, "+998910000015")
+    _make_group_member(org, group, profile)
+
+    response = client.post("/api/v1/finance/invoices/self-create/", {"group": str(group.id)}, format="json")
+
+    assert response.status_code == 400
+
+
 def test_student_sees_which_gateways_are_configured():
     org = _make_org()
     _make_gateway_account(org, provider="payme")

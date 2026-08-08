@@ -1,7 +1,7 @@
 import { apiFetch } from "@/lib/api/client";
 
 export type InvoiceStatus = "draft" | "pending" | "partially_paid" | "paid" | "overdue" | "cancelled" | "refunded";
-export type PaymentMethod = "cash" | "card" | "bank_transfer" | "online" | "mobile_payment" | "other";
+export type PaymentMethod = "cash" | "card" | "bank_transfer" | "online" | "mobile_payment" | "payme" | "click" | "other";
 
 export interface Invoice {
   id: string;

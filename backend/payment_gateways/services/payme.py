@@ -19,16 +19,18 @@ from datetime import datetime, timezone as dt_timezone
 from django.db import transaction as db_transaction
 from django.utils import timezone
 
-from finance.models import Payment
-from finance.services import recompute_invoice_status
+from finance.models import Invoice, Payment
+from finance.services import invoice_balance, recompute_invoice_status
 from payment_gateways.models import GatewayTransaction
 
 ERR_INVALID_AMOUNT = -31001
 ERR_TRANSACTION_NOT_FOUND = -31003
 ERR_UNABLE_TO_CANCEL = -31007
+ERR_ALREADY_PAID = -31008
 ERR_ACCOUNT_NOT_FOUND = -31050
 ERR_AUTH = -32504
 ERR_METHOD_NOT_FOUND = -32601
+ERR_INVALID_REQUEST = -32600
 
 STATE_CREATED = 1
 STATE_PERFORMED = 2
@@ -45,6 +47,18 @@ class PaymeError(Exception):
 
 def _now_ms() -> int:
     return int(time_module.time() * 1000)
+
+
+def _require(params: dict, key: str):
+    """Payme authenticates via HTTP Basic, independent of body content — a
+    request with valid credentials but a missing/malformed field (a
+    certification probe, a truncated retry) must not crash with a raw
+    KeyError/TypeError; it should get back Payme's own JSON-RPC error shape.
+    """
+    value = params.get(key)
+    if value is None:
+        raise PaymeError(ERR_INVALID_REQUEST, f"Missing required field: {key}.")
+    return value
 
 
 def to_multilang_message(text: str) -> dict:
@@ -88,7 +102,7 @@ def check_perform_transaction(gateway_account, params: dict) -> dict:
 
 
 def create_transaction(gateway_account, params: dict) -> dict:
-    provider_id = params["id"]
+    provider_id = _require(params, "id")
     existing = GatewayTransaction.objects.filter(
         organization_id=gateway_account.organization_id, provider="payme", provider_transaction_id=provider_id
     ).first()
@@ -116,7 +130,7 @@ def create_transaction(gateway_account, params: dict) -> dict:
 
 
 def perform_transaction(gateway_account, params: dict) -> dict:
-    txn = _find_by_provider_id(gateway_account, params["id"])
+    txn = _find_by_provider_id(gateway_account, _require(params, "id"))
 
     if txn.status == "success":
         # Idempotent replay: already performed, echo the same result.
@@ -129,15 +143,23 @@ def perform_transaction(gateway_account, params: dict) -> dict:
         raise PaymeError(ERR_UNABLE_TO_CANCEL, "Transaction is not in a performable state.")
 
     with db_transaction.atomic():
+        # A student can open two checkout links for the same invoice (e.g.
+        # Payme then Click, both left pending) — lock the invoice row and
+        # re-check its balance right before crediting, so whichever gateway
+        # settles second is rejected instead of double-crediting the invoice.
+        invoice = Invoice.objects.select_for_update().get(pk=txn.invoice_id)
+        if invoice_balance(invoice) < txn.amount:
+            raise PaymeError(ERR_ALREADY_PAID, "This invoice has already been paid in full.")
+
         payment = Payment.objects.create(
             organization=txn.organization,
-            invoice=txn.invoice,
+            invoice=invoice,
             student_profile=txn.student_profile,
             amount=txn.amount,
             currency=txn.currency,
             payment_method="payme",
         )
-        recompute_invoice_status(txn.invoice)
+        recompute_invoice_status(invoice)
 
         now = timezone.now()
         txn.status = "success"
@@ -150,7 +172,7 @@ def perform_transaction(gateway_account, params: dict) -> dict:
 
 
 def cancel_transaction(gateway_account, params: dict) -> dict:
-    txn = _find_by_provider_id(gateway_account, params["id"])
+    txn = _find_by_provider_id(gateway_account, _require(params, "id"))
     reason = params.get("reason")
 
     if txn.status == "cancelled":
@@ -170,6 +192,7 @@ def cancel_transaction(gateway_account, params: dict) -> dict:
             if txn.payment_id:
                 txn.payment.delete()  # soft-delete, SoftDeleteMixin
                 recompute_invoice_status(txn.invoice)
+                txn.payment = None  # don't leave a live FK pointing at a now soft-deleted Payment
             txn.provider_state = STATE_CANCELLED_AFTER_PERFORM
         else:
             txn.provider_state = STATE_CANCELLED_BEFORE_PERFORM
@@ -177,13 +200,13 @@ def cancel_transaction(gateway_account, params: dict) -> dict:
         txn.status = "cancelled"
         txn.cancelled_at = now
         txn.error_note = reason
-        txn.save(update_fields=["status", "provider_state", "cancelled_at", "error_note", "updated_at"])
+        txn.save(update_fields=["status", "provider_state", "payment", "cancelled_at", "error_note", "updated_at"])
 
     return {"transaction": str(txn.id), "cancel_time": int(txn.cancelled_at.timestamp() * 1000), "state": txn.provider_state}
 
 
 def check_transaction(gateway_account, params: dict) -> dict:
-    txn = _find_by_provider_id(gateway_account, params["id"])
+    txn = _find_by_provider_id(gateway_account, _require(params, "id"))
     return {
         "create_time": int(txn.created_at.timestamp() * 1000),
         "perform_time": int(txn.performed_at.timestamp() * 1000) if txn.performed_at else 0,
@@ -195,8 +218,8 @@ def check_transaction(gateway_account, params: dict) -> dict:
 
 
 def get_statement(gateway_account, params: dict) -> dict:
-    start = datetime.fromtimestamp(params["from"] / 1000, tz=dt_timezone.utc)
-    end = datetime.fromtimestamp(params["to"] / 1000, tz=dt_timezone.utc)
+    start = datetime.fromtimestamp(_require(params, "from") / 1000, tz=dt_timezone.utc)
+    end = datetime.fromtimestamp(_require(params, "to") / 1000, tz=dt_timezone.utc)
     qs = GatewayTransaction.objects.filter(
         organization_id=gateway_account.organization_id,
         provider="payme",

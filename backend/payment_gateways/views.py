@@ -1,4 +1,5 @@
 import base64
+import logging
 
 from django.db import transaction as db_transaction
 from rest_framework import viewsets
@@ -18,6 +19,8 @@ from payment_gateways.models import PaymentGatewayAccount
 from payment_gateways.serializers import PaymentGatewayAccountSerializer
 from payment_gateways.services import click, payme
 from payment_gateways.services.checkout import build_checkout_url
+
+logger = logging.getLogger(__name__)
 
 BYPASS_ALIAS = "auth_bypass_rls"  # see auth_custom/services/session_service.py — same role, same reason:
 # lookups that must happen before any org context (and thus RLS) exists.
@@ -152,6 +155,12 @@ class PaymeWebhookView(APIView):
                 metadata={"provider": "payme", "method": method, "error": exc.message},
             )
             return self._error(rpc_id, exc.code, exc.message)
+        except Exception:
+            # Any handler bug (or a malformed request our own validation
+            # missed) must still get back Payme's JSON-RPC error shape, not
+            # a raw Django 500 — Payme's integration only parses this shape.
+            logger.exception("Unhandled error in Payme webhook (method=%s)", method)
+            return self._error(rpc_id, payme.ERR_INVALID_REQUEST, "Internal error processing request.")
 
         if method == "PerformTransaction":
             audit_log(
@@ -214,6 +223,9 @@ class ClickWebhookView(APIView):
                 metadata={"provider": "click", "action": action, "error": exc.note},
             )
             return self._error(params, exc.code, exc.note)
+        except Exception:
+            logger.exception("Unhandled error in Click webhook (action=%s)", action)
+            return self._error(params, -8, "Internal error processing request.")
 
         if action == "1":
             # Click reports a failed/cancelled payment as a normal (non-error

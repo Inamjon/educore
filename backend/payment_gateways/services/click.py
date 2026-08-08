@@ -15,8 +15,8 @@ from decimal import Decimal
 from django.db import transaction as db_transaction
 from django.utils import timezone
 
-from finance.models import Payment
-from finance.services import recompute_invoice_status
+from finance.models import Invoice, Payment
+from finance.services import invoice_balance, recompute_invoice_status
 from payment_gateways.models import GatewayTransaction
 
 ERR_SIGN_FAILED = -1
@@ -32,6 +32,16 @@ class ClickError(Exception):
         self.code = code
         self.note = note
         super().__init__(note)
+
+
+def _require(params: dict, key: str):
+    """Click's signature check authenticates the request independent of
+    which fields are present — a missing/malformed field must still get
+    back Click's own error shape, not an uncaught KeyError/TypeError."""
+    value = params.get(key)
+    if value is None:
+        raise ClickError(ERR_ORDER_NOT_FOUND, f"Missing required field: {key}.")
+    return value
 
 
 def _md5(text: str) -> str:
@@ -63,9 +73,9 @@ def _find_transaction(gateway_account, merchant_trans_id: str) -> GatewayTransac
 
 
 def prepare(gateway_account, params: dict) -> dict:
-    click_trans_id = str(params["click_trans_id"])
-    merchant_trans_id = str(params["merchant_trans_id"])
-    amount = Decimal(str(params["amount"]))
+    click_trans_id = str(_require(params, "click_trans_id"))
+    merchant_trans_id = str(_require(params, "merchant_trans_id"))
+    amount = Decimal(str(_require(params, "amount")))
 
     txn = _find_transaction(gateway_account, merchant_trans_id)
 
@@ -91,10 +101,10 @@ def prepare(gateway_account, params: dict) -> dict:
 
 
 def complete(gateway_account, params: dict) -> dict:
-    click_trans_id = str(params["click_trans_id"])
-    merchant_trans_id = str(params["merchant_trans_id"])
+    click_trans_id = str(_require(params, "click_trans_id"))
+    merchant_trans_id = str(_require(params, "merchant_trans_id"))
     merchant_prepare_id = str(params.get("merchant_prepare_id", ""))
-    amount = Decimal(str(params["amount"]))
+    amount = Decimal(str(_require(params, "amount")))
     incoming_error = int(params.get("error", 0))
 
     txn = _find_transaction(gateway_account, merchant_trans_id)
@@ -134,15 +144,23 @@ def complete(gateway_account, params: dict) -> dict:
         raise ClickError(ERR_INVALID_AMOUNT, "Amount does not match the invoice balance.")
 
     with db_transaction.atomic():
+        # Same cross-provider race payme.py's perform_transaction guards
+        # against: a student can leave two checkout links pending on the
+        # same invoice, so re-check the balance under lock right before
+        # crediting rather than trusting txn.amount alone.
+        invoice = Invoice.objects.select_for_update().get(pk=txn.invoice_id)
+        if invoice_balance(invoice) < txn.amount:
+            raise ClickError(ERR_ALREADY_PAID, "This invoice has already been paid in full.")
+
         payment = Payment.objects.create(
             organization=txn.organization,
-            invoice=txn.invoice,
+            invoice=invoice,
             student_profile=txn.student_profile,
             amount=txn.amount,
             currency=txn.currency,
             payment_method="click",
         )
-        recompute_invoice_status(txn.invoice)
+        recompute_invoice_status(invoice)
 
         txn.status = "success"
         txn.payment = payment

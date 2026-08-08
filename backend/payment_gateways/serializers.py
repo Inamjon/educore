@@ -27,8 +27,14 @@ class PaymentGatewayAccountSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         provider = attrs.get("provider") or getattr(self.instance, "provider", None)
-        if provider == "click" and not (attrs.get("service_id") or getattr(self.instance, "service_id", None)):
-            raise serializers.ValidationError({"service_id": "service_id is required for Click."})
+        if provider == "click":
+            # "service_id" in attrs, not attrs.get(...) — a PATCH explicitly
+            # clearing the field (service_id: null) must be judged on that
+            # explicit None, not silently fall back to the pre-update
+            # instance value (which would let the clear through unnoticed).
+            effective_service_id = attrs["service_id"] if "service_id" in attrs else getattr(self.instance, "service_id", None)
+            if not effective_service_id:
+                raise serializers.ValidationError({"service_id": "service_id is required for Click."})
         if not self.instance and not attrs.get("secret_key"):
             raise serializers.ValidationError({"secret_key": "This field is required."})
         return attrs

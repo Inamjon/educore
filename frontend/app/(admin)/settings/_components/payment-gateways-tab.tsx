@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Save, Trash2, CreditCard } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,19 @@ function ProviderCard({ provider, label, needsServiceId, account }: {
       ? { merchantId: account.merchant_id, serviceId: account.service_id ?? "", secretKey: "", isActive: account.is_active }
       : EMPTY_FORM
   );
+  // useState's initializer only runs once — without this, a background
+  // refetch of the shared gateway-accounts query (window refocus, or
+  // invalidation from saving the sibling provider's card) leaves this
+  // still-mounted card showing stale data instead of the freshly fetched
+  // record. Only re-syncs when the underlying account data actually
+  // changes, so it won't clobber an in-progress edit of unrelated fields.
+  useEffect(() => {
+    setForm(
+      account
+        ? { merchantId: account.merchant_id, serviceId: account.service_id ?? "", secretKey: "", isActive: account.is_active }
+        : EMPTY_FORM
+    );
+  }, [account?.id, account?.merchant_id, account?.service_id, account?.is_active]);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const saving = createMutation.isPending || updateMutation.isPending;
 

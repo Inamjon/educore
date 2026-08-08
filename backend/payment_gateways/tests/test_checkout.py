@@ -75,7 +75,7 @@ def _make_gateway_account(org, provider="payme", **kwargs):
     return PaymentGatewayAccount.objects.using(BYPASS_ALIAS).create(organization=org, provider=provider, **kwargs)
 
 
-def _checkout(invoice, provider):
+def _checkout(invoice, provider, return_url=None):
     """Runs the real `build_checkout_url` (production code, `default`
     connection) with real org context applied — unlike the BYPASSRLS-backed
     fixture helpers above, this exercises actual RLS enforcement, same as a
@@ -83,7 +83,7 @@ def _checkout(invoice, provider):
     """
     with db_transaction.atomic():
         apply_org_context(str(invoice.organization_id))
-        return build_checkout_url(invoice, provider)
+        return build_checkout_url(invoice, provider, return_url=return_url)
 
 
 def test_build_payme_checkout_url_encodes_expected_params():
@@ -145,6 +145,43 @@ def test_checkout_rejected_when_gateway_account_inactive():
 
     with pytest.raises(ValidationError):
         _checkout(invoice, "payme")
+
+
+def test_checkout_rejects_a_non_http_return_url():
+    org = _make_org()
+    invoice = _make_invoice(org)
+    _make_gateway_account(org, provider="payme")
+
+    with pytest.raises(ValidationError):
+        _checkout(invoice, "payme", return_url="javascript:alert(1)")
+
+
+def test_payme_checkout_url_escapes_semicolon_in_return_url():
+    """A raw ";" in return_url would otherwise smuggle an extra
+    "key=value" pair into Payme's ";"-delimited param string (e.g. a bogus
+    "a=" overriding the amount) — it must come out percent-encoded."""
+    org = _make_org()
+    invoice = _make_invoice(org, total_amount="100000.00")
+    _make_gateway_account(org, provider="payme")
+
+    _txn, url = _checkout(invoice, "payme", return_url="https://example.com/return;a=1")
+
+    decoded = base64.b64decode(url.rsplit("/", 1)[-1]).decode()
+    assert "return;a=1" not in decoded  # raw, unescaped ";" would smuggle in a bogus extra "a=" field
+    assert "return%3Ba%3D1" in decoded  # ";" and "=" inside the return_url value must come out percent-encoded
+
+
+def test_click_checkout_url_encodes_special_characters_in_return_url():
+    """Uses urlencode() now, not manual string-joining — a "&"/"=" in
+    return_url must not be able to inject a new query param."""
+    org = _make_org()
+    invoice = _make_invoice(org, total_amount="100000.00")
+    _make_gateway_account(org, provider="click")
+
+    _txn, url = _checkout(invoice, "click", return_url="https://example.com/return?x=1&evil=2")
+
+    assert "&evil=2" not in url
+    assert "return_url=https%3A%2F%2Fexample.com" in url
 
 
 def test_merchant_trans_id_is_unique_idempotency_anchor():
