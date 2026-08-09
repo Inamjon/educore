@@ -31,11 +31,16 @@ export function isLocale(value: string | undefined | null): value is Locale {
  * silently flip back to their saved "uz" the moment they sign in — the
  * saved preference only matters as the *first-ever* default for this
  * browser, not something that overwrites an in-the-moment choice.
+ *
+ * Returns whether it actually wrote the cookie — the caller still needs a
+ * `router.refresh()` in that case, since a plain `document.cookie` write
+ * doesn't itself invalidate Next's Client Cache (see the login page).
  */
-export function seedLocaleCookieIfUnset(language: string): void {
-  if (typeof document === "undefined") return;
+export function seedLocaleCookieIfUnset(language: string): boolean {
+  if (typeof document === "undefined") return false;
   const hasCookie = document.cookie.split("; ").some((c) => c.startsWith(`${LOCALE_COOKIE}=`));
-  if (hasCookie) return;
+  if (hasCookie) return false;
   const locale = isLocale(language) ? language : DEFAULT_LOCALE;
   document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=31536000; samesite=lax`;
+  return true;
 }

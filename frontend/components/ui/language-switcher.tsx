@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { LOCALES, LOCALE_COOKIE, LOCALE_LABELS, type Locale } from "@/i18n/locales";
 import { cn } from "@/lib/utils";
 
@@ -18,12 +18,15 @@ function setLocaleCookie(locale: Locale) {
 
 interface LanguageSwitcherProps {
   className?: string;
-  /** Compact = just the flag/code (header bars); full = flag + language name (login page). */
+  /** Compact = just the flag/code (header bars); full = flag + language name
+   * (currently used in Student Settings → Language; NOT the login page,
+   * which is deliberately fixed-Uzbek with no switcher at all). */
   variant?: "compact" | "full";
 }
 
 export function LanguageSwitcher({ className, variant = "compact" }: LanguageSwitcherProps) {
   const locale = useLocale() as Locale;
+  const t = useTranslations("Common");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -36,7 +39,7 @@ export function LanguageSwitcher({ className, variant = "compact" }: LanguageSwi
   return (
     <div className={cn("relative inline-block", className)}>
       <select
-        aria-label="Language"
+        aria-label={t("language")}
         value={locale}
         disabled={isPending}
         onChange={(e) => handleChange(e.target.value as Locale)}

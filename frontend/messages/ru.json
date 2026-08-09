@@ -16,7 +16,8 @@
     "actions": "Действия",
     "download": "Скачать",
     "submit": "Отправить",
-    "back": "Назад"
+    "back": "Назад",
+    "language": "Язык"
   },
   "StudentSettings": {
     "title": "Настройки",

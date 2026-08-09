@@ -16,7 +16,8 @@
     "actions": "Actions",
     "download": "Download",
     "submit": "Submit",
-    "back": "Back"
+    "back": "Back",
+    "language": "Language"
   },
   "StudentSettings": {
     "title": "Settings",

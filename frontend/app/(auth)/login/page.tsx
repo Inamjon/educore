@@ -49,7 +49,7 @@ export default function LoginPage() {
   // same values foundation.services.DEFAULT_GENERAL_SETTINGS ships with.
   const { data: branding } = usePlatformBrandingQuery();
   const platformName = branding?.platformName || "EduCore";
-  const tagline = branding?.tagline || "Xush kelibsiz";
+  const tagline = branding?.tagline || "EduCore hisobingizga kiring";
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -83,9 +83,15 @@ export default function LoginPage() {
       // saved preference, but only on a browser that's never had one set —
       // see seedLocaleCookieIfUnset's own docstring. The language itself is
       // only ever changed from Settings, never here.
-      seedLocaleCookieIfUnset(user.language);
+      const cookieChanged = seedLocaleCookieIfUnset(user.language);
       setUser(user);
       setSuccess(true);
+      // A plain document.cookie write doesn't invalidate Next's Client
+      // Cache — router.push() alone would reuse the RootLayout segment
+      // rendered before login (still locale=uz) on the destination portal.
+      // router.refresh() re-runs server components (RootLayout included)
+      // against the freshly-seeded cookie first, same as LanguageSwitcher.
+      if (cookieChanged) router.refresh();
       setTimeout(() => router.push(portal), 500);
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Xatolik yuz berdi. Iltimos, qayta urinib ko'ring.";

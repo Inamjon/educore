@@ -16,7 +16,8 @@
     "actions": "Amallar",
     "download": "Yuklab olish",
     "submit": "Yuborish",
-    "back": "Orqaga"
+    "back": "Orqaga",
+    "language": "Til"
   },
   "StudentSettings": {
     "title": "Sozlamalar",
