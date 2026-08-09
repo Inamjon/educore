@@ -85,17 +85,27 @@ class LoginView(APIView):
 
     def _enforce_lockout(self, request, login_id: str) -> None:
         """Max Login Attempts (Super-Admin Settings' Security panel) —
-        counts this login_id's own recent `failed` LoginAttempt rows
-        (already written on every attempt by _log_attempt below) within a
-        rolling window and blocks further tries once the threshold's hit.
-        0 or unset disables the check entirely.
+        counts recent `failed` LoginAttempt rows for this (login_id,
+        ip_address) pair (already written on every attempt by _log_attempt
+        below) within a rolling window and blocks further tries once the
+        threshold's hit. 0 or unset disables the check entirely.
+
+        Scoped by IP as well as login_id, not login_id alone: a lockout
+        keyed only on login_id would let anyone who merely knows a victim's
+        login_id (their phone number) lock them out of their own account
+        by spamming wrong passwords from anywhere — the legitimate user's
+        own attempts, from their own IP, would then also be blocked. This
+        doesn't stop a *distributed* brute force (an attacker rotating IPs
+        never accumulates enough failures on any single one to trip the
+        lockout) — that's a materially harder problem than what Max Login
+        Attempts is meant to cheaply solve here.
         """
         max_attempts = get_platform_setting("security", using=BYPASS_ALIAS).get("maxLoginAttempts", 5)
         if not max_attempts or max_attempts <= 0:
             return
         window_start = timezone.now() - LOGIN_LOCKOUT_WINDOW
         recent_failures = LoginAttempt.objects.using(BYPASS_ALIAS).filter(
-            login_id=login_id, status="failed", created_at__gte=window_start
+            login_id=login_id, ip_address=request.META.get("REMOTE_ADDR"), status="failed", created_at__gte=window_start
         ).count()
         if recent_failures >= max_attempts:
             self._log_attempt(request, login_id, None, "blocked", "too_many_attempts")

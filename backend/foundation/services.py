@@ -65,6 +65,48 @@ def set_platform_setting(key: str, value: dict):
     return setting
 
 
+def _validate_general_setting(value: dict) -> None:
+    from rest_framework.exceptions import ValidationError
+
+    string_fields = {"platformName", "tagline", "supportEmail"}
+    nullable_string_fields = {"logoUrl", "faviconUrl"}
+    for field, val in value.items():
+        if field in string_fields and not isinstance(val, str):
+            raise ValidationError({field: "Must be a string."})
+        if field in nullable_string_fields and val is not None and not isinstance(val, str):
+            raise ValidationError({field: "Must be a string or null."})
+
+
+def _validate_security_setting(value: dict) -> None:
+    from rest_framework.exceptions import ValidationError
+
+    # Real checks — this data isn't just displayed back, it's read by
+    # LoginView's lockout check and password_policy.validate_password_policy
+    # on every login/password-set platform-wide. A malformed value here
+    # (e.g. maxLoginAttempts as a string) would 500 those, not just this
+    # endpoint — see the finding this fixes.
+    if "twoFactor" in value and not isinstance(value["twoFactor"], bool):
+        raise ValidationError({"twoFactor": "Must be a boolean."})
+    if "ipAllowlist" in value and not isinstance(value["ipAllowlist"], bool):
+        raise ValidationError({"ipAllowlist": "Must be a boolean."})
+    if "sessionTimeoutMinutes" in value:
+        v = value["sessionTimeoutMinutes"]
+        if not isinstance(v, int) or isinstance(v, bool) or v <= 0:
+            raise ValidationError({"sessionTimeoutMinutes": "Must be a positive integer."})
+    if "maxLoginAttempts" in value:
+        v = value["maxLoginAttempts"]
+        if not isinstance(v, int) or isinstance(v, bool) or v < 0:
+            raise ValidationError({"maxLoginAttempts": "Must be a non-negative integer."})
+    if "passwordPolicy" in value and value["passwordPolicy"] not in ("basic", "medium", "strong"):
+        raise ValidationError({"passwordPolicy": "Must be one of: basic, medium, strong."})
+
+
+PLATFORM_SETTINGS_VALIDATORS = {
+    "general": _validate_general_setting,
+    "security": _validate_security_setting,
+}
+
+
 def provision_default_roles(organization) -> None:
     """Every organization gets its own center_admin/teacher/student Role
     rows (idempotent) the moment it's created, each pre-linked to a sane

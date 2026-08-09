@@ -128,6 +128,76 @@ def test_partial_general_update_does_not_wipe_other_fields():
     assert body["supportEmail"] == "a@example.com"
 
 
+def test_invalid_security_payload_rolls_back_a_valid_general_write_in_the_same_request():
+    """Both panels are validated up front, before either is written — a bad
+    security payload alongside a valid general one must leave general
+    untouched too, not partially save it (PlatformSettingsView.put() wraps
+    the whole method in @transaction.atomic)."""
+    org = _make_org()
+    client = APIClient()
+    _make_super_admin_login(client, org, "+998900820009")
+    original = client.get("/api/v1/settings/platform/").json()["data"]["general"]["platformName"]
+
+    response = client.put(
+        "/api/v1/settings/platform/",
+        {"general": {"platformName": "Should Not Persist"}, "security": {"maxLoginAttempts": "not-a-number"}},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    check = client.get("/api/v1/settings/platform/")
+    assert check.json()["data"]["general"]["platformName"] == original
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"maxLoginAttempts": "5"},
+        {"maxLoginAttempts": -1},
+        {"sessionTimeoutMinutes": 0},
+        {"sessionTimeoutMinutes": "60"},
+        {"twoFactor": "yes"},
+        {"passwordPolicy": "unbreakable"},
+    ],
+)
+def test_security_settings_reject_malformed_values(payload):
+    """Real type/value validation, not just 'is this a dict' — a bad value
+    here would otherwise be stored and later crash LoginView's lockout
+    check or password_policy.validate_password_policy for every request
+    platform-wide, not just this endpoint."""
+    org = _make_org()
+    client = APIClient()
+    _make_super_admin_login(client, org, "+998900820010")
+
+    response = client.put("/api/v1/settings/platform/", {"security": payload}, format="json")
+
+    assert response.status_code == 400
+
+
+def test_login_lockout_does_not_apply_across_different_ip_addresses():
+    """A lockout keyed on login_id alone would let anyone who merely knows
+    a victim's login_id lock them out from a *different* IP — scoped by
+    (login_id, ip_address) instead, so the victim's own attempts, from
+    their own IP, are unaffected."""
+    _set_security(maxLoginAttempts=5)
+    org = _make_org()
+    user = _make_login(org, "+998900820011", "teacher")
+    attacker_client = APIClient()
+    for _ in range(5):
+        attacker_client.post(
+            "/api/v1/auth/login/", {"login_id": user.login_id, "password": "wrong-password"},
+            format="json", REMOTE_ADDR="10.0.0.99",
+        )
+
+    victim_client = APIClient()
+    response = victim_client.post(
+        "/api/v1/auth/login/", {"login_id": user.login_id, "password": "pw123456"},
+        format="json", REMOTE_ADDR="10.0.0.1",
+    )
+
+    assert response.status_code == 200
+
+
 def test_center_admin_cannot_view_or_update_platform_settings():
     org = _make_org()
     admin = _make_login(org, "+998900820004", "center_admin")

@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -17,7 +18,12 @@ from foundation.serializers import (
     RoleSerializer,
     UserSerializer,
 )
-from foundation.services import PLATFORM_SETTINGS_DEFAULTS, get_platform_setting, set_platform_setting
+from foundation.services import (
+    PLATFORM_SETTINGS_DEFAULTS,
+    PLATFORM_SETTINGS_VALIDATORS,
+    get_platform_setting,
+    set_platform_setting,
+)
 
 BYPASS_ALIAS = "auth_bypass_rls"  # see auth_custom/services/session_service.py — same role, same reason:
 # PlatformBrandingView runs before any org context exists (no token at all).
@@ -267,23 +273,42 @@ class PlatformSettingsView(APIView):
             {"success": True, "message": "", "data": {key: get_platform_setting(key) for key in PLATFORM_SETTINGS_DEFAULTS}}
         )
 
+    @transaction.atomic
     def put(self, request):
         if not user_has_permission(request.user, "platform_settings", "update"):
             raise PermissionDenied("You do not have permission to update platform settings.")
 
-        updated = {}
+        # Validated up front, before any write — a later key's bad payload
+        # (or the DB write of an earlier key) must never leave a partial
+        # save committed, hence @transaction.atomic wrapping the whole
+        # method (a raised ValidationError rolls it back) rather than
+        # writing key-by-key as each is checked.
+        merged_by_key = {}
         for key in PLATFORM_SETTINGS_DEFAULTS:
             incoming = request.data.get(key)
             if incoming is None:
                 continue
             if not isinstance(incoming, dict):
                 raise ValidationError({key: "Must be an object."})
+            # Real per-field validation, not just "is a dict" — this data
+            # is read by LoginView's lockout check and
+            # password_policy.validate_password_policy on every login/
+            # password-set platform-wide, so a malformed value (e.g.
+            # maxLoginAttempts as a string) must be rejected here, not
+            # allowed to 500 those instead.
+            PLATFORM_SETTINGS_VALIDATORS[key](incoming)
             # Merged into the current effective value (defaults + whatever's
             # stored), not replaced outright — a partial update from one
             # panel can't accidentally wipe fields it didn't send, while a
             # whole-panel Save (the actual frontend behavior today) still
             # works exactly the same since it sends every field anyway.
-            merged = {**get_platform_setting(key), **incoming}
+            merged_by_key[key] = {**get_platform_setting(key), **incoming}
+
+        if not merged_by_key:
+            raise ValidationError("Request body must include a 'general' and/or 'security' object.")
+
+        updated = {}
+        for key, merged in merged_by_key.items():
             setting = set_platform_setting(key, merged)
             updated[key] = merged
             # entity_id is a real UUIDField — the Setting row's own id, not
@@ -294,8 +319,6 @@ class PlatformSettingsView(APIView):
                 new_values=merged, metadata={"section": key},
             )
 
-        if not updated:
-            raise ValidationError("Request body must include a 'general' and/or 'security' object.")
         return Response({"success": True, "message": "Settings saved", "data": updated})
 
 

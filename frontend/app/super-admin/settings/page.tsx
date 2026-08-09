@@ -496,20 +496,26 @@ export default function SystemSettingsPage() {
   const active = SECTIONS.find((s) => s.id === activeSection)!;
   const ActiveIcon = active.icon;
 
-  const { data: platformSettings, isError, error } = usePlatformSettingsQuery();
+  const { data: platformSettings, isLoading, isError, error } = usePlatformSettingsQuery();
   const updateMutation = useUpdatePlatformSettingsMutation();
 
   // Local buffers, not a live-write-per-keystroke — General/Security only
   // hit the network on "Save Changes" now that they're a real API, unlike
-  // the still-mock panels' instant local-store writes. Re-synced whenever
-  // fresh server data loads, same "don't seed once and go stale" fix
-  // applied to the Payment Gateways settings form earlier in this project.
+  // the still-mock panels' instant local-store writes. Seeded from the
+  // server exactly once (a `seededRef` guard, not a `[platformSettings]`
+  // effect dependency) — these are platform-wide singletons, not a form
+  // that needs re-seeding when switching between different records, so
+  // resyncing on every refetch (a background window-refocus refetch, or
+  // the OTHER panel's own save invalidating this shared query) would
+  // silently clobber whichever panel currently has unsaved edits.
   const [generalForm, setGeneralForm] = useState<GeneralSettings | null>(null);
   const [securityForm, setSecurityForm] = useState<SecuritySettings | null>(null);
+  const seededRef = useRef(false);
   useEffect(() => {
-    if (platformSettings) {
+    if (platformSettings && !seededRef.current) {
       setGeneralForm(platformSettings.general);
       setSecurityForm(platformSettings.security);
+      seededRef.current = true;
     }
   }, [platformSettings]);
 
@@ -521,11 +527,19 @@ export default function SystemSettingsPage() {
       toast.success('Settings saved');
       return;
     }
+    const formToSave = activeSection === 'general' ? generalForm : securityForm;
+    if (!formToSave) {
+      // Settings haven't loaded yet (or failed to) — nothing to save, and
+      // the button is disabled in this state anyway; this is just a
+      // backstop against a stray click racing the initial load.
+      toast.error('Settings are still loading — try again in a moment.');
+      return;
+    }
     try {
-      if (activeSection === 'general' && generalForm) {
-        await updateMutation.mutateAsync({ general: generalForm });
-      } else if (activeSection === 'security' && securityForm) {
-        await updateMutation.mutateAsync({ security: securityForm });
+      if (activeSection === 'general') {
+        await updateMutation.mutateAsync({ general: formToSave as GeneralSettings });
+      } else {
+        await updateMutation.mutateAsync({ security: formToSave as SecuritySettings });
       }
       toast.success('Settings saved');
     } catch (err) {
@@ -553,7 +567,15 @@ export default function SystemSettingsPage() {
         title="System Settings"
         subtitle="Configure platform-wide settings and integrations"
         actions={
-          <Button onClick={handleSave} loading={updateMutation.isPending}>
+          <Button
+            onClick={handleSave}
+            loading={updateMutation.isPending}
+            disabled={
+              // generalForm/securityForm are seeded together (see seededRef
+              // above) — either being null means neither has loaded yet.
+              (activeSection === 'general' || activeSection === 'security') && (isLoading || !generalForm)
+            }
+          >
             <Save className="h-4 w-4" />
             Save Changes
           </Button>
