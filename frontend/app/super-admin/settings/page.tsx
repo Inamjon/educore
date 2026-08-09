@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Settings,
   Globe,
@@ -12,13 +12,17 @@ import {
   Palette,
   Save,
   ChevronRight,
+  Loader2,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
 import { useSASettingsStore } from '@/lib/store/sa-settings-store';
+import { usePlatformSettingsQuery, useUpdatePlatformSettingsMutation } from '@/lib/queries/settings';
+import type { GeneralSettings, SecuritySettings } from '@/lib/api/settings';
 import { toast } from '@/lib/store/toast-store';
+import { ApiError } from '@/lib/api/client';
 import { cn } from '@/lib/utils';
 
 // ─── Settings Sections ────────────────────────────────────────────────────────
@@ -73,11 +77,26 @@ function FieldRow({ label, hint, children }: { label: string; hint?: string; chi
   );
 }
 
+function SettingsLoadingState() {
+  return (
+    <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-400">
+      <Loader2 className="h-4 w-4 animate-spin" />
+      Loading…
+    </div>
+  );
+}
+
+function SettingsLoadError({ error }: { error: unknown }) {
+  return (
+    <p className="py-8 text-sm text-red-500">
+      {error instanceof ApiError ? error.message : 'Failed to load settings.'}
+    </p>
+  );
+}
+
 // ─── Section Panels ───────────────────────────────────────────────────────────
 
-function GeneralPanel() {
-  const general = useSASettingsStore((s) => s.settings.general);
-  const updateGeneral = useSASettingsStore((s) => s.updateGeneral);
+function GeneralPanel({ general, onChange }: { general: GeneralSettings; onChange: (patch: Partial<GeneralSettings>) => void }) {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
 
@@ -86,7 +105,7 @@ function GeneralPanel() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      updateGeneral({ [field]: reader.result as string });
+      onChange({ [field]: reader.result as string });
       toast.success(field === 'logoUrl' ? 'Logo uploaded' : 'Favicon uploaded');
     };
     reader.readAsDataURL(file);
@@ -98,14 +117,14 @@ function GeneralPanel() {
       <FieldRow label="Platform Name" hint="Displayed across the entire application">
         <Input
           value={general.platformName}
-          onChange={(e) => updateGeneral({ platformName: e.target.value })}
+          onChange={(e) => onChange({ platformName: e.target.value })}
           className="w-64"
         />
       </FieldRow>
       <FieldRow label="Tagline" hint="Short description shown on the login page">
         <Input
           value={general.tagline}
-          onChange={(e) => updateGeneral({ tagline: e.target.value })}
+          onChange={(e) => onChange({ tagline: e.target.value })}
           className="w-64"
         />
       </FieldRow>
@@ -137,7 +156,7 @@ function GeneralPanel() {
         <Input
           type="email"
           value={general.supportEmail}
-          onChange={(e) => updateGeneral({ supportEmail: e.target.value })}
+          onChange={(e) => onChange({ supportEmail: e.target.value })}
           className="w-64"
         />
       </FieldRow>
@@ -358,40 +377,38 @@ function BackupPanel() {
   );
 }
 
-function SecurityPanel() {
-  const security = useSASettingsStore((s) => s.settings.security);
-  const updateSecurity = useSASettingsStore((s) => s.updateSecurity);
-
+function SecurityPanel({ security, onChange }: { security: SecuritySettings; onChange: (patch: Partial<SecuritySettings>) => void }) {
   return (
     <div className="space-y-0">
-      <FieldRow label="Two-Factor Authentication" hint="Require 2FA for all admins">
-        <Toggle checked={security.twoFactor} onChange={(v) => updateSecurity({ twoFactor: v })} />
+      <FieldRow label="Two-Factor Authentication" hint="Require 2FA for all admins — stored, not yet enforced (a real TOTP flow is a future project)">
+        <Toggle checked={security.twoFactor} onChange={(v) => onChange({ twoFactor: v })} />
       </FieldRow>
-      <FieldRow label="Session Timeout" hint="Auto-logout after inactivity">
+      <FieldRow label="Session Timeout" hint="Stored, not yet enforced (JWT lifetime is currently a fixed server setting)">
         <Select
           className="w-48"
-          value={security.sessionTimeout}
+          value={String(security.sessionTimeoutMinutes)}
           options={[
             { value: '15', label: '15 minutes' },
             { value: '30', label: '30 minutes' },
             { value: '60', label: '1 hour' },
             { value: '480', label: '8 hours' },
           ]}
-          onChange={(e) => updateSecurity({ sessionTimeout: e.target.value })}
+          onChange={(e) => onChange({ sessionTimeoutMinutes: Number(e.target.value) })}
         />
       </FieldRow>
-      <FieldRow label="IP Allowlist" hint="Restrict admin access to specific IPs">
-        <Toggle checked={security.ipAllowlist} onChange={(v) => updateSecurity({ ipAllowlist: v })} />
+      <FieldRow label="IP Allowlist" hint="Restrict admin access to specific IPs — stored, not yet enforced">
+        <Toggle checked={security.ipAllowlist} onChange={(v) => onChange({ ipAllowlist: v })} />
       </FieldRow>
-      <FieldRow label="Max Login Attempts" hint="Lock account after N failed attempts">
+      <FieldRow label="Max Login Attempts" hint="Lock a login out for 30 minutes after N failed attempts — enforced">
         <Input
           type="number"
+          min={0}
           value={security.maxLoginAttempts}
-          onChange={(e) => updateSecurity({ maxLoginAttempts: Number(e.target.value) || 0 })}
+          onChange={(e) => onChange({ maxLoginAttempts: Number(e.target.value) || 0 })}
           className="w-24"
         />
       </FieldRow>
-      <FieldRow label="Password Policy" hint="Minimum requirements for passwords">
+      <FieldRow label="Password Policy" hint="Minimum requirements for new/changed passwords — enforced">
         <Select
           className="w-48"
           value={security.passwordPolicy}
@@ -400,7 +417,7 @@ function SecurityPanel() {
             { value: 'medium', label: 'Medium (8+ mixed)' },
             { value: 'strong', label: 'Strong (12+ special)' },
           ]}
-          onChange={(e) => updateSecurity({ passwordPolicy: e.target.value })}
+          onChange={(e) => onChange({ passwordPolicy: e.target.value as SecuritySettings['passwordPolicy'] })}
         />
       </FieldRow>
     </div>
@@ -459,15 +476,16 @@ function APIKeysPanel() {
 }
 
 // ─── Panel Map ────────────────────────────────────────────────────────────────
+// Theme/Languages/Email/SMS/Backup/API Keys aren't wired to a backend yet
+// (see the plan doc) — those panels keep applying changes live to the local
+// mock store, same as before General/Security became real.
 
-const PANEL_MAP: Record<SectionId, React.ReactNode> = {
-  general:   <GeneralPanel />,
+const MOCK_PANEL_MAP: Partial<Record<SectionId, React.ReactNode>> = {
   theme:     <ThemePanel />,
   languages: <LanguagesPanel />,
   email:     <EmailPanel />,
   sms:       <SMSPanel />,
   backup:    <BackupPanel />,
-  security:  <SecurityPanel />,
   api:       <APIKeysPanel />,
 };
 
@@ -478,13 +496,86 @@ export default function SystemSettingsPage() {
   const active = SECTIONS.find((s) => s.id === activeSection)!;
   const ActiveIcon = active.icon;
 
+  const { data: platformSettings, isLoading, isError, error } = usePlatformSettingsQuery();
+  const updateMutation = useUpdatePlatformSettingsMutation();
+
+  // Local buffers, not a live-write-per-keystroke — General/Security only
+  // hit the network on "Save Changes" now that they're a real API, unlike
+  // the still-mock panels' instant local-store writes. Seeded from the
+  // server exactly once (a `seededRef` guard, not a `[platformSettings]`
+  // effect dependency) — these are platform-wide singletons, not a form
+  // that needs re-seeding when switching between different records, so
+  // resyncing on every refetch (a background window-refocus refetch, or
+  // the OTHER panel's own save invalidating this shared query) would
+  // silently clobber whichever panel currently has unsaved edits.
+  const [generalForm, setGeneralForm] = useState<GeneralSettings | null>(null);
+  const [securityForm, setSecurityForm] = useState<SecuritySettings | null>(null);
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (platformSettings && !seededRef.current) {
+      setGeneralForm(platformSettings.general);
+      setSecurityForm(platformSettings.security);
+      seededRef.current = true;
+    }
+  }, [platformSettings]);
+
+  async function handleSave() {
+    const isWiredSection = activeSection === 'general' || activeSection === 'security';
+    if (!isWiredSection) {
+      // Mock panels already applied their edits live — this is just a
+      // confirmation toast, same as before.
+      toast.success('Settings saved');
+      return;
+    }
+    const formToSave = activeSection === 'general' ? generalForm : securityForm;
+    if (!formToSave) {
+      // Settings haven't loaded yet (or failed to) — nothing to save, and
+      // the button is disabled in this state anyway; this is just a
+      // backstop against a stray click racing the initial load.
+      toast.error('Settings are still loading — try again in a moment.');
+      return;
+    }
+    try {
+      if (activeSection === 'general') {
+        await updateMutation.mutateAsync({ general: formToSave as GeneralSettings });
+      } else {
+        await updateMutation.mutateAsync({ security: formToSave as SecuritySettings });
+      }
+      toast.success('Settings saved');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+    }
+  }
+
+  function renderActivePanel() {
+    if (activeSection === 'general') {
+      if (isError) return <SettingsLoadError error={error} />;
+      if (!generalForm) return <SettingsLoadingState />;
+      return <GeneralPanel general={generalForm} onChange={(patch) => setGeneralForm((f) => f && { ...f, ...patch })} />;
+    }
+    if (activeSection === 'security') {
+      if (isError) return <SettingsLoadError error={error} />;
+      if (!securityForm) return <SettingsLoadingState />;
+      return <SecurityPanel security={securityForm} onChange={(patch) => setSecurityForm((f) => f && { ...f, ...patch })} />;
+    }
+    return MOCK_PANEL_MAP[activeSection];
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="System Settings"
         subtitle="Configure platform-wide settings and integrations"
         actions={
-          <Button onClick={() => toast.success('Settings saved')}>
+          <Button
+            onClick={handleSave}
+            loading={updateMutation.isPending}
+            disabled={
+              // generalForm/securityForm are seeded together (see seededRef
+              // above) — either being null means neither has loaded yet.
+              (activeSection === 'general' || activeSection === 'security') && (isLoading || !generalForm)
+            }
+          >
             <Save className="h-4 w-4" />
             Save Changes
           </Button>
@@ -533,7 +624,7 @@ export default function SystemSettingsPage() {
                 <p className="text-xs text-slate-400">{active.desc}</p>
               </div>
             </div>
-            {PANEL_MAP[activeSection]}
+            {renderActivePanel()}
           </Card>
         </div>
       </div>

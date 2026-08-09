@@ -1,8 +1,10 @@
+from django.db import transaction
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from common.audit import audit_log, audited
 from common.permissions import HasModulePermission, is_platform_user, user_has_permission
@@ -16,6 +18,15 @@ from foundation.serializers import (
     RoleSerializer,
     UserSerializer,
 )
+from foundation.services import (
+    PLATFORM_SETTINGS_DEFAULTS,
+    PLATFORM_SETTINGS_VALIDATORS,
+    get_platform_setting,
+    set_platform_setting,
+)
+
+BYPASS_ALIAS = "auth_bypass_rls"  # see auth_custom/services/session_service.py — same role, same reason:
+# PlatformBrandingView runs before any org context exists (no token at all).
 
 
 class SoftDeleteDestroyMixin:
@@ -238,3 +249,106 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [HasModulePermission]
     filterset_class = AuditLogFilter
     permission_map = {"list": ("audit_logs", "view"), "retrieve": ("audit_logs", "view")}
+
+
+class PlatformSettingsView(APIView):
+    """General + Security platform-wide config for the Super-Admin Settings
+    page — see foundation.services' docstring on PLATFORM_SETTINGS_DEFAULTS
+    for why these two panels live here as generic key-value Setting rows
+    rather than a dedicated model. Theme/Languages/Email/SMS/Backup/API-Keys
+    aren't wired yet (frontend mock only, see the plan doc) and have no
+    backend surface at all — only "general"/"security" are ever read here.
+    Plain APIView, not a ModelViewSet: this isn't a collection of rows, it's
+    two singleton config blobs, so `user_has_permission` is checked
+    directly rather than via HasModulePermission's action-keyed map (same
+    style as payment_gateways.views.CheckoutInitiateView).
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not user_has_permission(request.user, "platform_settings", "view"):
+            raise PermissionDenied("You do not have permission to view platform settings.")
+        return Response(
+            {"success": True, "message": "", "data": {key: get_platform_setting(key) for key in PLATFORM_SETTINGS_DEFAULTS}}
+        )
+
+    @transaction.atomic
+    def put(self, request):
+        if not user_has_permission(request.user, "platform_settings", "update"):
+            raise PermissionDenied("You do not have permission to update platform settings.")
+
+        # Validated up front, before any write — a later key's bad payload
+        # (or the DB write of an earlier key) must never leave a partial
+        # save committed, hence @transaction.atomic wrapping the whole
+        # method (a raised ValidationError rolls it back) rather than
+        # writing key-by-key as each is checked.
+        merged_by_key = {}
+        for key in PLATFORM_SETTINGS_DEFAULTS:
+            incoming = request.data.get(key)
+            if incoming is None:
+                continue
+            if not isinstance(incoming, dict):
+                raise ValidationError({key: "Must be an object."})
+            # Real per-field validation, not just "is a dict" — this data
+            # is read by LoginView's lockout check and
+            # password_policy.validate_password_policy on every login/
+            # password-set platform-wide, so a malformed value (e.g.
+            # maxLoginAttempts as a string) must be rejected here, not
+            # allowed to 500 those instead.
+            PLATFORM_SETTINGS_VALIDATORS[key](incoming)
+            # Merged into the current effective value (defaults + whatever's
+            # stored), not replaced outright — a partial update from one
+            # panel can't accidentally wipe fields it didn't send, while a
+            # whole-panel Save (the actual frontend behavior today) still
+            # works exactly the same since it sends every field anyway.
+            merged_by_key[key] = {**get_platform_setting(key), **incoming}
+
+        if not merged_by_key:
+            raise ValidationError("Request body must include a 'general' and/or 'security' object.")
+
+        updated = {}
+        for key, merged in merged_by_key.items():
+            setting = set_platform_setting(key, merged)
+            updated[key] = merged
+            # entity_id is a real UUIDField — the Setting row's own id, not
+            # the panel key ("general"/"security", not a UUID at all); the
+            # section name still goes in metadata for readability.
+            audit_log(
+                request, action="update", entity_type="platform_settings", entity_id=str(setting.id),
+                new_values=merged, metadata={"section": key},
+            )
+
+        return Response({"success": True, "message": "Settings saved", "data": updated})
+
+
+class PlatformBrandingView(APIView):
+    """Public, unauthenticated — the login page needs the platform's name/
+    tagline/logo *before* anyone is signed in. Safe by construction: only
+    ever reads the "general" panel's already-public-facing fields. Goes
+    through the BYPASSRLS alias, same reasoning as auth_custom.LoginView's
+    own initial lookup — no token means no org context is ever established
+    for this request (see common/middleware.py's docstring), and relying on
+    `current_setting(..., true)` to cleanly resolve to NULL in that state
+    proved unreliable in practice (a prior request's session-level GUC can
+    still be visible), so this sidesteps RLS entirely rather than depend on
+    it for a read that's already meant to be public.
+    """
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        general = get_platform_setting("general", using=BYPASS_ALIAS)
+        return Response(
+            {
+                "success": True,
+                "message": "",
+                "data": {
+                    "platformName": general["platformName"],
+                    "tagline": general["tagline"],
+                    "logoUrl": general["logoUrl"],
+                    "faviconUrl": general["faviconUrl"],
+                },
+            }
+        )

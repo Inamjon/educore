@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
@@ -12,7 +14,12 @@ from auth_custom.services.session_service import BYPASS_ALIAS, revoke_session
 from common.audit import audit_log
 from common.cookies import REFRESH_COOKIE, clear_auth_cookies, set_auth_cookies
 from foundation.models import User
-from foundation.services import primary_role_slug
+from foundation.services import get_platform_setting, primary_role_slug
+
+# How far back "recent failures" looks for the Max Login Attempts lockout —
+# self-recovers once a login_id's failures age out of this window, rather
+# than needing an admin "unlock" action.
+LOGIN_LOCKOUT_WINDOW = timedelta(minutes=30)
 
 
 class LoginView(APIView):
@@ -37,6 +44,8 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         login_id = serializer.validated_data["login_id"]
         password = serializer.validated_data["password"]
+
+        self._enforce_lockout(request, login_id)
 
         user = User.objects.using(BYPASS_ALIAS).filter(login_id=login_id).first()
 
@@ -73,6 +82,36 @@ class LoginView(APIView):
         )
         set_auth_cookies(response, access=tokens["access"], refresh=tokens["refresh"], role=role)
         return response
+
+    def _enforce_lockout(self, request, login_id: str) -> None:
+        """Max Login Attempts (Super-Admin Settings' Security panel) —
+        counts recent `failed` LoginAttempt rows for this (login_id,
+        ip_address) pair (already written on every attempt by _log_attempt
+        below) within a rolling window and blocks further tries once the
+        threshold's hit. 0 or unset disables the check entirely.
+
+        Scoped by IP as well as login_id, not login_id alone: a lockout
+        keyed only on login_id would let anyone who merely knows a victim's
+        login_id (their phone number) lock them out of their own account
+        by spamming wrong passwords from anywhere — the legitimate user's
+        own attempts, from their own IP, would then also be blocked. This
+        doesn't stop a *distributed* brute force (an attacker rotating IPs
+        never accumulates enough failures on any single one to trip the
+        lockout) — that's a materially harder problem than what Max Login
+        Attempts is meant to cheaply solve here.
+        """
+        max_attempts = get_platform_setting("security", using=BYPASS_ALIAS).get("maxLoginAttempts", 5)
+        if not max_attempts or max_attempts <= 0:
+            return
+        window_start = timezone.now() - LOGIN_LOCKOUT_WINDOW
+        recent_failures = LoginAttempt.objects.using(BYPASS_ALIAS).filter(
+            login_id=login_id, ip_address=request.META.get("REMOTE_ADDR"), status="failed", created_at__gte=window_start
+        ).count()
+        if recent_failures >= max_attempts:
+            self._log_attempt(request, login_id, None, "blocked", "too_many_attempts")
+            raise AuthenticationFailed(
+                f"Too many failed login attempts. Try again in {int(LOGIN_LOCKOUT_WINDOW.total_seconds() // 60)} minutes."
+            )
 
     @staticmethod
     def _log_attempt(request, login_id: str, user, status_value: str, reason: str | None) -> None:
