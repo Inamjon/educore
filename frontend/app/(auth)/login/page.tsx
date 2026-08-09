@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { login as loginRequest } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth-store";
+import { usePlatformBrandingQuery } from "@/lib/queries/settings";
 
 // ─── Role → portal routing ─────────────────────────────────────────────────────
 
@@ -34,6 +35,12 @@ const ROLE_PORTAL_MAP: Record<string, string> = {
 export default function LoginPage() {
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);
+  // Public, unauthenticated read (see foundation.views.PlatformBrandingView)
+  // — falls back to the "EduCore" default below while loading or on error,
+  // same values foundation.services.DEFAULT_GENERAL_SETTINGS ships with.
+  const { data: branding } = usePlatformBrandingQuery();
+  const platformName = branding?.platformName || "EduCore";
+  const tagline = branding?.tagline || "Sign in to your EduCore account.";
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -80,10 +87,17 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
-            <Zap className="h-5 w-5 text-white" />
-          </div>
-          <span className="text-lg font-bold text-slate-900">EduCore</span>
+          {branding?.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={branding.logoUrl} alt={platformName} className="h-10 max-w-[160px] object-contain" />
+          ) : (
+            <>
+              <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
+                <Zap className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-lg font-bold text-slate-900">{platformName}</span>
+            </>
+          )}
         </div>
 
         {/* Card */}
@@ -92,7 +106,7 @@ export default function LoginPage() {
           {/* Header */}
           <div className="mb-7 text-center">
             <h2 className="text-2xl font-bold text-slate-900">Welcome back</h2>
-            <p className="text-sm text-slate-500 mt-1">Sign in to your EduCore account.</p>
+            <p className="text-sm text-slate-500 mt-1">{tagline}</p>
           </div>
 
           {/* General error */}

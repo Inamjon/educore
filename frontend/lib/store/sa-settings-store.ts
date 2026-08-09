@@ -1,13 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export interface SASettingsGeneral {
-  platformName: string;
-  tagline: string;
-  supportEmail: string;
-  logoUrl?: string;
-  faviconUrl?: string;
-}
+// General + Security moved off this mock store onto the real
+// foundation.Setting-backed API — see lib/api/settings.ts and
+// app/super-admin/settings/page.tsx. Everything below is still mock;
+// see the plan doc for why (each is its own real integration: SMTP
+// sending, an SMS provider, automated backups, ...).
 
 export interface SASettingsTheme {
   darkMode: boolean;
@@ -48,14 +46,6 @@ export interface SASettingsBackup {
   lastBackupAt: string;
 }
 
-export interface SASettingsSecurity {
-  twoFactor: boolean;
-  sessionTimeout: string;
-  ipAllowlist: boolean;
-  maxLoginAttempts: number;
-  passwordPolicy: string;
-}
-
 export interface SAApiKey {
   id: string;
   name: string;
@@ -65,22 +55,15 @@ export interface SAApiKey {
 }
 
 export interface SASettings {
-  general: SASettingsGeneral;
   theme: SASettingsTheme;
   languages: SASettingsLanguage[];
   email: SASettingsEmail;
   sms: SASettingsSms;
   backup: SASettingsBackup;
-  security: SASettingsSecurity;
   apiKeys: SAApiKey[];
 }
 
 const DEFAULT_SETTINGS: SASettings = {
-  general: {
-    platformName: "EduCore",
-    tagline: "The All-in-One LMS Platform",
-    supportEmail: "support@educore.com",
-  },
   theme: {
     darkMode: false,
     compactSidebar: false,
@@ -115,13 +98,6 @@ const DEFAULT_SETTINGS: SASettings = {
     retention: "30d",
     lastBackupAt: "2026-07-04T03:00:00Z",
   },
-  security: {
-    twoFactor: true,
-    sessionTimeout: "60",
-    ipAllowlist: false,
-    maxLoginAttempts: 5,
-    passwordPolicy: "strong",
-  },
   apiKeys: [
     { id: "key1", name: "Production API Key", key: "ek_live_" + "x".repeat(32), createdAt: "2026-01-01", lastUsed: "2026-07-04" },
     { id: "key2", name: "Webhook Secret", key: "whsec_" + "x".repeat(32), createdAt: "2026-01-01", lastUsed: "2026-07-03" },
@@ -138,14 +114,12 @@ function randomKey(prefix: string) {
 
 interface SASettingsState {
   settings: SASettings;
-  updateGeneral: (patch: Partial<SASettingsGeneral>) => void;
   updateTheme: (patch: Partial<SASettingsTheme>) => void;
   toggleLanguage: (code: string) => void;
   updateEmail: (patch: Partial<SASettingsEmail>) => void;
   updateSms: (patch: Partial<SASettingsSms>) => void;
   updateBackup: (patch: Partial<SASettingsBackup>) => void;
   runBackup: () => void;
-  updateSecurity: (patch: Partial<SASettingsSecurity>) => void;
   rotateApiKey: (id: string) => void;
   generateApiKey: () => void;
 }
@@ -154,8 +128,6 @@ export const useSASettingsStore = create<SASettingsState>()(
   persist(
     (set) => ({
       settings: DEFAULT_SETTINGS,
-      updateGeneral: (patch) =>
-        set((s) => ({ settings: { ...s.settings, general: { ...s.settings.general, ...patch } } })),
       updateTheme: (patch) =>
         set((s) => ({ settings: { ...s.settings, theme: { ...s.settings.theme, ...patch } } })),
       toggleLanguage: (code) =>
@@ -177,8 +149,6 @@ export const useSASettingsStore = create<SASettingsState>()(
         set((s) => ({
           settings: { ...s.settings, backup: { ...s.settings.backup, lastBackupAt: new Date().toISOString() } },
         })),
-      updateSecurity: (patch) =>
-        set((s) => ({ settings: { ...s.settings, security: { ...s.settings.security, ...patch } } })),
       rotateApiKey: (id) =>
         set((s) => ({
           settings: {
@@ -205,6 +175,6 @@ export const useSASettingsStore = create<SASettingsState>()(
           },
         })),
     }),
-    { name: "educore-sa-settings", version: 1 }
+    { name: "educore-sa-settings", version: 2 }
   )
 );

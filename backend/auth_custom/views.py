@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
@@ -12,7 +14,12 @@ from auth_custom.services.session_service import BYPASS_ALIAS, revoke_session
 from common.audit import audit_log
 from common.cookies import REFRESH_COOKIE, clear_auth_cookies, set_auth_cookies
 from foundation.models import User
-from foundation.services import primary_role_slug
+from foundation.services import get_platform_setting, primary_role_slug
+
+# How far back "recent failures" looks for the Max Login Attempts lockout —
+# self-recovers once a login_id's failures age out of this window, rather
+# than needing an admin "unlock" action.
+LOGIN_LOCKOUT_WINDOW = timedelta(minutes=30)
 
 
 class LoginView(APIView):
@@ -37,6 +44,8 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         login_id = serializer.validated_data["login_id"]
         password = serializer.validated_data["password"]
+
+        self._enforce_lockout(request, login_id)
 
         user = User.objects.using(BYPASS_ALIAS).filter(login_id=login_id).first()
 
@@ -73,6 +82,26 @@ class LoginView(APIView):
         )
         set_auth_cookies(response, access=tokens["access"], refresh=tokens["refresh"], role=role)
         return response
+
+    def _enforce_lockout(self, request, login_id: str) -> None:
+        """Max Login Attempts (Super-Admin Settings' Security panel) —
+        counts this login_id's own recent `failed` LoginAttempt rows
+        (already written on every attempt by _log_attempt below) within a
+        rolling window and blocks further tries once the threshold's hit.
+        0 or unset disables the check entirely.
+        """
+        max_attempts = get_platform_setting("security", using=BYPASS_ALIAS).get("maxLoginAttempts", 5)
+        if not max_attempts or max_attempts <= 0:
+            return
+        window_start = timezone.now() - LOGIN_LOCKOUT_WINDOW
+        recent_failures = LoginAttempt.objects.using(BYPASS_ALIAS).filter(
+            login_id=login_id, status="failed", created_at__gte=window_start
+        ).count()
+        if recent_failures >= max_attempts:
+            self._log_attempt(request, login_id, None, "blocked", "too_many_attempts")
+            raise AuthenticationFailed(
+                f"Too many failed login attempts. Try again in {int(LOGIN_LOCKOUT_WINDOW.total_seconds() // 60)} minutes."
+            )
 
     @staticmethod
     def _log_attempt(request, login_id: str, user, status_value: str, reason: str | None) -> None:

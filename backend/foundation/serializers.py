@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from billing.serializers import SubscriptionPlanSummarySerializer
 from foundation.models import AuditLog, Branch, Organization, Permission, Role, User
+from foundation.password_policy import validate_password_policy
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
@@ -143,6 +144,7 @@ class UserSerializer(serializers.ModelSerializer):
         role_ids = validated_data.pop("user_roles", [])
         if not password:
             raise serializers.ValidationError({"password": "Password is required to create a user."})
+        validate_password_policy(password)
         user = User.objects.create_user(password=password, **validated_data)
         self._sync_roles(user, role_ids)
         return user
@@ -153,6 +155,7 @@ class UserSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if password:
+            validate_password_policy(password)
             instance.set_password(password)
         instance.save()
         if role_ids is not None:

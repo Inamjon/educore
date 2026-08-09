@@ -1,5 +1,69 @@
 from __future__ import annotations
 
+# Platform-wide config, stored as one row per panel in the generic
+# foundation.Setting table (scope="platform", organization/branch/user all
+# NULL — a singleton per key) rather than a dedicated model: only two
+# panels (General, Security) are real this phase — Theme/Languages/Email/
+# SMS/Backup/API-Keys stay frontend-mock (see the plan doc) — and a flat
+# JSON blob per panel matches the Super-Admin Settings page's own form
+# shape without inventing a schema for settings that don't persist yet.
+DEFAULT_GENERAL_SETTINGS: dict = {
+    "platformName": "EduCore",
+    "tagline": "The All-in-One LMS Platform",
+    "supportEmail": "support@educore.com",
+    "logoUrl": None,
+    "faviconUrl": None,
+}
+
+# twoFactor/ipAllowlist/sessionTimeoutMinutes are stored here but NOT yet
+# enforced anywhere (2FA challenge flow, an IP-blocking middleware, and a
+# per-request-configurable JWT lifetime are each their own future project —
+# see the plan doc's explicit call on this). maxLoginAttempts *is* enforced,
+# by auth_custom.views.LoginView; passwordPolicy *is* enforced, by
+# foundation.password_policy.validate_password_policy — both are cheap,
+# self-contained checks against data this app already writes on every
+# request (LoginAttempt) or already validates (a new password).
+DEFAULT_SECURITY_SETTINGS: dict = {
+    "twoFactor": False,
+    "sessionTimeoutMinutes": 60,
+    "ipAllowlist": False,
+    "maxLoginAttempts": 5,
+    "passwordPolicy": "basic",
+}
+
+PLATFORM_SETTINGS_DEFAULTS: dict[str, dict] = {
+    "general": DEFAULT_GENERAL_SETTINGS,
+    "security": DEFAULT_SECURITY_SETTINGS,
+}
+
+
+def get_platform_setting(key: str, *, using: str | None = None) -> dict:
+    """Merges whatever's actually stored under PLATFORM_SETTINGS_DEFAULTS[key]
+    so a freshly-migrated platform (no row yet) still returns a complete,
+    sane shape, and adding a new field to the defaults later doesn't need a
+    data migration for installs that already have a row.
+    """
+    from foundation.models import Setting
+
+    qs = Setting.objects.filter(
+        scope="platform", organization__isnull=True, branch__isnull=True, user__isnull=True, key=key
+    )
+    if using:
+        qs = qs.using(using)
+    row = qs.first()
+    defaults = PLATFORM_SETTINGS_DEFAULTS.get(key, {})
+    return {**defaults, **(row.value if row else {})}
+
+
+def set_platform_setting(key: str, value: dict):
+    from foundation.models import Setting
+
+    setting, _created = Setting.objects.update_or_create(
+        scope="platform", organization=None, branch=None, user=None, key=key,
+        defaults={"value": value},
+    )
+    return setting
+
 
 def provision_default_roles(organization) -> None:
     """Every organization gets its own center_admin/teacher/student Role
