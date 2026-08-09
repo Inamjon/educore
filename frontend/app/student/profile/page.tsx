@@ -13,6 +13,7 @@ import {
   Edit3,
   CreditCard,
 } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
@@ -27,6 +28,8 @@ import {
 import { STUDENT_PROFILE, STUDENT_STATS, STUDENT_COURSES, STUDENT_PAYMENT } from '@/lib/student-data';
 import { toast } from '@/lib/store/toast-store';
 import { cn, formatCurrency } from '@/lib/utils';
+import { formatLocalizedDate } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE } from '@/i18n/locales';
 
 function StatMiniCard({ label, value, unit }: { label: string; value: string | number; unit?: string }) {
   return (
@@ -72,6 +75,7 @@ function StatRow({
 }
 
 function CopyRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+  const t = useTranslations('StudentProfile');
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -92,7 +96,7 @@ function CopyRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
       <button
         onClick={handleCopy}
         className="h-8 w-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-colors"
-        title="Copy"
+        title={t('copyTitle')}
       >
         {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4 text-slate-400" />}
       </button>
@@ -101,8 +105,10 @@ function CopyRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
 }
 
 function PaymentMethodDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const t = useTranslations('StudentProfile');
+
   function handleSelect(provider: 'Payme' | 'Click') {
-    toast.error(`${provider} integratsiyasi hali ulanmagan — API kalitlari qo'shilgach ishga tushadi.`);
+    toast.error(t('paymentProviderNotConnected', { provider }));
     onOpenChange(false);
   }
 
@@ -110,7 +116,7 @@ function PaymentMethodDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>To&apos;lov usulini tanlang</DialogTitle>
+          <DialogTitle>{t('selectPaymentMethodTitle')}</DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <button
@@ -134,9 +140,20 @@ function PaymentMethodDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 }
 
 export default function StudentProfilePage() {
+  const t = useTranslations('StudentProfile');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
   const p = STUDENT_PROFILE;
   const payment = STUDENT_PAYMENT;
   const [payDialogOpen, setPayDialogOpen] = useState(false);
+
+  const paymentStatusConfig = {
+    paid: { label: t('statusPaid'), variant: 'success' as const },
+    overdue: { label: t('statusOverdue'), variant: 'danger' as const },
+    pending: { label: t('statusPending'), variant: 'warning' as const },
+  };
+  const paymentStatus = paymentStatusConfig[payment.status as keyof typeof paymentStatusConfig] ?? paymentStatusConfig.pending;
 
   return (
     <div className="space-y-6">
@@ -151,7 +168,7 @@ export default function StudentProfilePage() {
               <div className="flex flex-wrap items-center gap-2 mt-3">
                 <span
                   className="text-xs font-medium text-white bg-white/20 rounded-full px-3 py-1"
-                  title="Login ID"
+                  title={t('loginId')}
                 >
                   {p.loginId}
                 </span>
@@ -161,13 +178,13 @@ export default function StudentProfilePage() {
 
           <div className="flex flex-col gap-4 items-start md:items-end">
             <div className="flex gap-3">
-              <StatMiniCard label="Attendance" value={STUDENT_STATS.attendanceRate} unit="%" />
-              <StatMiniCard label="Avg Grade" value={STUDENT_STATS.avgGrade} unit="%" />
-              <StatMiniCard label="Courses" value={STUDENT_STATS.enrolledCourses} />
+              <StatMiniCard label={t('statAttendance')} value={STUDENT_STATS.attendanceRate} unit="%" />
+              <StatMiniCard label={t('statAvgGrade')} value={STUDENT_STATS.avgGrade} unit="%" />
+              <StatMiniCard label={t('statCourses')} value={STUDENT_STATS.enrolledCourses} />
             </div>
             <Button className="bg-white text-indigo-700 hover:bg-indigo-50 shadow-none" variant="outline">
               <Edit3 className="h-4 w-4" />
-              Edit Profile
+              {t('editProfile')}
             </Button>
           </div>
         </div>
@@ -176,27 +193,27 @@ export default function StudentProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left: Personal Information */}
         <div className="lg:col-span-3">
-          <Card title="Personal Information" subtitle="Your contact and enrollment details">
+          <Card title={t('personalInfoTitle')} subtitle={t('personalInfoSubtitle')}>
             <div>
-              <InfoRow label="Full Name">{p.name}</InfoRow>
-              <InfoRow label="Login ID">{p.loginId}</InfoRow>
-              <InfoRow label="Phone">{p.phone}</InfoRow>
-              <InfoRow label="Grade Level">{p.grade}</InfoRow>
-              <InfoRow label="Primary Group">{p.groupName}</InfoRow>
-              <InfoRow label="Parent / Guardian">
+              <InfoRow label={t('fullName')}>{p.name}</InfoRow>
+              <InfoRow label={t('loginId')}>{p.loginId}</InfoRow>
+              <InfoRow label={t('phone')}>{p.phone}</InfoRow>
+              <InfoRow label={t('gradeLevel')}>{p.grade}</InfoRow>
+              <InfoRow label={t('primaryGroup')}>{p.groupName}</InfoRow>
+              <InfoRow label={t('parentGuardian')}>
                 {p.parentName} &middot; {p.parentPhone}
               </InfoRow>
-              <InfoRow label="Joined">
-                {new Date(p.joinedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              <InfoRow label={t('joined')}>
+                {formatLocalizedDate(new Date(p.joinedAt), locale, { month: 'long', day: 'numeric', year: 'numeric' })}
               </InfoRow>
-              <InfoRow label="Bio">
+              <InfoRow label={t('bio')}>
                 <span className="text-slate-600 leading-relaxed">{p.bio}</span>
               </InfoRow>
             </div>
             <div className="pt-4">
               <Button variant="outline" size="sm">
                 <Edit3 className="h-3.5 w-3.5" />
-                Edit Information
+                {t('editInformation')}
               </Button>
             </div>
           </Card>
@@ -204,35 +221,38 @@ export default function StudentProfilePage() {
 
         {/* Right column */}
         <div className="lg:col-span-2 space-y-5">
-          <Card title="Course Payment" subtitle={payment.courseName}>
+          <Card title={t('coursePaymentTitle')} subtitle={payment.courseName}>
             <div className="flex items-center justify-between py-2">
               <div>
                 <p className="text-2xl font-bold text-slate-900">{formatCurrency(payment.balance)}</p>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {formatCurrency(payment.paid)} of {formatCurrency(payment.amount)} paid &middot; due{' '}
-                  {new Date(payment.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {t('paidOfAmount', {
+                    paid: formatCurrency(payment.paid),
+                    amount: formatCurrency(payment.amount),
+                    date: formatLocalizedDate(new Date(payment.dueDate), locale, { month: 'short', day: 'numeric' }),
+                  })}
                 </p>
               </div>
-              <Badge label={payment.status === 'paid' ? 'Paid' : payment.status === 'overdue' ? 'Overdue' : 'Pending'} variant={payment.status === 'paid' ? 'success' : payment.status === 'overdue' ? 'danger' : 'warning'} />
+              <Badge label={paymentStatus.label} variant={paymentStatus.variant} />
             </div>
             <div className="pt-3">
               <Button className="w-full justify-center" onClick={() => setPayDialogOpen(true)} disabled={payment.balance <= 0}>
                 <CreditCard className="h-4 w-4" />
-                {payment.balance > 0 ? 'Pay Now' : 'Fully Paid'}
+                {payment.balance > 0 ? t('payNow') : t('fullyPaid')}
               </Button>
             </div>
           </Card>
 
-          <Card title="Academic Summary" subtitle="Your performance overview">
+          <Card title={t('academicSummaryTitle')} subtitle={t('academicSummarySubtitle')}>
             <div>
-              <StatRow icon={Layers} label="Enrolled Courses" value={STUDENT_STATS.enrolledCourses} iconClass="bg-indigo-50 text-indigo-600" />
-              <StatRow icon={ClipboardCheck} label="Attendance Rate" value={`${STUDENT_STATS.attendanceRate}%`} iconClass="bg-emerald-50 text-emerald-600" />
-              <StatRow icon={GraduationCap} label="Average Grade" value={`${STUDENT_STATS.avgGrade}%`} iconClass="bg-blue-50 text-blue-600" />
-              <StatRow icon={BookOpen} label="Upcoming Exams" value={STUDENT_STATS.upcomingExams} iconClass="bg-amber-50 text-amber-600" />
+              <StatRow icon={Layers} label={t('enrolledCourses')} value={STUDENT_STATS.enrolledCourses} iconClass="bg-indigo-50 text-indigo-600" />
+              <StatRow icon={ClipboardCheck} label={t('attendanceRate')} value={`${STUDENT_STATS.attendanceRate}%`} iconClass="bg-emerald-50 text-emerald-600" />
+              <StatRow icon={GraduationCap} label={t('averageGrade')} value={`${STUDENT_STATS.avgGrade}%`} iconClass="bg-blue-50 text-blue-600" />
+              <StatRow icon={BookOpen} label={t('upcomingExams')} value={STUDENT_STATS.upcomingExams} iconClass="bg-amber-50 text-amber-600" />
             </div>
           </Card>
 
-          <Card title="My Teachers" subtitle="Across your enrolled courses">
+          <Card title={t('myTeachersTitle')} subtitle={t('myTeachersSubtitle')}>
             <div>
               {STUDENT_COURSES.map((c) => (
                 <div key={c.id} className="flex items-center gap-3 py-3 border-b border-slate-50 last:border-0">
@@ -246,10 +266,10 @@ export default function StudentProfilePage() {
             </div>
           </Card>
 
-          <Card title="Contact & Guardian" subtitle="Quick contact information">
+          <Card title={t('contactGuardianTitle')} subtitle={t('contactGuardianSubtitle')}>
             <div>
-              <CopyRow icon={Phone} label="Phone number" value={p.phone} />
-              <CopyRow icon={Users} label="Parent / Guardian" value={`${p.parentName} (${p.parentPhone})`} />
+              <CopyRow icon={Phone} label={t('phoneNumber')} value={p.phone} />
+              <CopyRow icon={Users} label={t('parentGuardian')} value={`${p.parentName} (${p.parentPhone})`} />
             </div>
           </Card>
         </div>

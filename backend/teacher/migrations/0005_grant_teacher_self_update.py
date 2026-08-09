@@ -10,9 +10,9 @@ def backfill_role_grants(apps, schema_editor):
     course/migrations/0004_seed_permissions.py.
     """
 
-    from foundation.models import Organization
     from foundation.services import provision_default_roles
 
+    Organization = apps.get_model("foundation", "Organization")
     for org in Organization.objects.all():
         provision_default_roles(org)
 

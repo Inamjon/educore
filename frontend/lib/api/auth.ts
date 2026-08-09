@@ -7,6 +7,10 @@ export interface AuthUser {
   organizationId: string;
   status: string;
   role: string | null;
+  /** The user's saved language preference (foundation.User.language) — see
+   * app/(auth)/login/page.tsx's use of this to seed the locale cookie on a
+   * device that hasn't picked one yet. */
+  language: string;
 }
 
 interface LoginResponseUser {
@@ -16,6 +20,7 @@ interface LoginResponseUser {
   organization_id: string;
   status: string;
   role: string | null;
+  language: string;
 }
 
 function toAuthUser(u: LoginResponseUser): AuthUser {
@@ -26,6 +31,7 @@ function toAuthUser(u: LoginResponseUser): AuthUser {
     organizationId: u.organization_id,
     status: u.status,
     role: u.role,
+    language: u.language,
   };
 }
 

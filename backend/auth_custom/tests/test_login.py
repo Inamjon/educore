@@ -71,6 +71,9 @@ def test_login_with_correct_credentials_returns_tokens(user):
     body = response.json()
     assert body["success"] is True
     assert "access_token" in response.cookies and "refresh_token" in response.cookies
+    # Frontend seeds its locale cookie from this on a device that hasn't
+    # picked a language yet — see lib/api/auth.ts's login().
+    assert body["data"]["user"]["language"] == "uz"
     assert response.cookies["access_token"]["httponly"]
     assert "access" not in body["data"] and "refresh" not in body["data"]
 

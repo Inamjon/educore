@@ -2,24 +2,18 @@
 
 import { useState } from 'react';
 import { Info, CheckCircle2, AlertTriangle, XCircle, Bell } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { useNotificationsQuery, useMarkNotificationReadMutation } from '@/lib/queries/notifications';
 import type { NotificationType } from '@/lib/api/notifications';
 import { cn } from '@/lib/utils';
+import { formatLocalizedDate } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type NotificationCategory = 'all' | 'class' | 'homework' | 'exam' | 'message' | 'admin';
-
-const FILTER_TABS: { id: NotificationCategory; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'homework', label: 'Homework' },
-  { id: 'exam', label: 'Exams' },
-  { id: 'class', label: 'Classes' },
-  { id: 'message', label: 'Messages' },
-  { id: 'admin', label: 'Admin' },
-];
 
 const TYPE_CONFIG: Record<NotificationType, { bg: string; iconBg: string; iconColor: string; Icon: React.ElementType }> = {
   info: { bg: 'bg-blue-50', iconBg: 'bg-blue-100', iconColor: 'text-blue-600', Icon: Info },
@@ -28,7 +22,8 @@ const TYPE_CONFIG: Record<NotificationType, { bg: string; iconBg: string; iconCo
   error: { bg: 'bg-red-50', iconBg: 'bg-red-100', iconColor: 'text-red-600', Icon: XCircle },
 };
 
-function formatTime(isoString: string): string {
+// t is StudentNotifications's useTranslations return value.
+function formatTime(isoString: string, locale: Locale, t: ReturnType<typeof useTranslations<'StudentNotifications'>>): string {
   const date = new Date(isoString);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -36,14 +31,27 @@ function formatTime(isoString: string): string {
   const diffHr = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHr / 24);
 
-  if (diffMin < 1) return 'Just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHr < 24) return `${diffHr}h ago`;
-  if (diffDay < 7) return `${diffDay}d ago`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (diffMin < 1) return t('justNow');
+  if (diffMin < 60) return t('minutesAgo', { count: diffMin });
+  if (diffHr < 24) return t('hoursAgo', { count: diffHr });
+  if (diffDay < 7) return t('daysAgo', { count: diffDay });
+  return formatLocalizedDate(date, locale, { month: 'short', day: 'numeric' });
 }
 
 export default function StudentNotificationsPage() {
+  const t = useTranslations('StudentNotifications');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
+  const FILTER_TABS: { id: NotificationCategory; label: string }[] = [
+    { id: 'all', label: t('tabAll') },
+    { id: 'homework', label: t('tabHomework') },
+    { id: 'exam', label: t('tabExams') },
+    { id: 'class', label: t('tabClasses') },
+    { id: 'message', label: t('tabMessages') },
+    { id: 'admin', label: t('tabAdmin') },
+  ];
+
   const [activeTab, setActiveTab] = useState<NotificationCategory>('all');
   const { data: notifications = [] } = useNotificationsQuery();
   const markReadMutation = useMarkNotificationReadMutation();
@@ -62,11 +70,11 @@ export default function StudentNotificationsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Notifications"
-        subtitle={unreadCount > 0 ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'All caught up!'}
+        title={t('pageTitle')}
+        subtitle={unreadCount > 0 ? t('unreadSubtitle', { count: unreadCount }) : t('allCaughtUpSubtitle')}
         actions={
           <Button variant="ghost" onClick={markAllRead} disabled={unreadCount === 0}>
-            Mark All Read
+            {t('markAllRead')}
           </Button>
         }
       />
@@ -124,7 +132,7 @@ export default function StudentNotificationsPage() {
                     {notification.title}
                   </p>
                   <p className="text-sm text-slate-500 mt-0.5 leading-snug">{notification.message}</p>
-                  <p className="text-xs text-slate-400 mt-1.5">{formatTime(notification.created_at)}</p>
+                  <p className="text-xs text-slate-400 mt-1.5">{formatTime(notification.created_at, locale, t)}</p>
                 </div>
 
                 <div className="flex-shrink-0 flex items-start pt-1">
@@ -137,8 +145,8 @@ export default function StudentNotificationsPage() {
       ) : (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
           <Bell className="h-12 w-12 mb-3 opacity-30" />
-          <p className="text-sm font-medium">No notifications here</p>
-          <p className="text-xs mt-1">Check back later for updates</p>
+          <p className="text-sm font-medium">{t('noNotificationsHere')}</p>
+          <p className="text-xs mt-1">{t('checkBackLater')}</p>
         </div>
       )}
     </div>

@@ -14,9 +14,9 @@ def backfill_student_finance_view(apps, schema_editor):
     links. Idempotent (get_or_create throughout), safe to re-run.
     """
 
-    from foundation.models import Organization
     from foundation.services import provision_default_roles
 
+    Organization = apps.get_model("foundation", "Organization")
     for org in Organization.objects.all():
         provision_default_roles(org)
 
