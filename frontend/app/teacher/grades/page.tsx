@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Download, TrendingUp, TrendingDown, Minus, GraduationCap, Trophy, AlertTriangle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
@@ -33,21 +34,20 @@ function getLetterBase(letter: string): 'A' | 'B' | 'C' | 'D' | 'F' {
   return 'F';
 }
 
-// ─── Grade Distribution Bar ───────────────────────────────────────────────────
-
-const DIST_CONFIG: { key: 'A' | 'B' | 'C' | 'D' | 'F'; label: string; color: string; bg: string }[] = [
-  { key: 'A', label: 'A (90–100)', color: 'bg-emerald-500', bg: 'bg-emerald-50 text-emerald-700' },
-  { key: 'B', label: 'B (80–89)', color: 'bg-indigo-500', bg: 'bg-indigo-50 text-indigo-700' },
-  { key: 'C', label: 'C (70–79)', color: 'bg-amber-500', bg: 'bg-amber-50 text-amber-700' },
-  { key: 'D', label: 'D (60–69)', color: 'bg-orange-500', bg: 'bg-orange-50 text-orange-700' },
-  { key: 'F', label: 'F (below 60)', color: 'bg-red-500', bg: 'bg-red-50 text-red-700' },
-];
-
 // ─── Page Component ───────────────────────────────────────────────────────────
 
 export default function GradesPage() {
+  const t = useTranslations('TeacherGrades');
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState('');
+
+  const DIST_CONFIG: { key: 'A' | 'B' | 'C' | 'D' | 'F'; label: string; color: string; bg: string }[] = [
+    { key: 'A', label: t('distLabelA'), color: 'bg-emerald-500', bg: 'bg-emerald-50 text-emerald-700' },
+    { key: 'B', label: t('distLabelB'), color: 'bg-indigo-500', bg: 'bg-indigo-50 text-indigo-700' },
+    { key: 'C', label: t('distLabelC'), color: 'bg-amber-500', bg: 'bg-amber-50 text-amber-700' },
+    { key: 'D', label: t('distLabelD'), color: 'bg-orange-500', bg: 'bg-orange-50 text-orange-700' },
+    { key: 'F', label: t('distLabelF'), color: 'bg-red-500', bg: 'bg-red-50 text-red-700' },
+  ];
 
   // Filter grades
   const filtered = useMemo(() => {
@@ -85,7 +85,7 @@ export default function GradesPage() {
   const columns: Column<GradeRow>[] = [
     {
       key: 'studentName',
-      label: 'Student',
+      label: t('colStudent'),
       render: (_v, row) => (
         <div className="flex items-center gap-3">
           <Avatar name={row.studentName} size="sm" />
@@ -95,43 +95,43 @@ export default function GradesPage() {
     },
     {
       key: 'groupName',
-      label: 'Group',
+      label: t('colGroup'),
       render: (_v, row) => (
         <Badge label={row.groupName} variant="secondary" />
       ),
     },
     {
       key: 'assignmentScore',
-      label: 'Assignment',
+      label: t('colAssignment'),
       render: (_v, row) => <span>{row.assignmentScore}</span>,
     },
     {
       key: 'examScore',
-      label: 'Exam',
+      label: t('colExam'),
       render: (_v, row) => <span>{row.examScore}</span>,
     },
     {
       key: 'participation',
-      label: 'Participation',
+      label: t('colParticipation'),
       render: (_v, row) => <span>{row.participation}</span>,
     },
     {
       key: 'finalGrade',
-      label: 'Final Grade',
+      label: t('colFinalGrade'),
       render: (_v, row) => (
         <span className="font-bold text-slate-900">{row.finalGrade}</span>
       ),
     },
     {
       key: 'letterGrade',
-      label: 'Letter Grade',
+      label: t('colLetterGrade'),
       render: (_v, row) => (
         <Badge label={row.letterGrade} variant={getLetterVariant(row.letterGrade)} />
       ),
     },
     {
       key: 'trend',
-      label: 'Trend',
+      label: t('colTrend'),
       render: (_v, row) => {
         if (row.trend === 'up') return <TrendingUp className="h-4 w-4 text-emerald-500" />;
         if (row.trend === 'down') return <TrendingDown className="h-4 w-4 text-red-500" />;
@@ -144,25 +144,25 @@ export default function GradesPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="Grades"
-        subtitle="Track and manage student performance across all groups"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <>
             <SearchInput
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search students..."
+              placeholder={t('searchPlaceholder')}
             />
             <Select
               value={groupFilter}
               onChange={(e) => setGroupFilter(e.target.value)}
               options={groupOptions}
-              placeholder="All Groups"
+              placeholder={t('allGroupsPlaceholder')}
               className="w-40"
             />
             <Button variant="outline" size="md">
               <Download className="h-4 w-4" />
-              Export
+              {t('exportButton')}
             </Button>
           </>
         }
@@ -171,19 +171,19 @@ export default function GradesPage() {
       {/* Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          label="Class Average"
+          label={t('statClassAverage')}
           value={`${classAvg}%`}
           icon={<GraduationCap className="h-5 w-5 text-indigo-600" />}
           iconBg="bg-indigo-50"
         />
         <StatCard
-          label="Top Score"
+          label={t('statTopScore')}
           value={`${topScore}%`}
           icon={<Trophy className="h-5 w-5 text-amber-600" />}
           iconBg="bg-amber-50"
         />
         <StatCard
-          label="Students Below 60%"
+          label={t('statStudentsBelow60')}
           value={belowSixty}
           icon={<AlertTriangle className="h-5 w-5 text-red-500" />}
           iconBg="bg-red-50"
@@ -191,17 +191,17 @@ export default function GradesPage() {
       </div>
 
       {/* Grade Table */}
-      <Card title="Grade Overview" subtitle={`${filtered.length} students`}>
+      <Card title={t('gradeOverviewTitle')} subtitle={t('studentsCountSubtitle', { count: filtered.length })}>
         <DataTable<GradeRow>
           columns={columns}
           data={filtered}
           keyField="id"
-          emptyMessage="No grades found"
+          emptyMessage={t('noGradesFound')}
         />
       </Card>
 
       {/* Grade Distribution */}
-      <Card title="Grade Distribution" subtitle="All students across all groups">
+      <Card title={t('gradeDistributionTitle')} subtitle={t('allStudentsAllGroupsSubtitle')}>
         <div className="space-y-4">
           {DIST_CONFIG.map(({ key, label, color, bg }) => {
             const count = distCount[key];

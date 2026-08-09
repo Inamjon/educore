@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,10 @@ import { useAuthStore } from "@/lib/store/auth-store";
 import { useMyTeacherProfileQuery } from "@/lib/queries/teachers";
 import { useGroupsQuery } from "@/lib/queries/groups";
 import { useCreateLessonMutation } from "@/lib/queries/schedule";
+// lessonSchema's own validation messages are shared with the still-
+// untranslated Admin portal's identical "New Lesson" dialog, so they stay
+// hardcoded English for now — same documented trade-off as lib/utils.ts's
+// formatDate/formatCurrency (see app/student/payments/page.tsx's comment).
 import { lessonSchema, type LessonFormValues } from "@/lib/schemas/lesson-schema";
 import { ApiError } from "@/lib/api/client";
 
@@ -27,11 +32,12 @@ interface LessonFormDialogProps {
 }
 
 export function LessonFormDialog({ open, onOpenChange }: LessonFormDialogProps) {
+  const t = useTranslations("TeacherSchedule");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New Lesson</DialogTitle>
+          <DialogTitle>{t("formTitle")}</DialogTitle>
         </DialogHeader>
         {open && <LessonFormFields onOpenChange={onOpenChange} />}
       </DialogContent>
@@ -40,6 +46,8 @@ export function LessonFormDialog({ open, onOpenChange }: LessonFormDialogProps) 
 }
 
 function LessonFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => void }) {
+  const t = useTranslations("TeacherSchedule");
+  const tc = useTranslations("Common");
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const { data: myProfile } = useMyTeacherProfileQuery();
   // Own groups only — LessonViewSet._check_owns_group rejects the create
@@ -94,7 +102,7 @@ function LessonFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => v
         room: result.data.room,
         topic: result.data.topic,
       });
-      toast.success("Lesson scheduled");
+      toast.success(t("lessonScheduledToast"));
       onOpenChange(false);
     } catch (err) {
       if (err instanceof ApiError && err.fieldErrors) {
@@ -105,9 +113,9 @@ function LessonFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => v
           mapped[field] = messages[0];
         }
         setErrors(mapped);
-        toast.error("Please fix the highlighted fields.");
+        toast.error(t("fixHighlightedFieldsToast"));
       } else {
-        toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+        toast.error(err instanceof ApiError ? err.message : tc("somethingWentWrong"));
       }
     } finally {
       setSubmitting(false);
@@ -119,7 +127,7 @@ function LessonFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => v
       <DialogBody>
         <div className="grid grid-cols-2 gap-3">
           <Select
-            placeholder="Select group"
+            placeholder={t("selectGroupPlaceholder")}
             options={(groups ?? []).map((g) => ({ value: g.id, label: g.name }))}
             value={values.group}
             onChange={(e) => handleGroupChange(e.target.value)}
@@ -135,25 +143,25 @@ function LessonFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => v
           />
           <Input
             type="time"
-            placeholder="Start time"
+            placeholder={t("startTimePlaceholder")}
             value={values.startTime}
             onChange={(e) => setField("startTime", e.target.value)}
             error={errors.startTime}
           />
           <Input
             type="time"
-            placeholder="End time"
+            placeholder={t("endTimePlaceholder")}
             value={values.endTime}
             onChange={(e) => setField("endTime", e.target.value)}
             error={errors.endTime}
           />
           <Input
-            placeholder="Room (optional)"
+            placeholder={t("roomPlaceholder")}
             value={values.room}
             onChange={(e) => setField("room", e.target.value)}
           />
           <Input
-            placeholder="Topic (optional)"
+            placeholder={t("topicPlaceholder")}
             value={values.topic}
             onChange={(e) => setField("topic", e.target.value)}
           />
@@ -161,10 +169,10 @@ function LessonFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => v
       </DialogBody>
       <DialogFooter>
         <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-          Cancel
+          {tc("cancel")}
         </Button>
         <Button onClick={handleSubmit} loading={submitting}>
-          Schedule
+          {t("scheduleButton")}
         </Button>
       </DialogFooter>
     </>

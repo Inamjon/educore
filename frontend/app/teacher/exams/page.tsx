@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,8 @@ import { StatCard } from '@/components/ui/stat-card';
 import { TEACHER_GROUPS, TEACHER_STUDENTS } from '@/lib/teacher-data';
 import { useTeacherExamsStore, type Exam, type NewExam } from '@/lib/store/teacher-exams-store';
 import { toast } from '@/lib/store/toast-store';
+import { formatLocalizedDate } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 import {
   Plus,
   Calendar,
@@ -36,8 +39,8 @@ const GROUP_COLORS: Record<string, string> = {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+function formatDate(dateStr: string, locale: Locale) {
+  return formatLocalizedDate(new Date(dateStr), locale, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function scoreBarColor(avg: number, max: number) {
@@ -77,6 +80,7 @@ interface ResultsPanelProps {
 }
 
 function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
+  const t = useTranslations('TeacherExams');
   const savedResults = useTeacherExamsStore((s) => s.examResults[exam.id]);
   const saveResults = useTeacherExamsStore((s) => s.saveResults);
   const students = TEACHER_STUDENTS.filter((s) => s.groupId === exam.groupId);
@@ -102,7 +106,7 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
       if (!isNaN(n) && n > 0) numericResults[studentId] = n;
     });
     saveResults(exam.id, numericResults);
-    toast.success('Results saved successfully');
+    toast.success(t('resultsSavedToast'));
   }
 
   return (
@@ -114,13 +118,13 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
           </button>
           <div>
             <h3 className="font-semibold text-slate-900">{exam.title}</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Enter Results</p>
+            <p className="text-xs text-slate-400 mt-0.5">{t('enterResultsSubtitle')}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           {scores.length > 0 && (
             <div className="text-right">
-              <p className="text-xs text-slate-400">Current Average</p>
+              <p className="text-xs text-slate-400">{t('currentAverageLabel')}</p>
               <p className="text-lg font-bold text-indigo-600">
                 {avg}<span className="text-sm font-normal text-slate-400">/{exam.maxScore}</span>
               </p>
@@ -136,15 +140,15 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
         <table className="w-full min-w-[480px]">
           <thead>
             <tr className="border-b border-slate-100">
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">Student</th>
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">Score</th>
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">Grade</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">{t('colStudent')}</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">{t('colScore')}</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">{t('colGrade')}</th>
             </tr>
           </thead>
           <tbody>
             {students.length === 0 && (
               <tr>
-                <td colSpan={3} className="text-center text-slate-400 text-sm py-12">No students in this group.</td>
+                <td colSpan={3} className="text-center text-slate-400 text-sm py-12">{t('noStudentsInGroup')}</td>
               </tr>
             )}
             {students.map((student) => {
@@ -191,9 +195,9 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
       </div>
 
       <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
-        <span className="text-xs text-slate-400">{scores.length}/{students.length} students scored</span>
+        <span className="text-xs text-slate-400">{t('studentsScored', { scored: scores.length, total: students.length })}</span>
         <Button variant="primary" onClick={handleSave}>
-          Save Results
+          {t('saveResultsButton')}
         </Button>
       </div>
     </Card>
@@ -211,6 +215,9 @@ function UpcomingExamCard({
   onEdit: (exam: Exam) => void;
   onCancel: (id: string) => void;
 }) {
+  const t = useTranslations('TeacherExams');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const colorClass = GROUP_COLORS[exam.groupId] ?? 'bg-slate-100 text-slate-700';
 
   return (
@@ -221,28 +228,28 @@ function UpcomingExamCard({
       </div>
 
       <div className="flex items-center gap-4 text-xs text-slate-500">
-        <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5 text-slate-400" />{formatDate(exam.date)}</span>
+        <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5 text-slate-400" />{formatDate(exam.date, locale)}</span>
         <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-slate-400" />{exam.startTime}</span>
       </div>
 
       <div className="flex items-center gap-4 text-xs text-slate-500">
         <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-slate-400" />{exam.room}</span>
-        <span className="flex items-center gap-1.5"><Timer className="h-3.5 w-3.5 text-slate-400" />{exam.duration} min</span>
+        <span className="flex items-center gap-1.5"><Timer className="h-3.5 w-3.5 text-slate-400" />{t('durationMinutes', { count: exam.duration })}</span>
       </div>
 
       <div className="flex items-center gap-1.5 text-xs text-slate-500">
         <Users className="h-3.5 w-3.5 text-slate-400" />
-        <span>{exam.totalStudents} students</span>
+        <span>{t('totalStudents', { count: exam.totalStudents })}</span>
         <span className="text-slate-300 mx-1">·</span>
-        <span>{exam.questions} questions</span>
+        <span>{t('questionsCount', { count: exam.questions })}</span>
         <span className="text-slate-300 mx-1">·</span>
-        <span>Max {exam.maxScore} pts</span>
+        <span>{t('maxPtsLabel', { points: exam.maxScore })}</span>
       </div>
 
       <div className="flex items-center gap-2 pt-1">
         <Button variant="outline" size="sm" onClick={() => onEdit(exam)}>
           <Edit2 className="h-3.5 w-3.5" />
-          Edit
+          {t('editButton')}
         </Button>
         <Button
           variant="ghost"
@@ -251,7 +258,7 @@ function UpcomingExamCard({
           onClick={() => onCancel(exam.id)}
         >
           <Trash2 className="h-3.5 w-3.5" />
-          Cancel
+          {t('cancelButton')}
         </Button>
       </div>
     </div>
@@ -269,6 +276,9 @@ function CompletedExamCard({
   onEnterResults: (exam: Exam) => void;
   isActive: boolean;
 }) {
+  const t = useTranslations('TeacherExams');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const avgScore = exam.avgScore ?? 0;
   const colorClass = GROUP_COLORS[exam.groupId] ?? 'bg-slate-100 text-slate-700';
   const barColor = scoreBarColor(avgScore, exam.maxScore);
@@ -284,7 +294,7 @@ function CompletedExamCard({
 
       <div className="flex items-center gap-1.5 text-xs text-slate-500">
         <Calendar className="h-3.5 w-3.5 text-slate-400" />
-        {formatDate(exam.date)}
+        {formatDate(exam.date, locale)}
       </div>
 
       {hasResults ? (
@@ -299,15 +309,15 @@ function CompletedExamCard({
           </div>
         </>
       ) : (
-        <p className="text-xs text-slate-400 italic">Results not yet entered</p>
+        <p className="text-xs text-slate-400 italic">{t('resultsNotYetEntered')}</p>
       )}
 
       <div className="pt-1">
         <Button variant={isActive ? 'secondary' : 'outline'} size="sm" onClick={() => onEnterResults(exam)} className="w-full">
           {hasResults ? (
-            <><BarChart3 className="h-3.5 w-3.5" />{isActive ? 'Close Results' : 'View Results'}</>
+            <><BarChart3 className="h-3.5 w-3.5" />{isActive ? t('closeResultsButton') : t('viewResultsButton')}</>
           ) : (
-            <><ClipboardCheck className="h-3.5 w-3.5" />{isActive ? 'Close Panel' : 'Enter Results'}</>
+            <><ClipboardCheck className="h-3.5 w-3.5" />{isActive ? t('closePanelButton') : t('enterResultsButton')}</>
           )}
         </Button>
       </div>
@@ -318,6 +328,7 @@ function CompletedExamCard({
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ExamsPage() {
+  const t = useTranslations('TeacherExams');
   const exams = useTeacherExamsStore((s) => s.exams);
   const addExam = useTeacherExamsStore((s) => s.addExam);
   const updateExam = useTeacherExamsStore((s) => s.updateExam);
@@ -360,7 +371,7 @@ export default function ExamsPage() {
         room: form.room,
         maxScore: Number(form.maxScore) || 100,
       });
-      toast.success('Exam updated');
+      toast.success(t('examUpdatedToast'));
     } else {
       const newExam: NewExam = {
         title: form.title,
@@ -375,7 +386,7 @@ export default function ExamsPage() {
         questions: 0,
       };
       addExam(newExam);
-      toast.success('Exam scheduled');
+      toast.success(t('examScheduledToast'));
     }
     setShowCreateForm(false);
     setEditingId(null);
@@ -398,7 +409,7 @@ export default function ExamsPage() {
 
   function handleCancelExam(id: string) {
     cancelExam(id);
-    toast.success('Exam cancelled');
+    toast.success(t('examCancelledToast'));
   }
 
   function handleEnterResults(exam: Exam) {
@@ -408,8 +419,8 @@ export default function ExamsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Exams"
-        subtitle="Schedule and manage student exams"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <Button
             variant="primary"
@@ -421,52 +432,52 @@ export default function ExamsPage() {
             }}
           >
             <Plus className="h-4 w-4" />
-            Create Exam
+            {t('createExamButton')}
           </Button>
         }
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Upcoming Exams" value={upcomingCount} icon={<Calendar className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
-        <StatCard label="Completed Exams" value={completedCount} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
-        <StatCard label="Average Score" value={avgScoreAcrossCompleted > 0 ? `${avgScoreAcrossCompleted}%` : '—'} icon={<BarChart3 className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
+        <StatCard label={t('statUpcomingExams')} value={upcomingCount} icon={<Calendar className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label={t('statCompletedExams')} value={completedCount} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label={t('statAverageScore')} value={avgScoreAcrossCompleted > 0 ? `${avgScoreAcrossCompleted}%` : '—'} icon={<BarChart3 className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
       </div>
 
       {showCreateForm && (
-        <Card title={editingId ? 'Edit Exam' : 'Schedule New Exam'}>
+        <Card title={editingId ? t('editExamTitle') : t('scheduleNewExamTitle')}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Exam Title</label>
-              <Input placeholder="e.g. Algebra A1 Mid-Term Exam" value={form.title} onChange={(e) => handleFormChange('title', e.target.value)} />
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">{t('fieldExamTitle')}</label>
+              <Input placeholder={t('titlePlaceholder')} value={form.title} onChange={(e) => handleFormChange('title', e.target.value)} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Group</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">{t('fieldGroup')}</label>
               <Select
                 value={form.groupId}
                 onChange={(e) => handleFormChange('groupId', e.target.value)}
-                placeholder="Select a group"
+                placeholder={t('selectGroupPlaceholder')}
                 className="w-full"
                 options={TEACHER_GROUPS.map((g) => ({ value: g.id, label: g.name }))}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Date</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">{t('fieldDate')}</label>
               <Input type="date" value={form.date} onChange={(e) => handleFormChange('date', e.target.value)} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Start Time</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">{t('fieldStartTime')}</label>
               <Input type="time" value={form.startTime} onChange={(e) => handleFormChange('startTime', e.target.value)} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Duration (minutes)</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">{t('fieldDuration')}</label>
               <Input type="number" min={15} placeholder="90" value={form.duration} onChange={(e) => handleFormChange('duration', e.target.value)} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Room</label>
-              <Input placeholder="e.g. Exam Hall A" value={form.room} onChange={(e) => handleFormChange('room', e.target.value)} />
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">{t('fieldRoom')}</label>
+              <Input placeholder={t('roomPlaceholder')} value={form.room} onChange={(e) => handleFormChange('room', e.target.value)} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Max Score</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">{t('fieldMaxScore')}</label>
               <Input type="number" min={1} placeholder="100" value={form.maxScore} onChange={(e) => handleFormChange('maxScore', e.target.value)} />
             </div>
           </div>
@@ -480,11 +491,11 @@ export default function ExamsPage() {
                 setForm(EMPTY_FORM);
               }}
             >
-              Cancel
+              {t('cancelButton')}
             </Button>
             <Button variant="primary" onClick={handleSubmitForm} disabled={!form.title || !form.groupId || !form.date}>
               <Calendar className="h-4 w-4" />
-              {editingId ? 'Save Changes' : 'Schedule Exam'}
+              {editingId ? t('saveChangesButton') : t('scheduleExamButton')}
             </Button>
           </div>
         </Card>
@@ -493,12 +504,12 @@ export default function ExamsPage() {
       <section>
         <h2 className="text-base font-semibold text-slate-900 mb-4 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block" />
-          Upcoming Exams
+          {t('upcomingExamsSection')}
           <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{upcomingCount}</span>
         </h2>
 
         {upcomingExams.length === 0 ? (
-          <Card><div className="text-center py-10 text-slate-400 text-sm">No upcoming exams scheduled.</div></Card>
+          <Card><div className="text-center py-10 text-slate-400 text-sm">{t('noUpcomingExamsScheduled')}</div></Card>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {upcomingExams.map((exam) => (
@@ -511,12 +522,12 @@ export default function ExamsPage() {
       <section>
         <h2 className="text-base font-semibold text-slate-900 mb-4 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-          Completed Exams
+          {t('completedExamsSection')}
           <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{completedCount}</span>
         </h2>
 
         {completedExams.length === 0 ? (
-          <Card><div className="text-center py-10 text-slate-400 text-sm">No completed exams yet.</div></Card>
+          <Card><div className="text-center py-10 text-slate-400 text-sm">{t('noCompletedExamsYet')}</div></Card>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {completedExams.map((exam) => (

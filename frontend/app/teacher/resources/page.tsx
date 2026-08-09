@@ -12,6 +12,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,8 @@ import { TEACHER_GROUPS } from '@/lib/teacher-data';
 import { useTeacherResourcesStore, type TeacherResource } from '@/lib/store/teacher-resources-store';
 import { toast } from '@/lib/store/toast-store';
 import { cn } from '@/lib/utils';
+import { formatLocalizedDate } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE } from '@/i18n/locales';
 
 type ResourceType = 'pdf' | 'video' | 'document' | 'image' | 'link';
 type Resource = TeacherResource;
@@ -36,26 +39,6 @@ const TYPE_CONFIG: Record<
   link: { bg: 'bg-amber-50', iconColor: 'text-amber-500', Icon: Link2 },
 };
 
-const SUBJECT_OPTIONS = [
-  { value: '', label: 'All Subjects' },
-  { value: 'Algebra', label: 'Algebra' },
-  { value: 'Calculus', label: 'Calculus' },
-  { value: 'Mathematics', label: 'Mathematics' },
-];
-
-const FILE_TYPE_OPTIONS = [
-  { value: 'pdf', label: 'PDF' },
-  { value: 'video', label: 'Video' },
-  { value: 'document', label: 'Document' },
-  { value: 'image', label: 'Image' },
-  { value: 'link', label: 'Link' },
-];
-
-const GROUP_OPTIONS = [
-  { value: '', label: 'All Groups' },
-  ...TEACHER_GROUPS.map((g) => ({ value: g.id, label: g.name })),
-];
-
 function ResourceCard({
   resource,
   onShare,
@@ -65,6 +48,9 @@ function ResourceCard({
   onShare: (id: string, shared: boolean) => void;
   onDelete: (id: string) => void;
 }) {
+  const t = useTranslations('TeacherResources');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const config = TYPE_CONFIG[resource.type];
   const Icon = config.Icon;
 
@@ -78,7 +64,7 @@ function ResourceCard({
           </div>
           <div className="flex flex-col items-end gap-1.5">
             {resource.shared && (
-              <Badge label="Shared" variant="success" />
+              <Badge label={t('sharedBadge')} variant="success" />
             )}
           </div>
         </div>
@@ -98,11 +84,11 @@ function ResourceCard({
         <div className="flex items-center gap-3 text-xs text-slate-400">
           <span>{resource.size}</span>
           <span className="h-1 w-1 rounded-full bg-slate-300" />
-          <span>{new Date(resource.uploadedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+          <span>{formatLocalizedDate(new Date(resource.uploadedAt), locale, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
         </div>
 
         <div className="text-xs text-slate-500">
-          <span className="font-medium text-slate-700">{resource.downloads}</span> downloads
+          <span className="font-medium text-slate-700">{resource.downloads}</span> {t('downloadsLabel')}
         </div>
       </div>
 
@@ -114,7 +100,7 @@ function ResourceCard({
           className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
         >
           <Download className="h-3.5 w-3.5" />
-          Download
+          {t('downloadButton')}
         </a>
         <Button
           variant="ghost"
@@ -123,7 +109,7 @@ function ResourceCard({
           onClick={() => onShare(resource.id, !resource.shared)}
         >
           <Share2 className="h-3.5 w-3.5" />
-          {resource.shared ? 'Unshare' : 'Share'}
+          {resource.shared ? t('unshareButton') : t('shareButton')}
         </Button>
         <Button
           variant="ghost"
@@ -132,7 +118,7 @@ function ResourceCard({
           onClick={() => onDelete(resource.id)}
         >
           <Trash2 className="h-3.5 w-3.5" />
-          Delete
+          {t('deleteButton')}
         </Button>
       </div>
     </div>
@@ -140,6 +126,29 @@ function ResourceCard({
 }
 
 export default function ResourcesPage() {
+  const t = useTranslations('TeacherResources');
+  const tc = useTranslations('Common');
+
+  const SUBJECT_OPTIONS = [
+    { value: '', label: t('allSubjectsOption') },
+    { value: 'Algebra', label: 'Algebra' },
+    { value: 'Calculus', label: 'Calculus' },
+    { value: 'Mathematics', label: 'Mathematics' },
+  ];
+
+  const FILE_TYPE_OPTIONS = [
+    { value: 'pdf', label: t('fileTypePdf') },
+    { value: 'video', label: t('fileTypeVideo') },
+    { value: 'document', label: t('fileTypeDocument') },
+    { value: 'image', label: t('fileTypeImage') },
+    { value: 'link', label: t('fileTypeLink') },
+  ];
+
+  const GROUP_OPTIONS = [
+    { value: '', label: t('allGroupsOption') },
+    ...TEACHER_GROUPS.map((g) => ({ value: g.id, label: g.name })),
+  ];
+
   const resourceItems = useTeacherResourcesStore((s) => s.items);
   const resources = resourceItems.filter((r) => !r.deletedAt);
   const addResource = useTeacherResourcesStore((s) => s.add);
@@ -180,7 +189,7 @@ export default function ResourcesPage() {
       downloads: 0,
       shared: uploadShared,
     });
-    toast.success('Resource uploaded');
+    toast.success(t('resourceUploadedToast'));
     setUploadTitle('');
     setUploadSubject('');
     setUploadGroup('');
@@ -191,25 +200,25 @@ export default function ResourcesPage() {
 
   function handleShare(id: string, shared: boolean) {
     updateResource(id, { shared });
-    toast.success(shared ? 'Resource shared with students' : 'Resource unshared');
+    toast.success(shared ? t('resourceSharedToast') : t('resourceUnsharedToast'));
   }
 
   function handleDelete(id: string) {
     removeResource(id);
-    toast.success('Resource deleted');
+    toast.success(t('resourceDeletedToast'));
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Resources"
-        subtitle="Manage and share learning materials with your students"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <>
             <SearchInput
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search resources..."
+              placeholder={t('searchPlaceholder')}
             />
             <Select
               value={subjectFilter}
@@ -218,7 +227,7 @@ export default function ResourcesPage() {
             />
             <Button onClick={() => setShowUploadForm(!showUploadForm)}>
               <Upload className="h-4 w-4" />
-              Upload File
+              {t('uploadFileButton')}
             </Button>
           </>
         }
@@ -229,7 +238,7 @@ export default function ResourcesPage() {
         <Card>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-slate-900">Upload New Resource</h3>
+              <h3 className="text-base font-semibold text-slate-900">{t('uploadNewResourceTitle')}</h3>
               <button
                 onClick={() => setShowUploadForm(false)}
                 className="text-slate-400 hover:text-slate-600 transition-colors"
@@ -240,23 +249,23 @@ export default function ResourcesPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1.5">Title</label>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">{t('fieldTitle')}</label>
                 <Input
-                  placeholder="Resource title..."
+                  placeholder={t('titlePlaceholder')}
                   value={uploadTitle}
                   onChange={(e) => setUploadTitle(e.target.value)}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1.5">Subject</label>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">{t('fieldSubject')}</label>
                 <Input
-                  placeholder="e.g. Algebra, Calculus..."
+                  placeholder={t('subjectPlaceholder')}
                   value={uploadSubject}
                   onChange={(e) => setUploadSubject(e.target.value)}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1.5">Group (optional)</label>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">{t('fieldGroupOptional')}</label>
                 <Select
                   value={uploadGroup}
                   onChange={(e) => setUploadGroup(e.target.value)}
@@ -265,7 +274,7 @@ export default function ResourcesPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1.5">File Type</label>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">{t('fieldFileType')}</label>
                 <Select
                   value={uploadType}
                   onChange={(e) => setUploadType(e.target.value as ResourceType)}
@@ -293,16 +302,16 @@ export default function ResourcesPage() {
                   )}
                 />
               </button>
-              <span className="text-sm text-slate-700">Share with students</span>
+              <span className="text-sm text-slate-700">{t('shareWithStudentsLabel')}</span>
             </div>
 
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="outline" onClick={() => setShowUploadForm(false)}>
-                Cancel
+                {tc('cancel')}
               </Button>
               <Button onClick={handleUpload} disabled={!uploadTitle.trim() || !uploadSubject.trim()}>
                 <Upload className="h-4 w-4" />
-                Upload
+                {t('uploadButton')}
               </Button>
             </div>
           </div>
@@ -319,8 +328,8 @@ export default function ResourcesPage() {
       ) : (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
           <FileText className="h-12 w-12 mb-3 opacity-30" />
-          <p className="text-sm font-medium">No resources found</p>
-          <p className="text-xs mt-1">Try adjusting your search or filters</p>
+          <p className="text-sm font-medium">{t('noResourcesFound')}</p>
+          <p className="text-xs mt-1">{t('tryAdjustingFilters')}</p>
         </div>
       )}
     </div>

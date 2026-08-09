@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Clock, MapPin, Plus } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,8 @@ import { useLessonsQuery } from '@/lib/queries/schedule';
 import type { Lesson } from '@/lib/api/schedule';
 import { LessonDetailDialog } from './_components/lesson-detail-dialog';
 import { LessonFormDialog } from './_components/lesson-form-dialog';
+import { formatLocalizedDate, INTL_DATE_LOCALES } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -20,8 +23,6 @@ const HOURS: string[] = Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, i)
   const h = HOUR_START + i;
   return `${String(h).padStart(2, '0')}:00`;
 });
-
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -54,18 +55,22 @@ function buildWeek(monday: Date): string[] {
   });
 }
 
-function formatDayHeader(iso: string, idx: number): string {
+function weekdayShort(iso: string, locale: Locale): string {
   const d = new Date(iso + 'T00:00:00');
-  const month = d.toLocaleDateString('en-US', { month: 'short' });
-  return `${DAY_LABELS[idx]} ${month} ${d.getDate()}`;
+  return formatLocalizedDate(d, locale, { weekday: 'short' });
 }
 
-function formatWeekRange(week: string[]): string {
+function formatDayHeader(iso: string, locale: Locale): string {
+  const d = new Date(iso + 'T00:00:00');
+  return formatLocalizedDate(d, locale, { month: 'short', day: 'numeric' });
+}
+
+function formatWeekRange(week: string[], locale: Locale): string {
   const start = new Date(week[0] + 'T00:00:00');
   const end = new Date(week[6] + 'T00:00:00');
-  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
-  return `${start.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', {
-    ...opts,
+  return `${formatLocalizedDate(start, locale, { month: 'short', day: 'numeric' })} – ${formatLocalizedDate(end, locale, {
+    month: 'short',
+    day: 'numeric',
     year: 'numeric',
   })}`;
 }
@@ -82,22 +87,26 @@ function getLessonStyle(startTime: string, endTime: string): { top: string; heig
   };
 }
 
-function formatTime(time: string): string {
-  const [h, m] = time.split(':');
-  const hNum = parseInt(h);
-  const ampm = hNum >= 12 ? 'PM' : 'AM';
-  const h12 = hNum % 12 || 12;
-  return `${h12}:${m} ${ampm}`;
-}
-
-function formatDateBadge(iso: string): string {
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+function formatTime(time: string, locale: Locale): string {
+  const [h, m] = time.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toLocaleTimeString(INTL_DATE_LOCALES[locale], { hour: 'numeric', minute: '2-digit', hour12: locale === 'en' });
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function TeacherSchedulePage() {
+  const t = useTranslations('TeacherSchedule');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
+  const STATUS_LABELS: Record<Lesson['status'], string> = {
+    scheduled: t('statusScheduled'),
+    completed: t('statusCompleted'),
+    cancelled: t('statusCancelled'),
+  };
+
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const todayIso = useMemo(() => toLocalIso(new Date()), []);
   const [weekOffset, setWeekOffset] = useState(0); // 0 = current week
@@ -111,7 +120,7 @@ export default function TeacherSchedulePage() {
   }, [weekOffset]);
 
   const weekDates = useMemo(() => buildWeek(currentMonday), [currentMonday]);
-  const weekRange = useMemo(() => formatWeekRange(weekDates), [weekDates]);
+  const weekRange = useMemo(() => formatWeekRange(weekDates, locale), [weekDates, locale]);
 
   const { data: weekLessons = [] } = useLessonsQuery({
     organizationId: organizationId ?? '',
@@ -145,14 +154,14 @@ export default function TeacherSchedulePage() {
     return 'info' as const;
   };
 
-  const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const todayLabel = formatLocalizedDate(new Date(), locale, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
   return (
     <div className="space-y-6">
       {/* ── Page Header ─────────────────────────────────────────────── */}
       <PageHeader
-        title="Schedule"
-        subtitle={`Week of ${weekRange}`}
+        title={t('pageTitle')}
+        subtitle={t('weekOfSubtitle', { range: weekRange })}
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -167,7 +176,7 @@ export default function TeacherSchedulePage() {
               size="sm"
               onClick={() => setWeekOffset(0)}
             >
-              Today
+              {t('todayButton')}
             </Button>
             <Button
               variant="outline"
@@ -178,7 +187,7 @@ export default function TeacherSchedulePage() {
             </Button>
             <Button size="sm" onClick={() => setFormOpen(true)}>
               <Plus className="h-4 w-4" />
-              New Lesson
+              {t('newLessonButton')}
             </Button>
           </div>
         }
@@ -192,7 +201,7 @@ export default function TeacherSchedulePage() {
           style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}
         >
           <div className="border-r border-slate-100 p-3" />
-          {weekDates.map((date, idx) => {
+          {weekDates.map((date) => {
             const isToday = date === todayIso;
             return (
               <div
@@ -206,14 +215,14 @@ export default function TeacherSchedulePage() {
                     isToday ? 'text-indigo-600' : 'text-slate-400'
                   }`}
                 >
-                  {DAY_LABELS[idx]}
+                  {weekdayShort(date, locale)}
                 </p>
                 <p
                   className={`text-sm font-bold mt-0.5 ${
                     isToday ? 'text-indigo-700' : 'text-slate-800'
                   }`}
                 >
-                  {formatDayHeader(date, idx).split(' ').slice(1).join(' ')}
+                  {formatDayHeader(date, locale)}
                 </p>
               </div>
             );
@@ -242,7 +251,7 @@ export default function TeacherSchedulePage() {
             </div>
 
             {/* Day columns */}
-            {weekDates.map((date, idx) => {
+            {weekDates.map((date) => {
               const dayLessons = weekLessons.filter((l) => l.date === date);
               const isToday = date === todayIso;
 
@@ -316,14 +325,12 @@ export default function TeacherSchedulePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Today's Timetable */}
         <Card
-          title="Today's Timetable"
-          subtitle={`${todayLabel} · ${todayLessons.length} lesson${
-            todayLessons.length !== 1 ? 's' : ''
-          }`}
+          title={t('todaysTimetableTitle')}
+          subtitle={t('todaysTimetableSubtitle', { date: todayLabel, count: todayLessons.length })}
         >
           {todayLessons.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-6">
-              No lessons scheduled for today.
+              {t('noLessonsToday')}
             </p>
           ) : (
             <ol className="space-y-3">
@@ -348,7 +355,7 @@ export default function TeacherSchedulePage() {
                         {lesson.group_name}
                       </span>
                       <Badge
-                        label={lesson.status.charAt(0).toUpperCase() + lesson.status.slice(1)}
+                        label={STATUS_LABELS[lesson.status]}
                         variant={statusVariant(lesson.status)}
                       />
                     </div>
@@ -356,7 +363,7 @@ export default function TeacherSchedulePage() {
                     <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {formatTime(lesson.start_time)} – {formatTime(lesson.end_time)}
+                        {formatTime(lesson.start_time, locale)} – {formatTime(lesson.end_time, locale)}
                       </span>
                       <span className="flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
@@ -372,12 +379,12 @@ export default function TeacherSchedulePage() {
 
         {/* Upcoming Lessons */}
         <Card
-          title="Upcoming Lessons"
-          subtitle="Next 5 scheduled lessons"
+          title={t('upcomingLessonsTitle')}
+          subtitle={t('next5LessonsSubtitle')}
         >
           {upcomingLessons.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-6">
-              No upcoming lessons found.
+              {t('noUpcomingLessonsFound')}
             </p>
           ) : (
             <div className="space-y-3">
@@ -404,7 +411,7 @@ export default function TeacherSchedulePage() {
                       className="text-[10px] font-semibold uppercase leading-none"
                       style={{ color: lesson.course_color || '#6366f1' }}
                     >
-                      {new Date(lesson.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })}
+                      {formatLocalizedDate(new Date(lesson.date + 'T00:00:00'), locale, { month: 'short' })}
                     </p>
                     <p
                       className="text-base font-bold leading-tight"
@@ -435,9 +442,9 @@ export default function TeacherSchedulePage() {
                   {/* Day-of-week label */}
                   <div className="text-right flex-shrink-0">
                     <p className="text-xs font-medium text-slate-600">
-                      {new Date(lesson.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
+                      {weekdayShort(lesson.date, locale)}
                     </p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{formatDateBadge(lesson.date)}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{formatDayHeader(lesson.date, locale)}</p>
                   </div>
                 </div>
               ))}

@@ -1,9 +1,10 @@
 'use client';
 
 import { Fragment, useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
-import { StatusBadge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { SearchInput, Input, Select } from '@/components/ui/input';
@@ -21,6 +22,8 @@ import {
 import type { Assignment, AssignmentStatus } from '@/lib/api/homework';
 import { ApiError } from '@/lib/api/client';
 import { toast } from '@/lib/store/toast-store';
+import { formatLocalizedDate } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 import {
   Plus,
   Calendar,
@@ -45,21 +48,23 @@ interface GradeState {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+function formatDate(dateStr: string, locale: Locale) {
+  return formatLocalizedDate(new Date(dateStr + 'T00:00:00'), locale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
 }
 
-function formatDateTime(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
+function formatDateTime(dateStr: string, locale: Locale) {
+  const d = new Date(dateStr);
+  const datePart = formatLocalizedDate(d, locale, { month: 'short', day: 'numeric' });
+  const timePart = d.toLocaleTimeString(locale === 'en' ? 'en-US' : locale === 'ru' ? 'ru-RU' : 'uz-Latn-UZ', {
     hour: '2-digit',
     minute: '2-digit',
+    hour12: locale === 'en',
   });
+  return `${datePart}, ${timePart}`;
 }
 
 const GROUP_COLORS = [
@@ -105,11 +110,24 @@ interface SubmissionsPanelProps {
 }
 
 function SubmissionsPanel({ assignment, organizationId, onClose }: SubmissionsPanelProps) {
+  const t = useTranslations('TeacherAssignments');
+  const tc = useTranslations('Common');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const { data: submissions = [] } = useSubmissionsQuery({ organizationId, assignment: assignment.id });
   const { data: members = [] } = useGroupMembersQuery(assignment.group);
   const gradeMutation = useGradeSubmissionMutation();
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [grades, setGrades] = useState<GradeState>({});
+
+  // Local status → label map, deliberately not the shared <StatusBadge> —
+  // see the same note on app/student/attendance/page.tsx.
+  const STATUS_CONFIG: Record<SubmissionStatus | 'pending', { label: string; variant: 'success' | 'warning' | 'danger' }> = {
+    graded: { label: t('statusGraded'), variant: 'success' },
+    late: { label: t('statusLate'), variant: 'danger' },
+    submitted: { label: t('statusSubmitted'), variant: 'warning' },
+    pending: { label: t('statusPending'), variant: 'warning' },
+  };
 
   function statusOf(sub: (typeof submissions)[number]): SubmissionStatus {
     if (sub.score !== null) return 'graded';
@@ -125,10 +143,10 @@ function SubmissionsPanel({ assignment, organizationId, onClose }: SubmissionsPa
   const pendingStudents = members.filter((m) => m.status === 'active' && !submittedStudentIds.has(m.student_profile));
 
   const tabs: { key: FilterTab; label: string; count: number }[] = [
-    { key: 'all', label: 'All', count: submissions.length + pendingStudents.length },
-    { key: 'submitted', label: 'Submitted', count: submissions.filter((s) => statusOf(s) === 'submitted').length },
-    { key: 'pending', label: 'Pending', count: pendingStudents.length },
-    { key: 'late', label: 'Late', count: submissions.filter((s) => statusOf(s) === 'late').length },
+    { key: 'all', label: t('tabAll'), count: submissions.length + pendingStudents.length },
+    { key: 'submitted', label: t('tabSubmitted'), count: submissions.filter((s) => statusOf(s) === 'submitted').length },
+    { key: 'pending', label: t('tabPending'), count: pendingStudents.length },
+    { key: 'late', label: t('tabLate'), count: submissions.filter((s) => statusOf(s) === 'late').length },
   ];
 
   const filtered =
@@ -152,7 +170,7 @@ function SubmissionsPanel({ assignment, organizationId, onClose }: SubmissionsPa
       return g && g.score !== '' && !isNaN(Number(g.score));
     });
     if (toSave.length === 0) {
-      toast.error('Enter a score for at least one student first.');
+      toast.error(t('enterScoreFirstToast'));
       return;
     }
     try {
@@ -162,9 +180,9 @@ function SubmissionsPanel({ assignment, organizationId, onClose }: SubmissionsPa
           return gradeMutation.mutateAsync({ id: sub.id, score: Number(g.score), feedback: g.feedback || undefined });
         })
       );
-      toast.success('Grades saved successfully');
+      toast.success(t('gradesSavedToast'));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      toast.error(err instanceof ApiError ? err.message : tc('somethingWentWrong'));
     }
   }
 
@@ -181,7 +199,7 @@ function SubmissionsPanel({ assignment, organizationId, onClose }: SubmissionsPa
           </button>
           <div>
             <h3 className="font-semibold text-slate-900">{assignment.title}</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Submissions Panel</p>
+            <p className="text-xs text-slate-400 mt-0.5">{t('submissionsPanelSubtitle')}</p>
           </div>
         </div>
         <Button variant="ghost" size="sm" onClick={onClose}>
@@ -218,18 +236,18 @@ function SubmissionsPanel({ assignment, organizationId, onClose }: SubmissionsPa
         <table className="w-full min-w-[640px]">
           <thead>
             <tr className="border-b border-slate-100">
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">Student</th>
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">Submitted</th>
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">Score</th>
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">Status</th>
-              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">Feedback</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">{t('colStudent')}</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">{t('colSubmitted')}</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">{t('colScore')}</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">{t('colStatus')}</th>
+              <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">{t('colFeedback')}</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (activeTab !== 'all' && activeTab !== 'pending' ? true : pendingStudents.length === 0) && submissions.length === 0 && (
               <tr>
                 <td colSpan={5} className="text-center text-slate-400 text-sm py-12">
-                  No submissions yet.
+                  {t('noSubmissionsYet')}
                 </td>
               </tr>
             )}
@@ -242,7 +260,7 @@ function SubmissionsPanel({ assignment, organizationId, onClose }: SubmissionsPa
                       <span className="text-sm font-medium text-slate-800">{sub.student_name}</span>
                     </div>
                   </td>
-                  <td className="py-3.5 px-4 text-sm text-slate-500">{formatDateTime(sub.submitted_at)}</td>
+                  <td className="py-3.5 px-4 text-sm text-slate-500">{formatDateTime(sub.submitted_at, locale)}</td>
                   <td className="py-3.5 px-4">
                     <div className="flex items-center gap-1.5">
                       <input
@@ -257,14 +275,14 @@ function SubmissionsPanel({ assignment, organizationId, onClose }: SubmissionsPa
                     </div>
                   </td>
                   <td className="py-3.5 px-4">
-                    <StatusBadge status={statusOf(sub)} />
+                    <Badge label={STATUS_CONFIG[statusOf(sub)].label} variant={STATUS_CONFIG[statusOf(sub)].variant} dot />
                   </td>
                   <td className="py-3.5 px-4">
                     <button
                       onClick={() => toggleFeedback(sub.id)}
                       className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
                     >
-                      {gradeFor(sub.id).feedbackOpen ? 'Hide' : sub.feedback ? 'Edit Feedback' : 'Add Feedback'}
+                      {gradeFor(sub.id).feedbackOpen ? t('hideFeedback') : sub.feedback ? t('editFeedback') : t('addFeedback')}
                     </button>
                   </td>
                 </tr>
@@ -274,7 +292,7 @@ function SubmissionsPanel({ assignment, organizationId, onClose }: SubmissionsPa
                       <textarea
                         value={gradeFor(sub.id).feedback || sub.feedback || ''}
                         onChange={(e) => handleFeedback(sub.id, e.target.value)}
-                        placeholder="Add feedback for this student..."
+                        placeholder={t('feedbackPlaceholder')}
                         className="rounded-xl border border-slate-200 w-full p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         rows={2}
                       />
@@ -295,7 +313,7 @@ function SubmissionsPanel({ assignment, organizationId, onClose }: SubmissionsPa
                   <td className="py-3.5 px-4 text-sm text-slate-400">—</td>
                   <td className="py-3.5 px-4 text-sm text-slate-400">—</td>
                   <td className="py-3.5 px-4">
-                    <StatusBadge status="pending" />
+                    <Badge label={STATUS_CONFIG.pending.label} variant={STATUS_CONFIG.pending.variant} dot />
                   </td>
                   <td className="py-3.5 px-4 text-sm text-slate-400">—</td>
                 </tr>
@@ -307,7 +325,7 @@ function SubmissionsPanel({ assignment, organizationId, onClose }: SubmissionsPa
       {/* Save Button */}
       <div className="flex items-center justify-end mt-6 pt-4 border-t border-slate-100">
         <Button variant="primary" onClick={handleSave} loading={gradeMutation.isPending}>
-          Save Grades
+          {t('saveGradesButton')}
         </Button>
       </div>
     </Card>
@@ -323,9 +341,19 @@ interface AssignmentCardProps {
 }
 
 function AssignmentCard({ assignment, onViewSubmissions, onEdit }: AssignmentCardProps) {
+  const t = useTranslations('TeacherAssignments');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const total = assignment.total_students;
   const submittedPct = total > 0 ? (assignment.submitted_count / total) * 100 : 0;
   const pending = Math.max(total - assignment.submitted_count, 0);
+
+  // Local status → label map, deliberately not the shared <StatusBadge> —
+  // see the same note on app/student/attendance/page.tsx.
+  const ASSIGNMENT_STATUS_CONFIG: Record<AssignmentStatus, { label: string; variant: 'success' | 'secondary' }> = {
+    active: { label: t('statusActive'), variant: 'success' },
+    closed: { label: t('statusClosed'), variant: 'secondary' },
+  };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col gap-3">
@@ -335,13 +363,13 @@ function AssignmentCard({ assignment, onViewSubmissions, onEdit }: AssignmentCar
           <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${groupColor(assignment.group)}`}>
             {assignment.group_name}
           </span>
-          <StatusBadge status={assignment.status} />
+          <Badge label={ASSIGNMENT_STATUS_CONFIG[assignment.status].label} variant={ASSIGNMENT_STATUS_CONFIG[assignment.status].variant} />
         </div>
       </div>
 
       <div className="flex items-center gap-1.5 text-xs text-slate-500">
         <Calendar className="h-3.5 w-3.5 text-slate-400" />
-        <span>Due {formatDate(assignment.due_date)}</span>
+        <span>{t('dueLabel', { date: formatDate(assignment.due_date, locale) })}</span>
       </div>
 
       {assignment.description && <p className="text-xs text-slate-500 line-clamp-2">{assignment.description}</p>}
@@ -349,21 +377,21 @@ function AssignmentCard({ assignment, onViewSubmissions, onEdit }: AssignmentCar
       <div className="flex items-center gap-2 flex-wrap">
         <span className="inline-flex items-center gap-1 text-xs font-medium bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full">
           <CheckCircle2 className="h-3 w-3" />
-          {assignment.submitted_count} Submitted
+          {t('submittedBadge', { count: assignment.submitted_count })}
         </span>
         <span className="inline-flex items-center gap-1 text-xs font-medium bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full">
           <Clock className="h-3 w-3" />
-          {pending} Pending
+          {t('pendingBadge', { count: pending })}
         </span>
         <span className="inline-flex items-center gap-1 text-xs font-medium bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full">
           <CheckCircle2 className="h-3 w-3" />
-          {assignment.graded_count} Graded
+          {t('gradedBadge', { count: assignment.graded_count })}
         </span>
       </div>
 
       <div>
         <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
-          <span>Submissions</span>
+          <span>{t('submissionsLabel')}</span>
           <span>{assignment.submitted_count}/{total}</span>
         </div>
         <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -374,11 +402,11 @@ function AssignmentCard({ assignment, onViewSubmissions, onEdit }: AssignmentCar
       <div className="flex items-center gap-2 pt-1">
         <Button variant="ghost" size="sm" onClick={() => onViewSubmissions(assignment)}>
           <FileText className="h-3.5 w-3.5" />
-          View Submissions
+          {t('viewSubmissionsButton')}
         </Button>
         <Button variant="ghost" size="sm" onClick={() => onEdit(assignment)}>
           <Edit2 className="h-3.5 w-3.5" />
-          Edit
+          {t('editButton')}
         </Button>
       </div>
     </div>
@@ -388,6 +416,8 @@ function AssignmentCard({ assignment, onViewSubmissions, onEdit }: AssignmentCar
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AssignmentsPage() {
+  const t = useTranslations('TeacherAssignments');
+  const tc = useTranslations('Common');
   const organizationId = useAuthStore((s) => s.user?.organizationId) ?? '';
   const { data: myProfile } = useMyTeacherProfileQuery();
   const { data: groups = [] } = useGroupsQuery({ organizationId, teacher: myProfile?.id });
@@ -431,7 +461,7 @@ export default function AssignmentsPage() {
             status: form.status,
           },
         });
-        toast.success('Assignment updated');
+        toast.success(t('assignmentUpdatedToast'));
       } else {
         await createMutation.mutateAsync({
           organizationId,
@@ -441,13 +471,13 @@ export default function AssignmentsPage() {
           dueDate: form.dueDate,
           maxScore: Number(form.maxScore) || 100,
         });
-        toast.success('Assignment created');
+        toast.success(t('assignmentCreatedToast'));
       }
       setShowCreateForm(false);
       setEditingId(null);
       setForm(EMPTY_FORM);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      toast.error(err instanceof ApiError ? err.message : tc('somethingWentWrong'));
     } finally {
       setSaving(false);
     }
@@ -474,11 +504,11 @@ export default function AssignmentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Assignments"
-        subtitle="Manage and grade student assignments"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <>
-            <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search assignments..." />
+            <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('searchPlaceholder')} />
             <Button
               variant="primary"
               onClick={() => {
@@ -489,36 +519,36 @@ export default function AssignmentsPage() {
               }}
             >
               <Plus className="h-4 w-4" />
-              Create Assignment
+              {t('createAssignmentButton')}
             </Button>
           </>
         }
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Total Assignments" value={totalAssignments} icon={<ClipboardList className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
-        <StatCard label="Pending Submissions" value={pendingSubmissions} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
-        <StatCard label="Graded Submissions" value={gradedSubmissions} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label={t('statTotalAssignments')} value={totalAssignments} icon={<ClipboardList className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label={t('statPendingSubmissions')} value={pendingSubmissions} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
+        <StatCard label={t('statGradedSubmissions')} value={gradedSubmissions} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
       </div>
 
       {showCreateForm && (
-        <Card title={editingId ? 'Edit Assignment' : 'Create New Assignment'}>
+        <Card title={editingId ? t('editAssignmentTitle') : t('createNewAssignmentTitle')}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Assignment Title</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">{t('fieldAssignmentTitle')}</label>
               <Input
-                placeholder="e.g. Polynomial Expressions Worksheet"
+                placeholder={t('titlePlaceholder')}
                 value={form.title}
                 onChange={(e) => handleFormChange('title', e.target.value)}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Group</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">{t('fieldGroup')}</label>
               <Select
                 value={form.groupId}
                 onChange={(e) => handleFormChange('groupId', e.target.value)}
-                placeholder="Select a group"
+                placeholder={t('selectGroupPlaceholder')}
                 className="w-full"
                 disabled={!!editingId}
                 options={groups.map((g) => ({ value: g.id, label: g.name }))}
@@ -526,12 +556,12 @@ export default function AssignmentsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Deadline</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">{t('fieldDeadline')}</label>
               <Input type="date" value={form.dueDate} onChange={(e) => handleFormChange('dueDate', e.target.value)} />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Max Score</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">{t('fieldMaxScore')}</label>
               <Input
                 type="number"
                 min={1}
@@ -543,23 +573,23 @@ export default function AssignmentsPage() {
 
             {editingId && (
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">Status</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">{t('fieldStatus')}</label>
                 <Select
                   value={form.status}
                   onChange={(e) => handleFormChange('status', e.target.value as AssignmentStatus)}
                   className="w-full"
                   options={[
-                    { value: 'active', label: 'Active' },
-                    { value: 'closed', label: 'Closed' },
+                    { value: 'active', label: t('statusActive') },
+                    { value: 'closed', label: t('statusClosed') },
                   ]}
                 />
               </div>
             )}
 
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Description</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">{t('fieldDescription')}</label>
               <textarea
-                placeholder="Describe the assignment tasks and instructions..."
+                placeholder={t('descriptionPlaceholder')}
                 value={form.description}
                 onChange={(e) => handleFormChange('description', e.target.value)}
                 className="rounded-xl border border-slate-200 w-full p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -579,10 +609,10 @@ export default function AssignmentsPage() {
                 }}
                 disabled={saving}
               >
-                Cancel
+                {tc('cancel')}
               </Button>
               <Button variant="primary" onClick={handleSubmitForm} disabled={!form.title || !form.groupId || !form.dueDate} loading={saving}>
-                {editingId ? 'Save Changes' : 'Create'}
+                {editingId ? t('saveChangesButton') : t('createButton')}
               </Button>
             </div>
           </div>
@@ -591,7 +621,7 @@ export default function AssignmentsPage() {
 
       {filtered.length === 0 ? (
         <Card>
-          <div className="text-center py-12 text-slate-400 text-sm">No assignments found.</div>
+          <div className="text-center py-12 text-slate-400 text-sm">{t('noAssignmentsFound')}</div>
         </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

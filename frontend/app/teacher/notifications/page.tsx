@@ -8,22 +8,16 @@ import {
   XCircle,
   Bell,
 } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { useNotificationsQuery, useMarkNotificationReadMutation } from '@/lib/queries/notifications';
 import type { NotificationType } from '@/lib/api/notifications';
 import { cn } from '@/lib/utils';
+import { formatLocalizedDate } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 
 type NotificationCategory = 'all' | 'class' | 'assignment' | 'exam' | 'message' | 'admin';
-
-const FILTER_TABS: { id: NotificationCategory; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'class', label: 'Classes' },
-  { id: 'assignment', label: 'Assignments' },
-  { id: 'exam', label: 'Exams' },
-  { id: 'message', label: 'Messages' },
-  { id: 'admin', label: 'Admin' },
-];
 
 const TYPE_CONFIG: Record<
   NotificationType,
@@ -55,7 +49,8 @@ const TYPE_CONFIG: Record<
   },
 };
 
-function formatTime(isoString: string): string {
+// t is TeacherNotifications's useTranslations return value.
+function formatTime(isoString: string, locale: Locale, t: ReturnType<typeof useTranslations<'TeacherNotifications'>>): string {
   const date = new Date(isoString);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -63,14 +58,27 @@ function formatTime(isoString: string): string {
   const diffHr = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHr / 24);
 
-  if (diffMin < 1) return 'Just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHr < 24) return `${diffHr}h ago`;
-  if (diffDay < 7) return `${diffDay}d ago`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (diffMin < 1) return t('justNow');
+  if (diffMin < 60) return t('minutesAgo', { count: diffMin });
+  if (diffHr < 24) return t('hoursAgo', { count: diffHr });
+  if (diffDay < 7) return t('daysAgo', { count: diffDay });
+  return formatLocalizedDate(date, locale, { month: 'short', day: 'numeric' });
 }
 
 export default function NotificationsPage() {
+  const t = useTranslations('TeacherNotifications');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
+  const FILTER_TABS: { id: NotificationCategory; label: string }[] = [
+    { id: 'all', label: t('tabAll') },
+    { id: 'class', label: t('tabClasses') },
+    { id: 'assignment', label: t('tabAssignments') },
+    { id: 'exam', label: t('tabExams') },
+    { id: 'message', label: t('tabMessages') },
+    { id: 'admin', label: t('tabAdmin') },
+  ];
+
   const [activeTab, setActiveTab] = useState<NotificationCategory>('all');
   const { data: notifications = [] } = useNotificationsQuery();
   const markReadMutation = useMarkNotificationReadMutation();
@@ -92,15 +100,15 @@ export default function NotificationsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Notifications"
+        title={t('pageTitle')}
         subtitle={
           unreadCount > 0
-            ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`
-            : 'All caught up!'
+            ? t('unreadSubtitle', { count: unreadCount })
+            : t('allCaughtUpSubtitle')
         }
         actions={
           <Button variant="ghost" onClick={markAllRead} disabled={unreadCount === 0}>
-            Mark All Read
+            {t('markAllRead')}
           </Button>
         }
       />
@@ -175,7 +183,7 @@ export default function NotificationsPage() {
                     {notification.message}
                   </p>
                   <p className="text-xs text-slate-400 mt-1.5">
-                    {formatTime(notification.created_at)}
+                    {formatTime(notification.created_at, locale, t)}
                   </p>
                 </div>
 
@@ -192,8 +200,8 @@ export default function NotificationsPage() {
       ) : (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
           <Bell className="h-12 w-12 mb-3 opacity-30" />
-          <p className="text-sm font-medium">No notifications here</p>
-          <p className="text-xs mt-1">Check back later for updates</p>
+          <p className="text-sm font-medium">{t('noNotificationsHere')}</p>
+          <p className="text-xs mt-1">{t('checkBackLater')}</p>
         </div>
       )}
     </div>
