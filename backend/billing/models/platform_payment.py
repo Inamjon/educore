@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+from django.core.validators import MinValueValidator
 from django.db import models
 
 from common.db import schema_table
@@ -24,7 +27,10 @@ class PlatformPayment(UUIDPrimaryKeyMixin, TimestampedMixin, SoftDeleteMixin, Or
     platform_invoice = models.ForeignKey(
         "billing.PlatformInvoice", on_delete=models.RESTRICT, db_column="platform_invoice_id", related_name="payments"
     )
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    # MinValueValidator(0.01), not 0 — the DB constraint below is amount__gt
+    # 0 (strictly positive, a $0 "payment" is meaningless), matching
+    # finance.Payment's identical chk_payments_amount precedent.
+    amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
     currency = models.CharField(max_length=3, default="USD")
     method = models.CharField(max_length=20, choices=PLATFORM_PAYMENT_METHOD_CHOICES, default="bank_transfer")
     reference_note = models.CharField(max_length=255, blank=True, null=True)

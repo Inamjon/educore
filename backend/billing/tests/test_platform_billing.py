@@ -11,7 +11,8 @@ finance/tests/test_finance.py's module docstring for why, under
 import uuid
 
 import pytest
-from django.db import transaction as db_transaction
+from django.db import connection, transaction as db_transaction
+from django.test.utils import CaptureQueriesContext
 from rest_framework.test import APIClient
 
 from billing.models import PlatformInvoice, PlatformPayment, SubscriptionPlan
@@ -193,6 +194,112 @@ def test_payment_rejected_when_amount_exceeds_remaining_balance():
     )
 
     assert response.status_code == 400
+
+
+def test_editing_a_payment_recomputes_invoice_status():
+    org = _make_org()
+    plan = _make_plan()
+    invoice = _make_invoice(org, plan, amount="100.00")
+    client = APIClient()
+    _make_super_admin_login(client, org, "+998900810006")
+
+    create = client.post(
+        "/api/v1/billing/platform-payments/",
+        {"platform_invoice": str(invoice.id), "amount": "40.00", "method": "cash"},
+        format="json",
+    )
+    payment_id = create.json()["data"]["id"]
+    invoice.refresh_from_db(using=BYPASS_ALIAS)
+    assert invoice.status == "partially_paid"
+
+    # Editing the payment up to the full amount must flip the invoice to
+    # paid — before the fix, only create()/destroy() ever recomputed status.
+    edit = client.patch(f"/api/v1/billing/platform-payments/{payment_id}/", {"amount": "100.00"}, format="json")
+    assert edit.status_code == 200
+
+    invoice.refresh_from_db(using=BYPASS_ALIAS)
+    assert invoice.status == "paid"
+
+
+def test_editing_a_payment_still_rejects_exceeding_balance():
+    org = _make_org()
+    plan = _make_plan()
+    invoice = _make_invoice(org, plan, amount="100.00")
+    client = APIClient()
+    _make_super_admin_login(client, org, "+998900810007")
+
+    create = client.post(
+        "/api/v1/billing/platform-payments/",
+        {"platform_invoice": str(invoice.id), "amount": "40.00", "method": "cash"},
+        format="json",
+    )
+    payment_id = create.json()["data"]["id"]
+
+    # 150 > the invoice's 100 total, even excluding this payment's own
+    # current 40 contribution — must still be rejected on update.
+    response = client.patch(f"/api/v1/billing/platform-payments/{payment_id}/", {"amount": "150.00"}, format="json")
+
+    assert response.status_code == 400
+
+
+def test_invoice_with_period_end_before_start_is_rejected():
+    org = _make_org()
+    plan = _make_plan()
+    client = APIClient()
+    _make_super_admin_login(client, org, "+998900810008")
+
+    response = client.post(
+        "/api/v1/billing/platform-invoices/",
+        {
+            "organization": str(org.id), "subscription_plan": str(plan.id), "amount": "10.00",
+            "period_start": "2026-09-01", "period_end": "2026-08-01", "due_date": "2026-08-15",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+
+
+def test_invoice_with_negative_amount_is_rejected():
+    org = _make_org()
+    plan = _make_plan()
+    client = APIClient()
+    _make_super_admin_login(client, org, "+998900810009")
+
+    response = client.post(
+        "/api/v1/billing/platform-invoices/",
+        {
+            "organization": str(org.id), "subscription_plan": str(plan.id), "amount": "-10.00",
+            "period_start": "2026-08-01", "period_end": "2026-09-01", "due_date": "2026-08-15",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+
+
+def test_listing_invoices_does_not_double_query_paid_amount():
+    """get_paid_amount() and get_balance() must share one aggregate query
+    per invoice, not run it twice each — see PlatformInvoiceSerializer's
+    _paid_amount_cache."""
+    org = _make_org()
+    plan = _make_plan()
+    _make_invoice(org, plan)
+    _make_invoice(org, plan)
+    client = APIClient()
+    _make_super_admin_login(client, org, "+998900810010")
+
+    with CaptureQueriesContext(connection) as ctx:
+        # Filtered to just this org's 2 fresh invoices — `--reuse-db` means
+        # invoices from other tests in the same run persist (transaction=True
+        # commits for real), so an unfiltered list would double-count them.
+        response = client.get(f"/api/v1/billing/platform-invoices/?organization={org.id}")
+    assert response.status_code == 200
+    assert len(response.json()["data"]["results"]) == 2
+
+    payment_sum_queries = [q for q in ctx.captured_queries if "SUM" in q["sql"].upper() and "platform_payments" in q["sql"]]
+    # One per invoice (2 invoices here), not two per invoice.
+    assert len(payment_sum_queries) == 2, payment_sum_queries
 
 
 def test_deleting_a_payment_recomputes_invoice_status_back_down():

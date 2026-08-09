@@ -1,3 +1,4 @@
+from django.core.validators import MinValueValidator
 from django.db import models
 
 from common.db import schema_table
@@ -34,7 +35,12 @@ class PlatformInvoice(UUIDPrimaryKeyMixin, TimestampedMixin, SoftDeleteMixin, Or
     status = models.CharField(max_length=20, choices=PLATFORM_INVOICE_STATUS_CHOICES, default="pending")
     period_start = models.DateField()
     period_end = models.DateField()
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    # MinValueValidator is the serializer/form-level check (a negative
+    # amount otherwise passes serializer validation and hits the DB's
+    # chk_platform_invoices_amount constraint as a raw 500, same class of
+    # bug the period_start/period_end cross-field check in
+    # PlatformInvoiceSerializer.validate() guards against).
+    amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
     currency = models.CharField(max_length=3, default="USD")
     due_date = models.DateField()
     notes = models.TextField(blank=True, null=True)

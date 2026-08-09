@@ -54,10 +54,26 @@ class PlatformInvoiceSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "invoice_number", "status", "created_at", "updated_at"]
 
     def get_paid_amount(self, obj):
-        return platform_invoice_paid_amount(obj)
+        # Cached on the instance — get_balance() below needs the same
+        # figure and DRF invokes each SerializerMethodField independently,
+        # so without this every invoice row would run the Sum aggregate
+        # query twice.
+        if not hasattr(obj, "_paid_amount_cache"):
+            obj._paid_amount_cache = platform_invoice_paid_amount(obj)
+        return obj._paid_amount_cache
 
     def get_balance(self, obj):
         return obj.amount - self.get_paid_amount(obj)
+
+    def validate(self, attrs):
+        period_start = attrs.get("period_start") or getattr(self.instance, "period_start", None)
+        period_end = attrs.get("period_end") or getattr(self.instance, "period_end", None)
+        if period_start and period_end and period_end <= period_start:
+            # Pre-empts the DB's chk_platform_invoices_period constraint —
+            # without this, an invalid period surfaces as a raw
+            # IntegrityError/500 instead of a normal validation error.
+            raise serializers.ValidationError({"period_end": "Period end must be after period start."})
+        return attrs
 
     def create(self, validated_data):
         validated_data["invoice_number"] = generate_platform_invoice_number(PlatformInvoice)
@@ -83,9 +99,17 @@ class PlatformPaymentSerializer(serializers.ModelSerializer):
         invoice = attrs.get("platform_invoice") or getattr(self.instance, "platform_invoice", None)
         if invoice is not None:
             attrs["organization"] = invoice.organization
-            if not self.instance:
-                remaining = invoice.amount - platform_invoice_paid_amount(invoice)
-                if attrs["amount"] > remaining:
+            amount = attrs.get("amount", getattr(self.instance, "amount", None))
+            if amount is not None:
+                already_paid = platform_invoice_paid_amount(invoice)
+                if self.instance is not None and self.instance.platform_invoice_id == invoice.id:
+                    # Editing an existing payment against the same invoice —
+                    # exclude its own current contribution from "already
+                    # paid" first, or the check would count it twice and
+                    # reject even a same-amount no-op edit.
+                    already_paid -= self.instance.amount
+                remaining = invoice.amount - already_paid
+                if amount > remaining:
                     raise serializers.ValidationError(
                         {"amount": f"Amount exceeds the remaining balance ({remaining} {invoice.currency})."}
                     )

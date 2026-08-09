@@ -18,6 +18,23 @@ BILLING_PERMISSION_MAP = {
     "destroy": ("billing", "delete"),
 }
 
+# Deliberately a *different* module from BILLING_PERMISSION_MAP above —
+# `billing` (SubscriptionPlan) is a public catalog every org can eventually
+# be granted read access to (see SubscriptionPlanViewSet's own docstring);
+# `platform_billing` (PlatformInvoice/PlatformPayment) is EduCore's own
+# sensitive, cross-organization ledger. Sharing one module would mean a
+# future `billing:view` grant for center_admins (so they can see plan
+# pricing) also hands them write access to platform invoices/payments —
+# a real least-privilege violation, not just a naming nicety.
+PLATFORM_BILLING_PERMISSION_MAP = {
+    "list": ("platform_billing", "view"),
+    "retrieve": ("platform_billing", "view"),
+    "create": ("platform_billing", "create"),
+    "update": ("platform_billing", "update"),
+    "partial_update": ("platform_billing", "update"),
+    "destroy": ("platform_billing", "delete"),
+}
+
 
 class SubscriptionPlanViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
     """Platform-wide catalog — no queryset scoping needed (unlike every
@@ -82,7 +99,7 @@ class PlatformInvoiceViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
     filterset_class = PlatformInvoiceFilter
     search_fields = ["invoice_number"]
     entity_type = "platform_invoice"
-    permission_map = BILLING_PERMISSION_MAP
+    permission_map = PLATFORM_BILLING_PERMISSION_MAP
 
     @audited(action="create", entity_type="platform_invoice")
     def create(self, request, *args, **kwargs):
@@ -99,17 +116,32 @@ class PlatformPaymentViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
     permission_classes = [HasModulePermission]
     filterset_class = PlatformPaymentFilter
     entity_type = "platform_payment"
-    permission_map = BILLING_PERMISSION_MAP
+    permission_map = PLATFORM_BILLING_PERMISSION_MAP
 
     def perform_create(self, serializer):
         payment = serializer.save()
         recompute_platform_invoice_status(payment.platform_invoice)
+
+    def perform_update(self, serializer):
+        # An edited amount (or a reassigned platform_invoice) changes what
+        # the parent invoice's status/balance should read — without this,
+        # only create()/destroy() ever recomputed it, so an edit would
+        # silently desync the invoice from its actual payments.
+        previous_invoice = serializer.instance.platform_invoice
+        payment = serializer.save()
+        recompute_platform_invoice_status(payment.platform_invoice)
+        if payment.platform_invoice_id != previous_invoice.id:
+            recompute_platform_invoice_status(previous_invoice)
 
     # CLAUDE.md mandates payment events specifically in the audit trail
     # (common/audit.py's docstring: "auth, payment, role-change, deletion").
     @audited(action="create", entity_type="platform_payment")
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
+
+    @audited(action="update", entity_type="platform_payment")
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
 
     @audited(action="delete", entity_type="platform_payment")
     def destroy(self, request, *args, **kwargs):
