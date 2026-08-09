@@ -1,10 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  createPlatformInvoice,
+  createPlatformPayment,
   createSubscriptionPlan,
+  deletePlatformInvoice,
   deleteSubscriptionPlan,
+  listPlatformInvoices,
+  listPlatformPayments,
   listSubscriptionPlans,
   updateSubscriptionPlan,
+  type ListPlatformInvoicesParams,
+  type ListPlatformPaymentsParams,
   type ListSubscriptionPlansParams,
+  type PlatformInvoiceInput,
+  type PlatformPaymentInput,
   type SubscriptionPlanInput,
 } from "@/lib/api/billing";
 
@@ -45,6 +54,53 @@ export function useDeleteSubscriptionPlanMutation() {
     mutationFn: (id: string) => deleteSubscriptionPlan(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["subscription-plans"] });
+    },
+  });
+}
+
+export function usePlatformInvoicesQuery(params: ListPlatformInvoicesParams = {}) {
+  return useQuery({
+    queryKey: ["platform-invoices", params],
+    queryFn: () => listPlatformInvoices(params),
+  });
+}
+
+export function useCreatePlatformInvoiceMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PlatformInvoiceInput) => createPlatformInvoice(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["platform-invoices"] });
+    },
+  });
+}
+
+export function useDeletePlatformInvoiceMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deletePlatformInvoice(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["platform-invoices"] });
+    },
+  });
+}
+
+export function usePlatformPaymentsQuery(params: ListPlatformPaymentsParams = {}) {
+  return useQuery({
+    queryKey: ["platform-payments", params],
+    queryFn: () => listPlatformPayments(params),
+  });
+}
+
+export function useCreatePlatformPaymentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PlatformPaymentInput) => createPlatformPayment(input),
+    onSuccess: () => {
+      // Recording a payment recomputes the parent invoice's status/balance
+      // server-side — both lists need to reflect that.
+      queryClient.invalidateQueries({ queryKey: ["platform-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["platform-invoices"] });
     },
   });
 }

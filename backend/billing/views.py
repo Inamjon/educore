@@ -1,9 +1,10 @@
 from django.db.models import Max
 from rest_framework import viewsets
 
-from billing.filters import SubscriptionPlanFilter
-from billing.models import SubscriptionPlan
-from billing.serializers import SubscriptionPlanSerializer
+from billing.filters import PlatformInvoiceFilter, PlatformPaymentFilter, SubscriptionPlanFilter
+from billing.models import PlatformInvoice, PlatformPayment, SubscriptionPlan
+from billing.serializers import PlatformInvoiceSerializer, PlatformPaymentSerializer, SubscriptionPlanSerializer
+from billing.services import recompute_platform_invoice_status
 from common.audit import audited
 from common.permissions import HasModulePermission
 from foundation.views import SoftDeleteDestroyMixin
@@ -65,3 +66,60 @@ class SubscriptionPlanViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
     @audited(action="delete", entity_type="subscription_plan")
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
+
+
+class PlatformInvoiceViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
+    """EduCore's bill to an organization — RLS-covered (has `organization`),
+    but no extra Python-level scoping needed: only super_admin ever holds
+    `billing` permissions, and `is_platform_user()`'s RLS bypass already
+    lets that role see every organization's rows, same as every other
+    platform-wide ViewSet in this app (Centers, platform Audit Logs, ...).
+    """
+
+    queryset = PlatformInvoice.objects.all().select_related("organization", "subscription_plan").order_by("-created_at")
+    serializer_class = PlatformInvoiceSerializer
+    permission_classes = [HasModulePermission]
+    filterset_class = PlatformInvoiceFilter
+    search_fields = ["invoice_number"]
+    entity_type = "platform_invoice"
+    permission_map = BILLING_PERMISSION_MAP
+
+    @audited(action="create", entity_type="platform_invoice")
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
+    @audited(action="delete", entity_type="platform_invoice")
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
+
+
+class PlatformPaymentViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
+    queryset = PlatformPayment.objects.all().select_related("organization", "platform_invoice").order_by("-created_at")
+    serializer_class = PlatformPaymentSerializer
+    permission_classes = [HasModulePermission]
+    filterset_class = PlatformPaymentFilter
+    entity_type = "platform_payment"
+    permission_map = BILLING_PERMISSION_MAP
+
+    def perform_create(self, serializer):
+        payment = serializer.save()
+        recompute_platform_invoice_status(payment.platform_invoice)
+
+    # CLAUDE.md mandates payment events specifically in the audit trail
+    # (common/audit.py's docstring: "auth, payment, role-change, deletion").
+    @audited(action="create", entity_type="platform_payment")
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
+    @audited(action="delete", entity_type="platform_payment")
+    def destroy(self, request, *args, **kwargs):
+        # SoftDeleteDestroyMixin.destroy() soft-deletes directly (never
+        # calls perform_destroy()), so the invoice's status is recomputed
+        # here rather than in a perform_destroy() override that would
+        # never run — same gotcha finance.PaymentViewSet.destroy() already
+        # documents.
+        instance = self.get_object()
+        invoice = instance.platform_invoice
+        response = super().destroy(request, *args, **kwargs)
+        recompute_platform_invoice_status(invoice)
+        return response
