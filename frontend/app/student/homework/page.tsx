@@ -4,13 +4,13 @@ import { useMemo, useState } from 'react';
 import {
   Calendar,
   Clock,
-  CheckCircle2,
   ClipboardList,
   AlertCircle,
   GraduationCap,
   Upload,
   MessageSquare,
 } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,8 @@ import { useAssignmentsQuery, useSubmissionsQuery, useCreateSubmissionMutation }
 import type { Assignment, Submission } from '@/lib/api/homework';
 import { ApiError } from '@/lib/api/client';
 import { toast } from '@/lib/store/toast-store';
+import { formatLocalizedDate } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,21 +32,6 @@ type HomeworkStatus = 'pending' | 'submitted' | 'graded' | 'late';
 type FilterTab = 'all' | HomeworkStatus;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const STATUS_CONFIG: Record<HomeworkStatus, { label: string; variant: 'success' | 'info' | 'warning' | 'danger' }> = {
-  pending: { label: 'Pending', variant: 'warning' },
-  submitted: { label: 'Submitted', variant: 'info' },
-  graded: { label: 'Graded', variant: 'success' },
-  late: { label: 'Late', variant: 'danger' },
-};
-
-const FILTER_TABS: { id: FilterTab; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'pending', label: 'Pending' },
-  { id: 'submitted', label: 'Submitted' },
-  { id: 'graded', label: 'Graded' },
-  { id: 'late', label: 'Late' },
-];
 
 const CARD_COLORS = ['#6366f1', '#06b6d4', '#8b5cf6', '#f59e0b', '#10b981', '#ec4899'];
 
@@ -56,8 +43,8 @@ function cardColor(groupId: string): string {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+function formatDate(dateStr: string, locale: Locale) {
+  return formatLocalizedDate(new Date(dateStr + 'T00:00:00'), locale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -84,6 +71,17 @@ function HomeworkCard({
   onSubmit: (assignmentId: string) => void;
   submitting: boolean;
 }) {
+  const t = useTranslations('StudentHomework');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
+  const STATUS_CONFIG: Record<HomeworkStatus, { label: string; variant: 'success' | 'info' | 'warning' | 'danger' }> = {
+    pending: { label: t('statusPending'), variant: 'warning' },
+    submitted: { label: t('statusSubmitted'), variant: 'info' },
+    graded: { label: t('statusGraded'), variant: 'success' },
+    late: { label: t('statusLate'), variant: 'danger' },
+  };
+
   const config = STATUS_CONFIG[status];
   const color = cardColor(assignment.group);
 
@@ -107,9 +105,9 @@ function HomeworkCard({
 
       <div className="flex items-center gap-1.5 text-xs text-slate-500">
         <Calendar className="h-3.5 w-3.5 text-slate-400" />
-        <span>Due {formatDate(assignment.due_date)}</span>
+        <span>{t('dueLabel', { date: formatDate(assignment.due_date, locale) })}</span>
         <span className="text-slate-300 mx-1">·</span>
-        <span>Max {assignment.max_score} pts</span>
+        <span>{t('maxPtsLabel', { points: assignment.max_score })}</span>
       </div>
 
       {assignment.description && <p className="text-xs text-slate-500 line-clamp-2">{assignment.description}</p>}
@@ -131,7 +129,7 @@ function HomeworkCard({
 
       {status === 'submitted' && (
         <p className="text-xs text-blue-600 bg-blue-50 rounded-xl p-3">
-          Submitted, awaiting grading.
+          {t('submittedAwaitingGrading')}
         </p>
       )}
 
@@ -144,7 +142,7 @@ function HomeworkCard({
             loading={submitting}
           >
             <Upload className="h-3.5 w-3.5" />
-            {status === 'late' ? 'Submit Late' : 'Submit Homework'}
+            {status === 'late' ? t('submitLate') : t('submitHomework')}
           </Button>
         </div>
       )}
@@ -155,6 +153,17 @@ function HomeworkCard({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function StudentHomeworkPage() {
+  const t = useTranslations('StudentHomework');
+  const tc = useTranslations('Common');
+
+  const FILTER_TABS: { id: FilterTab; label: string }[] = [
+    { id: 'all', label: t('tabAll') },
+    { id: 'pending', label: t('tabPending') },
+    { id: 'submitted', label: t('tabSubmitted') },
+    { id: 'graded', label: t('tabGraded') },
+    { id: 'late', label: t('tabLate') },
+  ];
+
   const organizationId = useAuthStore((s) => s.user?.organizationId) ?? '';
   const authUserId = useAuthStore((s) => s.user?.id);
   const { data: students = [] } = useStudentsQuery({ organizationId });
@@ -202,9 +211,9 @@ export default function StudentHomeworkPage() {
     setSubmittingId(assignmentId);
     try {
       await createMutation.mutateAsync({ organizationId, assignment: assignmentId });
-      toast.success('Homework submitted');
+      toast.success(t('submitSuccessToast'));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      toast.error(err instanceof ApiError ? err.message : tc('somethingWentWrong'));
     } finally {
       setSubmittingId(null);
     }
@@ -212,24 +221,24 @@ export default function StudentHomeworkPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Homework" subtitle="Track and submit your assignments" />
+      <PageHeader title={t('pageTitle')} subtitle={t('pageSubtitle')} />
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          label="Pending"
+          label={t('statPending')}
           value={pendingCount}
           icon={<ClipboardList className="h-5 w-5 text-amber-600" />}
           iconBg="bg-amber-50"
         />
         <StatCard
-          label="Awaiting Grading"
+          label={t('statAwaitingGrading')}
           value={submittedCount}
           icon={<Clock className="h-5 w-5 text-blue-600" />}
           iconBg="bg-blue-50"
         />
         <StatCard
-          label="Average Score"
+          label={t('statAverageScore')}
           value={avgScore > 0 ? `${avgScore}%` : '—'}
           icon={<GraduationCap className="h-5 w-5 text-emerald-600" />}
           iconBg="bg-emerald-50"
@@ -268,7 +277,7 @@ export default function StudentHomeworkPage() {
         <Card>
           <div className="flex flex-col items-center justify-center py-12 text-slate-400">
             <AlertCircle className="h-10 w-10 mb-3 opacity-30" />
-            <p className="text-sm font-medium">No homework in this category</p>
+            <p className="text-sm font-medium">{t('noHomeworkCategory')}</p>
           </div>
         </Card>
       ) : (

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
 import {
   LayoutDashboard,
   Layers,
@@ -26,69 +27,73 @@ import { cn } from "@/lib/utils";
 import { STUDENT_PROFILE } from "@/lib/student-data";
 import { useNotificationsQuery } from "@/lib/queries/notifications";
 import { useLogout } from "@/lib/hooks/use-logout";
+import { formatLocalizedDate } from "@/i18n/date-locale";
+import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 
 // ─── Nav Config ───────────────────────────────────────────────────────────────
+// Labels are StudentNav translation keys, resolved at render time via t().
 
 const NAV_GROUPS = [
   {
-    label: "Main",
+    groupKey: "navGroupMain",
     items: [
-      { href: "/student", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/student", labelKey: "navDashboard", icon: LayoutDashboard },
     ],
   },
   {
-    label: "Learning",
+    groupKey: "navGroupLearning",
     items: [
-      { href: "/student/groups", label: "My Courses", icon: Layers },
-      { href: "/student/schedule", label: "Schedule", icon: Calendar },
-      { href: "/student/homework", label: "Homework", icon: FileText },
-      { href: "/student/exams", label: "Exams", icon: BookOpen },
+      { href: "/student/groups", labelKey: "navMyCourses", icon: Layers },
+      { href: "/student/schedule", labelKey: "navSchedule", icon: Calendar },
+      { href: "/student/homework", labelKey: "navHomework", icon: FileText },
+      { href: "/student/exams", labelKey: "navExams", icon: BookOpen },
     ],
   },
   {
-    label: "Progress",
+    groupKey: "navGroupProgress",
     items: [
-      { href: "/student/grades", label: "Grades", icon: BarChart2 },
-      { href: "/student/attendance", label: "Attendance", icon: ClipboardCheck },
+      { href: "/student/grades", labelKey: "navGrades", icon: BarChart2 },
+      { href: "/student/attendance", labelKey: "navAttendance", icon: ClipboardCheck },
     ],
   },
   {
-    label: "Billing",
+    groupKey: "navGroupBilling",
     items: [
-      { href: "/student/payments", label: "Payments", icon: CreditCard },
+      { href: "/student/payments", labelKey: "navPayments", icon: CreditCard },
     ],
   },
   {
-    label: "Communication",
+    groupKey: "navGroupCommunication",
     items: [
-      { href: "/student/messages", label: "Messages", icon: MessageSquare },
-      { href: "/student/notifications", label: "Notifications", icon: Bell },
+      { href: "/student/messages", labelKey: "navMessages", icon: MessageSquare },
+      { href: "/student/notifications", labelKey: "navNotifications", icon: Bell },
     ],
   },
   {
-    label: "Account",
+    groupKey: "navGroupAccount",
     items: [
-      { href: "/student/profile", label: "Profile", icon: UserCircle },
-      { href: "/student/settings", label: "Settings", icon: Settings },
+      { href: "/student/profile", labelKey: "navProfile", icon: UserCircle },
+      { href: "/student/settings", labelKey: "navSettings", icon: Settings },
     ],
   },
 ];
 
 // ─── Page title map ───────────────────────────────────────────────────────────
+// Maps pathname to a StudentNav translation key (falls back to portalFallbackTitle).
 
-const PAGE_TITLES: Record<string, string> = {
-  "/student": "Dashboard",
-  "/student/groups": "My Courses",
-  "/student/schedule": "Schedule",
-  "/student/homework": "Homework",
-  "/student/exams": "Exams",
-  "/student/grades": "Grades",
-  "/student/attendance": "Attendance",
-  "/student/payments": "Payments",
-  "/student/messages": "Messages",
-  "/student/notifications": "Notifications",
-  "/student/profile": "Profile",
-  "/student/settings": "Settings",
+const PAGE_TITLE_KEYS: Record<string, string> = {
+  "/student": "navDashboard",
+  "/student/groups": "navMyCourses",
+  "/student/schedule": "navSchedule",
+  "/student/homework": "navHomework",
+  "/student/exams": "navExams",
+  "/student/grades": "navGrades",
+  "/student/attendance": "navAttendance",
+  "/student/payments": "navPayments",
+  "/student/messages": "navMessages",
+  "/student/notifications": "navNotifications",
+  "/student/profile": "navProfile",
+  "/student/settings": "navSettings",
 };
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
@@ -100,6 +105,7 @@ interface SidebarProps {
 
 function StudentSidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const t = useTranslations("StudentNav");
 
   return (
     <aside
@@ -129,7 +135,7 @@ function StudentSidebar({ collapsed, onToggle }: SidebarProps) {
             "ml-auto flex-shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors",
             collapsed && "rotate-180"
           )}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? t("expandSidebar") : t("collapseSidebar")}
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -138,18 +144,19 @@ function StudentSidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
         {NAV_GROUPS.map((group) => (
-          <div key={group.label}>
+          <div key={group.groupKey}>
             {!collapsed && (
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 px-2">
-                {group.label}
+                {t(group.groupKey)}
               </p>
             )}
             <ul className="space-y-0.5">
-              {group.items.map(({ href, label, icon: Icon }) => {
+              {group.items.map(({ href, labelKey, icon: Icon }) => {
                 const isActive =
                   href === "/student"
                     ? pathname === "/student"
                     : pathname.startsWith(href);
+                const label = t(labelKey);
                 return (
                   <li key={href}>
                     <Link
@@ -195,7 +202,10 @@ interface HeaderProps {
 
 function StudentHeader({ sidebarCollapsed }: HeaderProps) {
   const pathname = usePathname();
-  const title = PAGE_TITLES[pathname] ?? "Student Portal";
+  const locale = useLocale();
+  const t = useTranslations("StudentNav");
+  const titleKey = PAGE_TITLE_KEYS[pathname];
+  const title = titleKey ? t(titleKey) : t("portalFallbackTitle");
   const { data: notifications = [] } = useNotificationsQuery();
   const unreadCount = notifications.filter((n) => !n.read).length;
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -228,7 +238,7 @@ function StudentHeader({ sidebarCollapsed }: HeaderProps) {
           {title}
         </h2>
         <p className="text-xs text-slate-400 mt-0.5">
-          {new Date().toLocaleDateString("en-US", {
+          {formatLocalizedDate(new Date(), isLocale(locale) ? locale : DEFAULT_LOCALE, {
             weekday: "long",
             year: "numeric",
             month: "long",
@@ -244,7 +254,7 @@ function StudentHeader({ sidebarCollapsed }: HeaderProps) {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <input
           type="text"
-          placeholder="Quick search..."
+          placeholder={t("quickSearchPlaceholder")}
           className="h-9 w-60 pl-9 pr-4 rounded-xl border border-slate-200 bg-slate-50 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
         />
       </div>
@@ -253,7 +263,7 @@ function StudentHeader({ sidebarCollapsed }: HeaderProps) {
       <Link
         href="/student/notifications"
         className="relative h-9 w-9 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-500 transition-colors"
-        aria-label={`Notifications (${unreadCount} unread)`}
+        aria-label={t("notificationsAriaLabel", { count: unreadCount })}
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
@@ -302,7 +312,7 @@ function StudentHeader({ sidebarCollapsed }: HeaderProps) {
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <UserCircle className="h-4 w-4 text-slate-400" />
-              Profile
+              {t("navProfile")}
             </Link>
             <Link
               href="/student/settings"
@@ -310,7 +320,7 @@ function StudentHeader({ sidebarCollapsed }: HeaderProps) {
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <Settings className="h-4 w-4 text-slate-400" />
-              Settings
+              {t("navSettings")}
             </Link>
             <div className="border-t border-slate-50 mt-1 pt-1">
               <button
@@ -318,7 +328,7 @@ function StudentHeader({ sidebarCollapsed }: HeaderProps) {
                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full"
               >
                 <LogOut className="h-4 w-4" />
-                Sign Out
+                {t("signOut")}
               </button>
             </div>
           </div>

@@ -9,10 +9,13 @@ import {
   CheckCircle2,
   BarChart3,
 } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { STUDENT_EXAMS } from '@/lib/student-data';
+import { formatLocalizedDate } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,21 +23,22 @@ type Exam = (typeof STUDENT_EXAMS)[number];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+function formatDate(dateStr: string, locale: Locale) {
+  return formatLocalizedDate(new Date(dateStr + 'T00:00:00'), locale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
 }
 
-function daysUntil(dateStr: string) {
+// t is StudentExams's useTranslations return value.
+function daysUntil(dateStr: string, t: ReturnType<typeof useTranslations<'StudentExams'>>) {
   const now = new Date('2026-07-04');
   const target = new Date(dateStr + 'T00:00:00');
   const diff = Math.round((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  if (diff <= 0) return 'Today';
-  if (diff === 1) return 'Tomorrow';
-  return `In ${diff} days`;
+  if (diff <= 0) return t('todayRelative');
+  if (diff === 1) return t('tomorrowRelative');
+  return t('inDaysRelative', { count: diff });
 }
 
 function scoreBarColor(pct: number) {
@@ -46,6 +50,10 @@ function scoreBarColor(pct: number) {
 // ─── Upcoming Exam Card ────────────────────────────────────────────────────────
 
 function UpcomingExamCard({ exam }: { exam: Exam & { status: 'upcoming' } }) {
+  const t = useTranslations('StudentExams');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
   return (
     <div
       className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col gap-3"
@@ -64,7 +72,7 @@ function UpcomingExamCard({ exam }: { exam: Exam & { status: 'upcoming' } }) {
       <div className="flex items-center gap-4 text-xs text-slate-500 flex-wrap">
         <span className="flex items-center gap-1.5">
           <Calendar className="h-3.5 w-3.5 text-slate-400" />
-          {formatDate(exam.date)}
+          {formatDate(exam.date, locale)}
         </span>
         <span className="flex items-center gap-1.5">
           <Clock className="h-3.5 w-3.5 text-slate-400" />
@@ -78,16 +86,16 @@ function UpcomingExamCard({ exam }: { exam: Exam & { status: 'upcoming' } }) {
 
       <div className="flex items-center gap-1.5 text-xs text-slate-500">
         <Timer className="h-3.5 w-3.5 text-slate-400" />
-        <span>{exam.duration} min</span>
+        <span>{t('durationMinutes', { count: exam.duration })}</span>
         <span className="text-slate-300 mx-1">·</span>
-        <span>{exam.questions} questions</span>
+        <span>{t('questionsCount', { count: exam.questions })}</span>
         <span className="text-slate-300 mx-1">·</span>
-        <span>Max {exam.maxScore} pts</span>
+        <span>{t('maxPtsLabel', { points: exam.maxScore })}</span>
       </div>
 
       <div className="flex items-center justify-between pt-1">
         <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 rounded-full px-2.5 py-1">
-          {daysUntil(exam.date)}
+          {daysUntil(exam.date, t)}
         </span>
       </div>
     </div>
@@ -97,6 +105,8 @@ function UpcomingExamCard({ exam }: { exam: Exam & { status: 'upcoming' } }) {
 // ─── Completed Exam Card ───────────────────────────────────────────────────────
 
 function CompletedExamCard({ exam }: { exam: Exam & { status: 'completed'; score: number } }) {
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const pct = exam.maxScore > 0 ? (exam.score / exam.maxScore) * 100 : 0;
   const barColor = scoreBarColor(pct);
 
@@ -117,7 +127,7 @@ function CompletedExamCard({ exam }: { exam: Exam & { status: 'completed'; score
 
       <div className="flex items-center gap-1.5 text-xs text-slate-500">
         <Calendar className="h-3.5 w-3.5 text-slate-400" />
-        {formatDate(exam.date)}
+        {formatDate(exam.date, locale)}
       </div>
 
       <div className="flex items-end gap-1">
@@ -136,6 +146,8 @@ function CompletedExamCard({ exam }: { exam: Exam & { status: 'completed'; score
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function StudentExamsPage() {
+  const t = useTranslations('StudentExams');
+
   const upcomingExams = STUDENT_EXAMS.filter((e) => e.status === 'upcoming') as Array<
     Exam & { status: 'upcoming' }
   >;
@@ -152,24 +164,24 @@ export default function StudentExamsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Exams" subtitle="Your upcoming and completed exams" />
+      <PageHeader title={t('pageTitle')} subtitle={t('pageSubtitle')} />
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          label="Upcoming Exams"
+          label={t('statUpcomingExams')}
           value={upcomingExams.length}
           icon={<Calendar className="h-5 w-5 text-indigo-600" />}
           iconBg="bg-indigo-50"
         />
         <StatCard
-          label="Completed Exams"
+          label={t('statCompletedExams')}
           value={completedExams.length}
           icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />}
           iconBg="bg-emerald-50"
         />
         <StatCard
-          label="Average Score"
+          label={t('statAverageScore')}
           value={avgCompletedScore > 0 ? `${avgCompletedScore}%` : '—'}
           icon={<BarChart3 className="h-5 w-5 text-amber-600" />}
           iconBg="bg-amber-50"
@@ -180,7 +192,7 @@ export default function StudentExamsPage() {
       <section>
         <h2 className="text-base font-semibold text-slate-900 mb-4 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block" />
-          Upcoming Exams
+          {t('upcomingExamsSection')}
           <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
             {upcomingExams.length}
           </span>
@@ -188,7 +200,7 @@ export default function StudentExamsPage() {
 
         {upcomingExams.length === 0 ? (
           <Card>
-            <div className="text-center py-10 text-slate-400 text-sm">No upcoming exams scheduled.</div>
+            <div className="text-center py-10 text-slate-400 text-sm">{t('noUpcomingExamsScheduled')}</div>
           </Card>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -203,7 +215,7 @@ export default function StudentExamsPage() {
       <section>
         <h2 className="text-base font-semibold text-slate-900 mb-4 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-          Completed Exams
+          {t('completedExamsSection')}
           <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
             {completedExams.length}
           </span>
@@ -213,7 +225,7 @@ export default function StudentExamsPage() {
           <Card>
             <div className="text-center py-10 text-slate-400 text-sm flex flex-col items-center gap-2">
               <BookOpen className="h-8 w-8 opacity-30" />
-              No completed exams yet.
+              {t('noCompletedExamsYet')}
             </div>
           </Card>
         ) : (

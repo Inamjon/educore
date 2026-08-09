@@ -21,6 +21,7 @@ import {
   Clock,
   MapPin,
 } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card } from "@/components/ui/card";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -37,6 +38,8 @@ import type { Lesson } from "@/lib/api/schedule";
 import { useStudentsQuery } from "@/lib/queries/students";
 import { useStudentGroupMembershipsQuery } from "@/lib/queries/groups";
 import { useAssignmentsQuery, useSubmissionsQuery } from "@/lib/queries/homework";
+import { formatLocalizedDate } from "@/i18n/date-locale";
+import { isLocale, DEFAULT_LOCALE, type Locale } from "@/i18n/locales";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -51,21 +54,22 @@ function toLocalIso(d: Date): string {
 
 const upcomingExams = STUDENT_EXAMS.filter((e) => e.status === "upcoming");
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string, locale: Locale) {
   const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return formatLocalizedDate(d, locale, { month: "short", day: "numeric", year: "numeric" });
 }
 
-function daysUntil(dateStr: string) {
+// t is StudentDashboard's useTranslations return value.
+function daysUntil(dateStr: string, t: ReturnType<typeof useTranslations<"StudentDashboard">>) {
   const now = new Date(TODAY);
   const target = new Date(dateStr + "T00:00:00");
   const diff = Math.round((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  if (diff === 0) return "Today";
-  if (diff === 1) return "Tomorrow";
-  return `In ${diff} days`;
+  if (diff === 0) return t("todayRelative");
+  if (diff === 1) return t("tomorrowRelative");
+  return t("inDaysRelative", { count: diff });
 }
 
-function formatRelativeTime(isoString: string) {
+function formatRelativeTime(isoString: string, t: ReturnType<typeof useTranslations<"StudentDashboard">>) {
   // Real wall-clock "now" — this now also formats real Notification
   // timestamps (see the Recent Activity card below), which aren't anchored
   // to the dashboard's fixed demo date the way STUDENT_* mock data still is.
@@ -73,18 +77,11 @@ function formatRelativeTime(isoString: string) {
   const then = new Date(isoString);
   const diffMs = now.getTime() - then.getTime();
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 60) return t("minutesAgo", { count: diffMin });
   const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  return `${Math.floor(diffH / 24)}d ago`;
+  if (diffH < 24) return t("hoursAgo", { count: diffH });
+  return t("daysAgo", { count: Math.floor(diffH / 24) });
 }
-
-const HOMEWORK_STATUS_CONFIG: Record<string, { label: string; variant: "success" | "info" | "warning" | "danger" }> = {
-  pending: { label: "Pending", variant: "warning" },
-  submitted: { label: "Submitted", variant: "info" },
-  graded: { label: "Graded", variant: "success" },
-  late: { label: "Late", variant: "danger" },
-};
 
 const notifDotColor: Record<string, string> = {
   message: "bg-indigo-500",
@@ -93,41 +90,6 @@ const notifDotColor: Record<string, string> = {
   class: "bg-blue-500",
   admin: "bg-slate-500",
 };
-
-// ─── Quick Action config ───────────────────────────────────────────────────────
-
-const QUICK_ACTIONS = [
-  {
-    label: "View Homework",
-    icon: <FileText className="h-6 w-6 text-indigo-600" />,
-    iconBg: "bg-indigo-50",
-    href: "/student/homework",
-  },
-  {
-    label: "Check Grades",
-    icon: <BarChart2 className="h-6 w-6 text-emerald-600" />,
-    iconBg: "bg-emerald-50",
-    href: "/student/grades",
-  },
-  {
-    label: "View Schedule",
-    icon: <CalendarCheck className="h-6 w-6 text-blue-600" />,
-    iconBg: "bg-blue-50",
-    href: "/student/schedule",
-  },
-  {
-    label: "My Attendance",
-    icon: <ClipboardCheck className="h-6 w-6 text-amber-600" />,
-    iconBg: "bg-amber-50",
-    href: "/student/attendance",
-  },
-  {
-    label: "Messages",
-    icon: <MessageSquare className="h-6 w-6 text-violet-600" />,
-    iconBg: "bg-violet-50",
-    href: "/student/messages",
-  },
-];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -156,6 +118,50 @@ function ScheduleItem({ lesson }: { lesson: Lesson }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function StudentDashboardPage() {
+  const t = useTranslations("StudentDashboard");
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
+  const HOMEWORK_STATUS_CONFIG: Record<string, { label: string; variant: "success" | "info" | "warning" | "danger" }> = {
+    pending: { label: t("statusPending"), variant: "warning" },
+    submitted: { label: t("statusSubmitted"), variant: "info" },
+    graded: { label: t("statusGraded"), variant: "success" },
+    late: { label: t("statusLate"), variant: "danger" },
+  };
+
+  const QUICK_ACTIONS = [
+    {
+      label: t("qaViewHomework"),
+      icon: <FileText className="h-6 w-6 text-indigo-600" />,
+      iconBg: "bg-indigo-50",
+      href: "/student/homework",
+    },
+    {
+      label: t("qaCheckGrades"),
+      icon: <BarChart2 className="h-6 w-6 text-emerald-600" />,
+      iconBg: "bg-emerald-50",
+      href: "/student/grades",
+    },
+    {
+      label: t("qaViewSchedule"),
+      icon: <CalendarCheck className="h-6 w-6 text-blue-600" />,
+      iconBg: "bg-blue-50",
+      href: "/student/schedule",
+    },
+    {
+      label: t("qaMyAttendance"),
+      icon: <ClipboardCheck className="h-6 w-6 text-amber-600" />,
+      iconBg: "bg-amber-50",
+      href: "/student/attendance",
+    },
+    {
+      label: t("qaMessages"),
+      icon: <MessageSquare className="h-6 w-6 text-violet-600" />,
+      iconBg: "bg-violet-50",
+      href: "/student/messages",
+    },
+  ];
+
   const { data: notifications = [] } = useNotificationsQuery();
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const todayIso = toLocalIso(new Date());
@@ -175,7 +181,7 @@ export default function StudentDashboardPage() {
   const allPendingHomework = myAssignments.filter((a) => !submittedAssignmentIds.has(a.id));
   const pendingHomework = allPendingHomework.slice(0, 4);
 
-  const todayLabel = new Date(TODAY + "T00:00:00").toLocaleDateString("en-US", {
+  const todayLabel = formatLocalizedDate(new Date(TODAY + "T00:00:00"), locale, {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -188,18 +194,20 @@ export default function StudentDashboardPage() {
       <div className="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl p-6 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold">Welcome back, {STUDENT_PROFILE.name.split(" ")[0]} 👋</h2>
+            <h2 className="text-2xl font-bold">
+              {t("welcomeBack", { name: STUDENT_PROFILE.name.split(" ")[0] })}
+            </h2>
             <p className="text-indigo-100 text-sm mt-1">{todayLabel}</p>
             <p className="text-white/90 mt-2 text-base font-medium">
-              You have {todayClasses.length} class{todayClasses.length !== 1 ? "es" : ""} today
+              {t("classesTodayLine", { count: todayClasses.length })}
             </p>
           </div>
           <div className="hidden sm:flex flex-col items-end gap-1 text-right">
             <div className="bg-white/20 rounded-xl px-4 py-2 text-sm font-medium backdrop-blur-sm">
-              Avg Grade: {STUDENT_STATS.avgGrade}%
+              {t("avgGradeBadge", { value: STUDENT_STATS.avgGrade })}
             </div>
             <div className="bg-white/20 rounded-xl px-4 py-2 text-sm font-medium backdrop-blur-sm">
-              {STUDENT_STATS.enrolledCourses} courses enrolled
+              {t("coursesEnrolledBadge", { count: STUDENT_STATS.enrolledCourses })}
             </div>
           </div>
         </div>
@@ -208,25 +216,25 @@ export default function StudentDashboardPage() {
       {/* ── Stats Row ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Attendance Rate"
+          label={t("statAttendanceRate")}
           value={`${STUDENT_STATS.attendanceRate}%`}
           icon={<ClipboardCheck className="h-5 w-5 text-indigo-600" />}
           iconBg="bg-indigo-50"
         />
         <StatCard
-          label="Average Grade"
+          label={t("statAverageGrade")}
           value={`${STUDENT_STATS.avgGrade}%`}
           icon={<GraduationCap className="h-5 w-5 text-emerald-600" />}
           iconBg="bg-emerald-50"
         />
         <StatCard
-          label="Pending Homework"
+          label={t("statPendingHomework")}
           value={allPendingHomework.length}
           icon={<ClipboardList className="h-5 w-5 text-amber-600" />}
           iconBg="bg-amber-50"
         />
         <StatCard
-          label="Upcoming Exams"
+          label={t("statUpcomingExams")}
           value={STUDENT_STATS.upcomingExams}
           icon={<BookOpenCheck className="h-5 w-5 text-violet-600" />}
           iconBg="bg-violet-50"
@@ -234,7 +242,7 @@ export default function StudentDashboardPage() {
       </div>
 
       {/* ── Quick Actions ──────────────────────────────────────────────── */}
-      <Card title="Quick Actions">
+      <Card title={t("quickActionsTitle")}>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {QUICK_ACTIONS.map((action) => (
             <a
@@ -255,11 +263,11 @@ export default function StudentDashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Card
-            title="Today's Classes"
-            subtitle={`${todayClasses.length} sessions on ${formatDate(todayIso)}`}
+            title={t("todaysClassesTitle")}
+            subtitle={t("sessionsOn", { count: todayClasses.length, date: formatDate(todayIso, locale) })}
           >
             {todayClasses.length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-8">No classes today</p>
+              <p className="text-sm text-slate-400 text-center py-8">{t("noClassesToday")}</p>
             ) : (
               <div className="space-y-0">
                 {todayClasses.map((lesson) => (
@@ -270,9 +278,9 @@ export default function StudentDashboardPage() {
           </Card>
         </div>
 
-        <Card title="Upcoming Lessons" subtitle="Next 4 sessions">
+        <Card title={t("upcomingLessonsTitle")} subtitle={t("next4Sessions")}>
           {upcomingLessons.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-8">No upcoming lessons</p>
+            <p className="text-sm text-slate-400 text-center py-8">{t("noUpcomingLessons")}</p>
           ) : (
             <div className="space-y-0">
               {upcomingLessons.map((lesson) => (
@@ -286,7 +294,7 @@ export default function StudentDashboardPage() {
       {/* ── Charts + Pending Homework ──────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Grade Trend */}
-        <Card title="Grade Trend" subtitle="Average score over recent months">
+        <Card title={t("gradeTrendTitle")} subtitle={t("gradeTrendSubtitle")}>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={GRADE_TREND_DATA} margin={{ top: 4, right: 12, bottom: 0, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -306,9 +314,9 @@ export default function StudentDashboardPage() {
         </Card>
 
         {/* Pending Homework */}
-        <Card title="Pending Homework" subtitle={`${pendingHomework.length} items need attention`}>
+        <Card title={t("pendingHomeworkTitle")} subtitle={t("itemsNeedAttention", { count: pendingHomework.length })}>
           {pendingHomework.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-8">You&apos;re all caught up!</p>
+            <p className="text-sm text-slate-400 text-center py-8">{t("allCaughtUp")}</p>
           ) : (
             <div className="space-y-3">
               {pendingHomework.map((assignment) => {
@@ -330,7 +338,7 @@ export default function StudentDashboardPage() {
                     </div>
                     <div className="flex items-center gap-1.5 mt-2 text-xs text-slate-400">
                       <Clock className="h-3 w-3" />
-                      Due {formatDate(assignment.due_date)}
+                      {t("dueLabel", { date: formatDate(assignment.due_date, locale) })}
                     </div>
                   </div>
                 );
@@ -343,10 +351,10 @@ export default function StudentDashboardPage() {
       {/* ── Recent Activity + Exam Reminders ──────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <Card title="Recent Activity" subtitle="Latest notifications">
+          <Card title={t("recentActivityTitle")} subtitle={t("latestNotifications")}>
             <div className="space-y-4">
               {notifications.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-6">No recent notifications</p>
+                <p className="text-sm text-slate-400 text-center py-6">{t("noRecentNotifications")}</p>
               )}
               {notifications.slice(0, 5).map((notif) => (
                 <div key={notif.id} className="flex items-start gap-3">
@@ -359,7 +367,7 @@ export default function StudentDashboardPage() {
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-semibold text-slate-800 truncate">{notif.title}</p>
                       <span className="text-xs text-slate-400 flex-shrink-0">
-                        {formatRelativeTime(notif.created_at)}
+                        {formatRelativeTime(notif.created_at, t)}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{notif.message}</p>
@@ -370,10 +378,10 @@ export default function StudentDashboardPage() {
           </Card>
         </div>
 
-        <Card title="Exam Reminders" subtitle={`${upcomingExams.length} upcoming`}>
+        <Card title={t("examRemindersTitle")} subtitle={t("upcomingCountLabel", { count: upcomingExams.length })}>
           <div className="space-y-3">
             {upcomingExams.length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-6">No upcoming exams</p>
+              <p className="text-sm text-slate-400 text-center py-6">{t("noUpcomingExams")}</p>
             ) : (
               upcomingExams.map((exam) => (
                 <div
@@ -390,10 +398,10 @@ export default function StudentDashboardPage() {
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-xs text-slate-400 flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
-                      {formatDate(exam.date)} &middot; {exam.startTime}
+                      {formatDate(exam.date, locale)} &middot; {exam.startTime}
                     </span>
                     <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 rounded-full px-2 py-0.5">
-                      {daysUntil(exam.date)}
+                      {daysUntil(exam.date, t)}
                     </span>
                   </div>
                 </div>

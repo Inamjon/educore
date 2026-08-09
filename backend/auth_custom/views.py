@@ -76,6 +76,9 @@ class LoginView(APIView):
                         "organization_id": str(user.organization_id),
                         "status": user.status,
                         "role": role,
+                        # Seeds the frontend's locale cookie on a device that
+                        # hasn't picked one yet — see lib/api/auth.ts's login().
+                        "language": user.language,
                     },
                 },
             }

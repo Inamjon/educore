@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { DollarSign, AlertCircle, CheckCircle2, CreditCard, FileText } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
 import { DataTable, Column } from "@/components/ui/data-table";
-import { StatusBadge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -21,14 +22,41 @@ import { useInvoicesQuery, usePaymentsQuery, useCreateSelfInvoiceMutation } from
 import { useGatewayAccountsQuery, useInitiateCheckoutMutation } from "@/lib/queries/payment-gateways";
 import { useGroupsQuery, useMyGroupMembershipsQuery } from "@/lib/queries/groups";
 import { toast } from "@/lib/store/toast-store";
+// formatDate/formatCurrency are shared across every portal and still format
+// as fixed en-US (see lib/utils.ts) — localizing them is a follow-up beyond
+// this Student-portal-only i18n pass, since they're called from dozens of
+// non-i18n-aware pages too.
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ApiError } from "@/lib/api/client";
 import type { Invoice } from "@/lib/api/finance";
 import type { Provider } from "@/lib/api/payment-gateways";
 
-const PROVIDER_LABELS: Record<Provider, string> = { payme: "Payme", click: "Click" };
-
 export default function StudentPaymentsPage() {
+  const t = useTranslations("StudentPayments");
+  const tc = useTranslations("Common");
+
+  const PROVIDER_LABELS: Record<Provider, string> = { payme: t("methodPayme"), click: t("methodClick") };
+
+  // Local status → label/variant map, deliberately not the shared
+  // <StatusBadge> — see the same note on app/student/attendance/page.tsx.
+  const INVOICE_STATUS_CONFIG: Record<string, { label: string; variant: "success" | "warning" | "secondary" | "purple" | "danger" }> = {
+    paid: { label: t("statusPaid"), variant: "success" },
+    partially_paid: { label: t("statusPartiallyPaid"), variant: "warning" },
+    draft: { label: t("statusDraft"), variant: "secondary" },
+    refunded: { label: t("statusRefunded"), variant: "purple" },
+    overdue: { label: t("statusOverdue"), variant: "danger" },
+    cancelled: { label: t("statusCancelled"), variant: "secondary" },
+    pending: { label: t("statusPending"), variant: "warning" },
+  };
+
+  const PAYMENT_METHOD_LABELS: Record<string, string> = {
+    cash: t("methodCash"),
+    card: t("methodCard"),
+    bank_transfer: t("methodBankTransfer"),
+    click: t("methodClick"),
+    payme: t("methodPayme"),
+  };
+
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const { data: invoicesData, isLoading } = useInvoicesQuery({ organizationId: organizationId ?? "" });
   const invoices = invoicesData ?? [];
@@ -63,9 +91,9 @@ export default function StudentPaymentsPage() {
   async function handleGenerateInvoice(groupId: string) {
     try {
       await selfInvoiceMutation.mutateAsync(groupId);
-      toast.success("Invoice created — find it below to pay.");
+      toast.success(t("invoiceCreatedToast"));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      toast.error(err instanceof ApiError ? err.message : tc("somethingWentWrong"));
     }
   }
 
@@ -85,7 +113,7 @@ export default function StudentPaymentsPage() {
       });
       window.location.href = result.checkout_url;
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      toast.error(err instanceof ApiError ? err.message : tc("somethingWentWrong"));
       setRedirecting(false);
     }
   }
@@ -93,7 +121,7 @@ export default function StudentPaymentsPage() {
   const COLUMNS: Column<Invoice>[] = [
     {
       key: "invoice_number",
-      label: "Invoice",
+      label: t("colInvoice"),
       render: (_, row) => (
         <div>
           <p className="font-medium text-slate-900">{row.group_name ?? row.invoice_number}</p>
@@ -103,12 +131,12 @@ export default function StudentPaymentsPage() {
     },
     {
       key: "total_amount",
-      label: "Amount",
+      label: t("colAmount"),
       render: (val) => <span className="font-medium text-slate-900">{formatCurrency(Number(val))}</span>,
     },
     {
       key: "balance",
-      label: "Balance",
+      label: t("colBalance"),
       render: (val) => (
         <span className={Number(val) > 0 ? "text-red-500 font-medium" : "text-slate-400"}>
           {Number(val) > 0 ? formatCurrency(Number(val)) : "—"}
@@ -117,13 +145,16 @@ export default function StudentPaymentsPage() {
     },
     {
       key: "due_date",
-      label: "Due Date",
+      label: t("colDueDate"),
       render: (val) => formatDate(String(val)),
     },
     {
       key: "status",
-      label: "Status",
-      render: (val) => <StatusBadge status={String(val)} />,
+      label: t("colStatus"),
+      render: (val) => {
+        const config = INVOICE_STATUS_CONFIG[String(val)] ?? { label: String(val), variant: "secondary" as const };
+        return <Badge label={config.label} variant={config.variant} dot />;
+      },
     },
     {
       key: "id",
@@ -134,7 +165,7 @@ export default function StudentPaymentsPage() {
         Number(row.balance) > 0 && (
           <Button variant="primary" size="sm" onClick={() => setPayingInvoice(row)}>
             <CreditCard className="h-3.5 w-3.5" />
-            Pay
+            {t("payAction")}
           </Button>
         ),
     },
@@ -142,16 +173,16 @@ export default function StudentPaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Payments" subtitle="Your invoices and payment history" />
+      <PageHeader title={t("pageTitle")} subtitle={t("pageSubtitle")} />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Total Due" value={formatCurrency(totalDue)} icon={<DollarSign className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
-        <StatCard label="Overdue" value={formatCurrency(totalOverdue)} icon={<AlertCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
-        <StatCard label="Paid Invoices" value={`${paidCount}/${invoices.length}`} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label={t("statTotalDue")} value={formatCurrency(totalDue)} icon={<DollarSign className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label={t("statOverdue")} value={formatCurrency(totalOverdue)} icon={<AlertCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
+        <StatCard label={t("statPaidInvoices")} value={`${paidCount}/${invoices.length}`} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
       </div>
 
       {groupsNeedingInvoice.length > 0 && (
-        <Card title="Groups awaiting an invoice" subtitle="Your center added you to these — generate an invoice to pay">
+        <Card title={t("groupsAwaitingInvoiceTitle")} subtitle={t("groupsAwaitingInvoiceSubtitle")}>
           <div className="space-y-2">
             {groupsNeedingInvoice.map((group) => (
               <div key={group.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
@@ -171,7 +202,7 @@ export default function StudentPaymentsPage() {
                     onClick={() => handleGenerateInvoice(group.id)}
                     loading={selfInvoiceMutation.isPending}
                   >
-                    Generate Invoice
+                    {t("generateInvoice")}
                   </Button>
                 </div>
               </div>
@@ -180,25 +211,27 @@ export default function StudentPaymentsPage() {
         </Card>
       )}
 
-      <Card noPadding title="Invoices" subtitle={`${invoices.length} invoices`}>
+      <Card noPadding title={t("invoicesTitle")} subtitle={t("invoicesCountSubtitle", { count: invoices.length })}>
         <DataTable
           columns={COLUMNS}
           data={invoices}
           keyField="id"
-          emptyMessage={isLoading ? "Loading invoices…" : "No invoices yet."}
+          emptyMessage={isLoading ? t("loadingInvoices") : t("noInvoicesYet")}
         />
       </Card>
 
-      <Card title="Recent Payments" subtitle="Your last 5 transactions">
+      <Card title={t("recentPaymentsTitle")} subtitle={t("last5TransactionsSubtitle")}>
         <div className="space-y-3">
           {recentPayments.length === 0 ? (
-            <p className="text-sm text-slate-400">No payments recorded yet.</p>
+            <p className="text-sm text-slate-400">{t("noPaymentsRecorded")}</p>
           ) : (
             recentPayments.map((tx) => (
               <div key={tx.id} className="flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-800 truncate">{tx.invoice_number}</p>
-                  <p className="text-xs text-slate-400 capitalize">{tx.payment_method.replace("_", " ")}</p>
+                  <p className="text-xs text-slate-400">
+                    {PAYMENT_METHOD_LABELS[tx.payment_method] ?? tx.payment_method.replace("_", " ")}
+                  </p>
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-sm font-semibold text-emerald-600">+{formatCurrency(Number(tx.amount))}</p>
@@ -213,17 +246,17 @@ export default function StudentPaymentsPage() {
       <Dialog open={!!payingInvoice} onOpenChange={(open) => !open && !redirecting && setPayingInvoice(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Pay {payingInvoice?.invoice_number}</DialogTitle>
+            <DialogTitle>{t("payDialogTitle", { invoiceNumber: payingInvoice?.invoice_number ?? "" })}</DialogTitle>
           </DialogHeader>
           <DialogBody>
             {payingInvoice && (
               <div className="space-y-4">
                 <p className="text-sm text-slate-500">
-                  Balance: <span className="font-semibold text-slate-900">{formatCurrency(Number(payingInvoice.balance))}</span>
+                  {t("balanceLabel")} <span className="font-semibold text-slate-900">{formatCurrency(Number(payingInvoice.balance))}</span>
                 </p>
                 {availableProviders.length === 0 ? (
                   <p className="text-sm text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
-                    This center hasn't set up online payments yet. Please contact them directly.
+                    {t("noOnlinePaymentsSetup")}
                   </p>
                 ) : (
                   <div className="space-y-2">
@@ -234,7 +267,7 @@ export default function StudentPaymentsPage() {
                         onClick={() => handlePay(provider)}
                         loading={redirecting}
                       >
-                        Pay with {PROVIDER_LABELS[provider]}
+                        {t("payWithProvider", { provider: PROVIDER_LABELS[provider] })}
                       </Button>
                     ))}
                   </div>
@@ -244,7 +277,7 @@ export default function StudentPaymentsPage() {
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPayingInvoice(null)} disabled={redirecting}>
-              Cancel
+              {tc("cancel")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Paperclip, Send } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import { PageHeader } from '@/components/ui/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,8 @@ import { Avatar } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { STUDENT_MESSAGES } from '@/lib/student-data';
 import { cn } from '@/lib/utils';
+import { formatLocalizedDate, INTL_DATE_LOCALES } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,18 +20,18 @@ type Message = Conversation['messages'][number];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatTime(iso: string) {
+function formatTime(iso: string, locale: Locale) {
   const d = new Date(iso);
   const now = new Date();
   const isToday = d.toDateString() === now.toDateString();
   if (isToday) {
-    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return d.toLocaleTimeString(INTL_DATE_LOCALES[locale], { hour: 'numeric', minute: '2-digit', hour12: locale === 'en' });
   }
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return formatLocalizedDate(d, locale, { month: 'short', day: 'numeric' });
 }
 
-function formatMessageTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+function formatMessageTime(iso: string, locale: Locale) {
+  return new Date(iso).toLocaleTimeString(INTL_DATE_LOCALES[locale], { hour: 'numeric', minute: '2-digit', hour12: locale === 'en' });
 }
 
 function getRoleVariant(role: Conversation['participantRole']): 'info' | 'warning' | 'purple' {
@@ -37,9 +40,10 @@ function getRoleVariant(role: Conversation['participantRole']): 'info' | 'warnin
   return 'info';
 }
 
-function getRoleLabel(role: Conversation['participantRole']) {
-  if (role === 'teacher') return 'Teacher';
-  if (role === 'admin') return 'Admin';
+// t is StudentMessages's useTranslations return value.
+function getRoleLabel(role: Conversation['participantRole'], t: ReturnType<typeof useTranslations<'StudentMessages'>>) {
+  if (role === 'teacher') return t('roleTeacher');
+  if (role === 'admin') return t('roleAdmin');
   return role;
 }
 
@@ -54,6 +58,10 @@ function ConversationItem({
   isActive: boolean;
   onClick: () => void;
 }) {
+  const t = useTranslations('StudentMessages');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
   return (
     <button
       onClick={onClick}
@@ -73,10 +81,10 @@ function ConversationItem({
           >
             {conv.participantName}
           </span>
-          <span className="text-xs text-slate-400 flex-shrink-0">{formatTime(conv.lastTime)}</span>
+          <span className="text-xs text-slate-400 flex-shrink-0">{formatTime(conv.lastTime, locale)}</span>
         </div>
         <Badge
-          label={getRoleLabel(conv.participantRole)}
+          label={getRoleLabel(conv.participantRole, t)}
           variant={getRoleVariant(conv.participantRole)}
           className="text-[10px] px-1.5 py-0 h-4 flex-shrink-0"
         />
@@ -94,13 +102,16 @@ function ConversationItem({
 // ─── Message Bubble ───────────────────────────────────────────────────────────
 
 function MessageBubble({ message }: { message: Message }) {
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
   if (message.isMe) {
     return (
       <div className="flex flex-col items-end gap-1">
         <div className="bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-4 py-2 max-w-xs lg:max-w-md">
           <p className="text-sm leading-relaxed">{message.text}</p>
         </div>
-        <span className="text-xs text-slate-400">{formatMessageTime(message.time)}</span>
+        <span className="text-xs text-slate-400">{formatMessageTime(message.time, locale)}</span>
       </div>
     );
   }
@@ -110,7 +121,7 @@ function MessageBubble({ message }: { message: Message }) {
       <div className="bg-white border border-slate-100 rounded-2xl rounded-tl-sm px-4 py-2 max-w-xs lg:max-w-md">
         <p className="text-sm text-slate-800 leading-relaxed">{message.text}</p>
       </div>
-      <span className="text-xs text-slate-400">{formatMessageTime(message.time)}</span>
+      <span className="text-xs text-slate-400">{formatMessageTime(message.time, locale)}</span>
     </div>
   );
 }
@@ -118,6 +129,7 @@ function MessageBubble({ message }: { message: Message }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function StudentMessagesPage() {
+  const t = useTranslations('StudentMessages');
   const [convSearch, setConvSearch] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
@@ -150,7 +162,7 @@ export default function StudentMessagesPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Messages" subtitle="Communicate with your teachers and the admin office" />
+      <PageHeader title={t('pageTitle')} subtitle={t('pageSubtitle')} />
 
       <div
         className="bg-white rounded-2xl shadow-sm border border-slate-100 flex overflow-hidden"
@@ -160,7 +172,7 @@ export default function StudentMessagesPage() {
         <div className="w-80 flex-shrink-0 border-r border-slate-100 flex flex-col">
           <div className="p-4 border-b border-slate-50">
             <Input
-              placeholder="Search conversations..."
+              placeholder={t('searchConversationsPlaceholder')}
               value={convSearch}
               onChange={(e) => setConvSearch(e.target.value)}
               className="w-full"
@@ -171,7 +183,7 @@ export default function StudentMessagesPage() {
             {filteredConvs.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-400">
                 <MessageSquare className="h-8 w-8" />
-                <p className="text-sm">No conversations found</p>
+                <p className="text-sm">{t('noConversationsFound')}</p>
               </div>
             ) : (
               filteredConvs.map((conv) => (
@@ -194,8 +206,8 @@ export default function StudentMessagesPage() {
                 <MessageSquare className="h-10 w-10 text-slate-300" />
               </div>
               <div className="text-center">
-                <p className="text-base font-medium text-slate-600">Select a conversation</p>
-                <p className="text-sm mt-1">Choose from the list to start messaging</p>
+                <p className="text-base font-medium text-slate-600">{t('selectConversationTitle')}</p>
+                <p className="text-sm mt-1">{t('selectConversationHint')}</p>
               </div>
             </div>
           ) : (
@@ -208,9 +220,9 @@ export default function StudentMessagesPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-slate-900">{activeConv.participantName}</span>
-                    <Badge label={getRoleLabel(activeConv.participantRole)} variant={getRoleVariant(activeConv.participantRole)} />
+                    <Badge label={getRoleLabel(activeConv.participantRole, t)} variant={getRoleVariant(activeConv.participantRole)} />
                   </div>
-                  <p className="text-xs text-emerald-500 font-medium">Online</p>
+                  <p className="text-xs text-emerald-500 font-medium">{t('onlineStatus')}</p>
                 </div>
               </div>
 
@@ -224,7 +236,7 @@ export default function StudentMessagesPage() {
               <div className="px-4 py-3 border-t border-slate-100 bg-white flex items-center gap-2 flex-shrink-0">
                 <div className="flex-1">
                   <Input
-                    placeholder="Type a message..."
+                    placeholder={t('typeMessagePlaceholder')}
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -233,7 +245,7 @@ export default function StudentMessagesPage() {
                 </div>
                 <button
                   className="h-9 w-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                  title="Attach file"
+                  title={t('attachFileTitle')}
                   type="button"
                 >
                   <Paperclip className="h-4 w-4" />
