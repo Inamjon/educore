@@ -34,6 +34,17 @@ every `DEFAULT_ROLE_PERMISSIONS` entry below, unlike every other module in
 this file — only a system-level role (super_admin) is ever meant to manage
 the catalog, and `common.permissions.user_has_permission`'s platform-role
 bypass already grants that with no per-module grant needed.
+
+`platform_billing` was added the same day, for PlatformInvoice/
+PlatformPayment (EduCore's own invoices to organizations and the manually-
+confirmed payments against them) — see `billing/views.py::PLATFORM_BILLING_
+PERMISSION_MAP`'s comment for why this is a *separate* module from `billing`
+above rather than reusing it: `billing` (the plan catalog) is public
+reference data every org could eventually be granted read access to, while
+this is EduCore's own sensitive cross-organization ledger — sharing one
+module would let a future `billing:view` grant (for plan pricing) also hand
+out write access to platform invoices/payments. Same "absent from
+DEFAULT_ROLE_PERMISSIONS, system-role bypass only" treatment as `billing`.
 """
 
 PERMISSIONS_CATALOG: list[tuple[str, str, str]] = [
@@ -100,6 +111,10 @@ PERMISSIONS_CATALOG: list[tuple[str, str, str]] = [
     ("billing", "create", "Create subscription plans"),
     ("billing", "update", "Update subscription plans"),
     ("billing", "delete", "Delete subscription plans"),
+    ("platform_billing", "view", "View platform invoices and payments"),
+    ("platform_billing", "create", "Create platform invoices and record payments"),
+    ("platform_billing", "update", "Update platform invoices and payments"),
+    ("platform_billing", "delete", "Delete platform invoices and payments"),
 ]
 
 # Default permission grants for the three org-scoped roles every

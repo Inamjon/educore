@@ -101,3 +101,130 @@ export async function updateSubscriptionPlan(id: string, input: Partial<Subscrip
 export async function deleteSubscriptionPlan(id: string): Promise<void> {
   await apiFetch(`/api/v1/billing/subscription-plans/${id}/`, { method: "DELETE" });
 }
+
+// ─── Platform Invoices/Payments — EduCore's own bill to an organization,
+// manually reconciled (bank transfer, cash, ...) by super_admin. Not real-
+// time gateway checkout — see backend/billing/models/platform_payment.py's
+// docstring for why this deliberately doesn't reuse payment_gateways. ─────
+
+export type PlatformInvoiceStatus = "pending" | "partially_paid" | "paid" | "overdue" | "cancelled";
+export type PlatformPaymentMethod = "bank_transfer" | "cash" | "card" | "other";
+
+export interface PlatformInvoice {
+  id: string;
+  organization: string;
+  organization_name: string;
+  subscription_plan: string;
+  plan_name: string;
+  invoice_number: string;
+  status: PlatformInvoiceStatus;
+  period_start: string;
+  period_end: string;
+  amount: string;
+  paid_amount: string;
+  balance: string;
+  currency: string;
+  due_date: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface ListPlatformInvoicesParams {
+  organization?: string;
+  subscriptionPlan?: string;
+  status?: PlatformInvoiceStatus;
+  search?: string;
+  pageSize?: number;
+}
+
+export async function listPlatformInvoices(params: ListPlatformInvoicesParams = {}): Promise<PlatformInvoice[]> {
+  const query = new URLSearchParams();
+  if (params.organization) query.set("organization", params.organization);
+  if (params.subscriptionPlan) query.set("subscription_plan", params.subscriptionPlan);
+  if (params.status) query.set("status", params.status);
+  if (params.search) query.set("search", params.search);
+  query.set("page_size", String(params.pageSize ?? 100));
+
+  const data = await apiFetch<ListResponse<PlatformInvoice>>(`/api/v1/billing/platform-invoices/?${query}`);
+  return data.results;
+}
+
+export interface PlatformInvoiceInput {
+  organization: string;
+  subscriptionPlan: string;
+  amount: number;
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string;
+  notes?: string;
+}
+
+export async function createPlatformInvoice(input: PlatformInvoiceInput): Promise<PlatformInvoice> {
+  return apiFetch<PlatformInvoice>("/api/v1/billing/platform-invoices/", {
+    method: "POST",
+    body: JSON.stringify({
+      organization: input.organization,
+      subscription_plan: input.subscriptionPlan,
+      amount: input.amount,
+      period_start: input.periodStart,
+      period_end: input.periodEnd,
+      due_date: input.dueDate,
+      notes: input.notes || null,
+    }),
+  });
+}
+
+export async function deletePlatformInvoice(id: string): Promise<void> {
+  await apiFetch(`/api/v1/billing/platform-invoices/${id}/`, { method: "DELETE" });
+}
+
+export interface PlatformPayment {
+  id: string;
+  organization: string;
+  organization_name: string;
+  platform_invoice: string;
+  invoice_number: string;
+  amount: string;
+  currency: string;
+  method: PlatformPaymentMethod;
+  reference_note: string | null;
+  payment_date: string;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface ListPlatformPaymentsParams {
+  organization?: string;
+  platformInvoice?: string;
+  pageSize?: number;
+}
+
+export async function listPlatformPayments(params: ListPlatformPaymentsParams = {}): Promise<PlatformPayment[]> {
+  const query = new URLSearchParams();
+  if (params.organization) query.set("organization", params.organization);
+  if (params.platformInvoice) query.set("platform_invoice", params.platformInvoice);
+  query.set("page_size", String(params.pageSize ?? 100));
+
+  const data = await apiFetch<ListResponse<PlatformPayment>>(`/api/v1/billing/platform-payments/?${query}`);
+  return data.results;
+}
+
+export interface PlatformPaymentInput {
+  platformInvoice: string;
+  amount: number;
+  method: PlatformPaymentMethod;
+  referenceNote?: string;
+}
+
+export async function createPlatformPayment(input: PlatformPaymentInput): Promise<PlatformPayment> {
+  return apiFetch<PlatformPayment>("/api/v1/billing/platform-payments/", {
+    method: "POST",
+    body: JSON.stringify({
+      platform_invoice: input.platformInvoice,
+      amount: input.amount,
+      method: input.method,
+      reference_note: input.referenceNote || null,
+    }),
+  });
+}
