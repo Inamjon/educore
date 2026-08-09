@@ -9,7 +9,6 @@ def seed_permissions_and_backfill_roles(apps, schema_editor):
     Idempotent throughout, safe to re-run.
     """
 
-    from foundation.models import Organization
     from foundation.permissions_catalog import PERMISSIONS_CATALOG
     from foundation.services import provision_default_roles
 
@@ -17,6 +16,7 @@ def seed_permissions_and_backfill_roles(apps, schema_editor):
     for module, action, description in PERMISSIONS_CATALOG:
         Permission.objects.get_or_create(module=module, action=action, defaults={"description": description})
 
+    Organization = apps.get_model("foundation", "Organization")
     for org in Organization.objects.all():
         provision_default_roles(org)
 
