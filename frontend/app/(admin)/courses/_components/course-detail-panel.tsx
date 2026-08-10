@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronLeft, Clock, DollarSign, BookOpen, Pencil, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ interface CourseDetailPanelProps {
 }
 
 export function CourseDetailPanel({ course, onBack, onEdit, onDelete }: CourseDetailPanelProps) {
+  const t = useTranslations("AdminCourses");
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const { data: groups } = useGroupsQuery({ organizationId: organizationId ?? "", course: course.id });
 
@@ -25,7 +27,7 @@ export function CourseDetailPanel({ course, onBack, onEdit, onDelete }: CourseDe
       <div className="flex items-center gap-4 px-6 py-5 border-b border-slate-100">
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ChevronLeft className="h-4 w-4" />
-          Back
+          {t("backButton")}
         </Button>
         <div
           className="h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -42,38 +44,38 @@ export function CourseDetailPanel({ course, onBack, onEdit, onDelete }: CourseDe
           <StatusBadge status={course.status} />
           <Button variant="outline" size="sm" onClick={onEdit}>
             <Pencil className="h-3.5 w-3.5" />
-            Edit
+            {t("editButton")}
           </Button>
           <Button variant="danger" size="sm" onClick={onDelete}>
             <Trash2 className="h-3.5 w-3.5" />
-            Delete
+            {t("deleteButton")}
           </Button>
         </div>
       </div>
 
       <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Course Details</h4>
+          <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">{t("courseDetailsTitle")}</h4>
           <p className="text-sm text-slate-600">{course.description}</p>
           <div className="space-y-3">
-            <InfoRow icon={<Clock className="h-4 w-4" />} label="Duration" value={course.duration_weeks ? `${course.duration_weeks} weeks` : "—"} />
-            <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Price" value={formatCurrency(Number(course.price ?? 0))} />
-            <InfoRow icon={<BookOpen className="h-4 w-4" />} label="Lessons" value={course.total_lessons ? `${course.total_lessons}` : "—"} />
-            <InfoRow icon={<BookOpen className="h-4 w-4" />} label="Code" value={course.code} />
+            <InfoRow icon={<Clock className="h-4 w-4" />} label={t("durationLabel")} value={course.duration_weeks ? t("durationWeeksValue", { count: course.duration_weeks }) : "—"} />
+            <InfoRow icon={<DollarSign className="h-4 w-4" />} label={t("priceLabel")} value={formatCurrency(Number(course.price ?? 0))} />
+            <InfoRow icon={<BookOpen className="h-4 w-4" />} label={t("lessonsLabel")} value={course.total_lessons ? `${course.total_lessons}` : "—"} />
+            <InfoRow icon={<BookOpen className="h-4 w-4" />} label={t("codeLabel")} value={course.code} />
           </div>
         </div>
 
         <div className="space-y-3">
-          <h4 className="text-sm font-semibold text-slate-700 mb-2">Linked Groups</h4>
+          <h4 className="text-sm font-semibold text-slate-700 mb-2">{t("linkedGroupsTitle")}</h4>
           {!groups || groups.length === 0 ? (
-            <p className="text-sm text-slate-400">No groups for this course yet.</p>
+            <p className="text-sm text-slate-400">{t("noGroupsYet")}</p>
           ) : (
             <div className="space-y-1.5">
               {groups.map((g) => (
                 <div key={g.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
                   <span className="text-xs text-slate-700">{g.name}</span>
                   <span className="text-xs text-slate-500">
-                    {g.enrolled_count}/{g.max_students} students
+                    {t("studentsRatio", { enrolled: g.enrolled_count, max: g.max_students })}
                   </span>
                 </div>
               ))}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronLeft, DollarSign, Calendar, Trash2 } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
@@ -19,17 +20,10 @@ import { useAuthStore } from "@/lib/store/auth-store";
 import { usePaymentsQuery, useCreatePaymentMutation } from "@/lib/queries/finance";
 import { recordPaymentSchema, type RecordPaymentFormValues } from "@/lib/schemas/invoice-profile-schema";
 import { ApiError } from "@/lib/api/client";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import type { Invoice } from "@/lib/api/finance";
-
-const PAYMENT_METHOD_OPTIONS = [
-  { value: "cash", label: "Cash" },
-  { value: "card", label: "Card" },
-  { value: "bank_transfer", label: "Bank Transfer" },
-  { value: "online", label: "Online" },
-  { value: "mobile_payment", label: "Mobile Payment" },
-  { value: "other", label: "Other" },
-];
+import { formatLocalizedDate } from "@/i18n/date-locale";
+import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 
 interface InvoiceDetailPanelProps {
   invoice: Invoice;
@@ -40,6 +34,26 @@ interface InvoiceDetailPanelProps {
 const EMPTY_PAYMENT: RecordPaymentFormValues = { amount: 0, paymentMethod: "cash" };
 
 export function InvoiceDetailPanel({ invoice, onBack, onDelete }: InvoiceDetailPanelProps) {
+  const t = useTranslations("AdminFinance");
+  const tc = useTranslations("Common");
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
+  const PAYMENT_METHOD_OPTIONS = [
+    { value: "cash", label: t("paymentMethodCash") },
+    { value: "card", label: t("paymentMethodCard") },
+    { value: "bank_transfer", label: t("paymentMethodBankTransfer") },
+    { value: "online", label: t("paymentMethodOnline") },
+    { value: "mobile_payment", label: t("paymentMethodMobilePayment") },
+    { value: "other", label: t("paymentMethodOther") },
+  ];
+  // Derived from PAYMENT_METHOD_OPTIONS above rather than a second
+  // hand-written map — keeps the Select's options and the payment-history
+  // list's labels from drifting out of sync.
+  const PAYMENT_METHOD_LABELS: Record<string, string> = Object.fromEntries(
+    PAYMENT_METHOD_OPTIONS.map((o) => [o.value, o.label])
+  );
+
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const { data: payments } = usePaymentsQuery({ organizationId: organizationId ?? "", invoice: invoice.id });
   const createPaymentMutation = useCreatePaymentMutation();
@@ -67,12 +81,12 @@ export function InvoiceDetailPanel({ invoice, onBack, onDelete }: InvoiceDetailP
         amount: result.data.amount,
         paymentMethod: result.data.paymentMethod,
       });
-      toast.success("Payment recorded");
+      toast.success(t("paymentRecordedToast"));
       setPaymentOpen(false);
       setValues(EMPTY_PAYMENT);
       setError(undefined);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      setError(err instanceof ApiError ? err.message : t("genericError"));
     } finally {
       setSubmitting(false);
     }
@@ -83,7 +97,7 @@ export function InvoiceDetailPanel({ invoice, onBack, onDelete }: InvoiceDetailP
       <div className="flex items-center gap-4 px-6 py-5 border-b border-slate-100">
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ChevronLeft className="h-4 w-4" />
-          Back
+          {t("backButton")}
         </Button>
         <div>
           <p className="font-semibold text-slate-900">{invoice.student_name}</p>
@@ -94,39 +108,39 @@ export function InvoiceDetailPanel({ invoice, onBack, onDelete }: InvoiceDetailP
           {balance > 0 && (
             <Button variant="primary" size="sm" onClick={() => setPaymentOpen(true)}>
               <DollarSign className="h-3.5 w-3.5" />
-              Record Payment
+              {t("recordPaymentButton")}
             </Button>
           )}
           <Button variant="danger" size="sm" onClick={onDelete}>
             <Trash2 className="h-3.5 w-3.5" />
-            Delete
+            {t("deleteButton")}
           </Button>
         </div>
       </div>
 
       <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Invoice Details</h4>
+          <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">{t("invoiceDetailsTitle")}</h4>
           <div className="space-y-3">
-            <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Invoice #" value={invoice.invoice_number} />
-            <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Amount" value={formatCurrency(Number(invoice.total_amount))} />
-            <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Paid" value={formatCurrency(Number(invoice.paid_amount))} />
-            <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Balance" value={formatCurrency(balance)} />
-            <InfoRow icon={<Calendar className="h-4 w-4" />} label="Due Date" value={formatDate(invoice.due_date)} />
+            <InfoRow icon={<DollarSign className="h-4 w-4" />} label={t("invoiceNumberLabel")} value={invoice.invoice_number} />
+            <InfoRow icon={<DollarSign className="h-4 w-4" />} label={t("amountLabel")} value={formatCurrency(Number(invoice.total_amount))} />
+            <InfoRow icon={<DollarSign className="h-4 w-4" />} label={t("paidLabel")} value={formatCurrency(Number(invoice.paid_amount))} />
+            <InfoRow icon={<DollarSign className="h-4 w-4" />} label={t("balanceLabel")} value={formatCurrency(balance)} />
+            <InfoRow icon={<Calendar className="h-4 w-4" />} label={t("dueDateLabel")} value={formatLocalizedDate(new Date(invoice.due_date + "T00:00:00"), locale, { month: "short", day: "numeric", year: "numeric" })} />
           </div>
         </div>
 
         <div className="space-y-3">
-          <h4 className="text-sm font-semibold text-slate-700 mb-2">Payment History</h4>
+          <h4 className="text-sm font-semibold text-slate-700 mb-2">{t("paymentHistoryTitle")}</h4>
           {!payments || payments.length === 0 ? (
-            <p className="text-sm text-slate-400">No payments recorded.</p>
+            <p className="text-sm text-slate-400">{t("noPaymentsRecorded")}</p>
           ) : (
             <div className="space-y-1.5">
               {payments.map((p) => (
                 <div key={p.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                  <span className="text-xs text-slate-700 capitalize">{p.payment_method.replace("_", " ")}</span>
+                  <span className="text-xs text-slate-700">{PAYMENT_METHOD_LABELS[p.payment_method] ?? p.payment_method}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-500">{formatDate(p.payment_date)}</span>
+                    <span className="text-xs text-slate-500">{formatLocalizedDate(new Date(p.payment_date + "T00:00:00"), locale, { month: "short", day: "numeric", year: "numeric" })}</span>
                     <span className="text-xs font-semibold text-emerald-600">+{formatCurrency(Number(p.amount))}</span>
                   </div>
                 </div>
@@ -139,13 +153,13 @@ export function InvoiceDetailPanel({ invoice, onBack, onDelete }: InvoiceDetailP
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Record Payment</DialogTitle>
+            <DialogTitle>{t("recordPaymentDialogTitle")}</DialogTitle>
           </DialogHeader>
           <DialogBody>
             <div className="space-y-3">
               <Input
                 type="number"
-                placeholder="Amount"
+                placeholder={t("amountFieldPlaceholder")}
                 value={values.amount}
                 onChange={(e) => {
                   setValues((v) => ({ ...v, amount: Number(e.target.value) }));
@@ -162,10 +176,10 @@ export function InvoiceDetailPanel({ invoice, onBack, onDelete }: InvoiceDetailP
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPaymentOpen(false)} disabled={submitting}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button onClick={handleRecordPayment} loading={submitting}>
-              Save
+              {tc("save")}
             </Button>
           </DialogFooter>
         </DialogContent>

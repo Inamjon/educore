@@ -3,22 +3,28 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Search, Menu, ChevronDown, Settings, LogOut, User } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-import { cn } from "@/lib/utils";
+import { useTranslations, useLocale } from "next-intl";
+import { cn, getInitials } from "@/lib/utils";
 import { useNotificationsQuery } from "@/lib/queries/notifications";
+import { useAuthStore } from "@/lib/store/auth-store";
 import { useLogout } from "@/lib/hooks/use-logout";
+import { formatLocalizedDate } from "@/i18n/date-locale";
+import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 
-const PAGE_TITLES: Record<string, string> = {
-  "/": "Dashboard",
-  "/students": "Students",
-  "/teachers": "Teachers",
-  "/courses": "Courses",
-  "/groups": "Groups & Classes",
-  "/schedule": "Schedule",
-  "/attendance": "Attendance",
-  "/homework": "Homework",
-  "/finance": "Finance",
-  "/notifications": "Notifications",
-  "/settings": "Settings",
+// Maps pathname to an AdminNav translation key (falls back to
+// portalFallbackTitle) — see app/teacher/layout.tsx's PAGE_TITLE_KEYS.
+const PAGE_TITLE_KEYS: Record<string, string> = {
+  "/": "navDashboard",
+  "/students": "navStudents",
+  "/teachers": "navTeachers",
+  "/courses": "navCourses",
+  "/groups": "navGroups",
+  "/schedule": "navSchedule",
+  "/attendance": "navAttendance",
+  "/homework": "navHomework",
+  "/finance": "navFinance",
+  "/notifications": "navNotifications",
+  "/settings": "navSettings",
 };
 
 interface HeaderProps {
@@ -28,7 +34,12 @@ interface HeaderProps {
 
 export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
   const pathname = usePathname();
-  const title = PAGE_TITLES[pathname] ?? "EduCore";
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+  const t = useTranslations("AdminNav");
+  const titleKey = PAGE_TITLE_KEYS[pathname];
+  const title = titleKey ? t(titleKey) : t("portalFallbackTitle");
+  const authUser = useAuthStore((s) => s.user);
   const { data: notifications = [] } = useNotificationsQuery();
   const unreadCount = notifications.filter((n) => !n.read).length;
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -54,6 +65,7 @@ export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
     >
       <button
         onClick={onMenuClick}
+        aria-label={t("openMenuAriaLabel")}
         className="lg:hidden h-9 w-9 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-500 transition-colors"
       >
         <Menu className="h-5 w-5" />
@@ -62,7 +74,7 @@ export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
       <div>
         <h2 className="text-lg font-semibold text-slate-900 leading-none">{title}</h2>
         <p className="text-xs text-slate-400 mt-0.5">
-          {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+          {formatLocalizedDate(new Date(), locale, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
         </p>
       </div>
 
@@ -73,7 +85,7 @@ export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <input
           type="text"
-          placeholder="Quick search..."
+          placeholder={t("quickSearchPlaceholder")}
           className="h-9 w-60 pl-9 pr-4 rounded-xl border border-slate-200 bg-slate-50 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
         />
       </div>
@@ -82,6 +94,7 @@ export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
       <Link
         href="/notifications"
         className="relative h-9 w-9 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-500 transition-colors"
+        aria-label={t("notificationsAriaLabel", { count: unreadCount })}
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
@@ -96,13 +109,17 @@ export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
         <button
           onClick={() => setDropdownOpen((o) => !o)}
           className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-slate-100 transition-colors"
+          aria-expanded={dropdownOpen}
+          aria-haspopup="true"
         >
           <div className="h-8 w-8 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-sm flex-shrink-0">
-            A
+            {getInitials(authUser?.fullName ?? t("roleAdmin"))}
           </div>
           <div className="hidden sm:block text-left">
-            <p className="text-sm font-medium text-slate-900 leading-none">Admin</p>
-            <p className="text-xs text-slate-400 mt-0.5">Administrator</p>
+            <p className="text-sm font-medium text-slate-900 leading-none">
+              {authUser?.fullName ?? t("roleAdmin")}
+            </p>
+            <p className="text-xs text-slate-400 mt-0.5">{t("roleAdmin")}</p>
           </div>
           <ChevronDown className={cn("h-4 w-4 text-slate-400 transition-transform hidden sm:block", dropdownOpen && "rotate-180")} />
         </button>
@@ -110,8 +127,10 @@ export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
         {dropdownOpen && (
           <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-lg border border-slate-100 py-1.5 z-50">
             <div className="px-4 py-2.5 border-b border-slate-50">
-              <p className="text-sm font-semibold text-slate-900">Admin User</p>
-              <p className="text-xs text-slate-400">admin@educore.com</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {authUser?.fullName ?? t("roleAdmin")}
+              </p>
+              <p className="text-xs text-slate-400">{authUser?.loginId}</p>
             </div>
             <Link
               href="/settings"
@@ -119,7 +138,7 @@ export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <User className="h-4 w-4 text-slate-400" />
-              Profile
+              {t("profileLabel")}
             </Link>
             <Link
               href="/settings"
@@ -127,7 +146,7 @@ export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <Settings className="h-4 w-4 text-slate-400" />
-              Settings
+              {t("navSettings")}
             </Link>
             <div className="border-t border-slate-50 mt-1 pt-1">
               <button
@@ -135,7 +154,7 @@ export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full"
               >
                 <LogOut className="h-4 w-4" />
-                Sign Out
+                {t("signOut")}
               </button>
             </div>
           </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Save, Trash2, CreditCard } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ import { toast } from "@/lib/store/toast-store";
 import { ApiError } from "@/lib/api/client";
 import type { PaymentGatewayAccount, Provider } from "@/lib/api/payment-gateways";
 
+// Payme/Click are provider brand names — not translated.
 const PROVIDERS: { id: Provider; label: string; needsServiceId: boolean }[] = [
   { id: "payme", label: "Payme", needsServiceId: false },
   { id: "click", label: "Click", needsServiceId: true },
@@ -38,6 +40,7 @@ function ProviderCard({ provider, label, needsServiceId, account }: {
   needsServiceId: boolean;
   account?: PaymentGatewayAccount;
 }) {
+  const t = useTranslations("AdminSettings");
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const createMutation = useCreateGatewayAccountMutation();
   const updateMutation = useUpdateGatewayAccountMutation();
@@ -67,15 +70,15 @@ function ProviderCard({ provider, label, needsServiceId, account }: {
   async function handleSave() {
     if (!organizationId) return;
     if (!form.merchantId.trim()) {
-      toast.error("Merchant ID is required.");
+      toast.error(t("merchantIdRequired"));
       return;
     }
     if (needsServiceId && !form.serviceId.trim()) {
-      toast.error("Service ID is required for Click.");
+      toast.error(t("serviceIdRequiredForClick"));
       return;
     }
     if (!account && !form.secretKey.trim()) {
-      toast.error("Secret key is required.");
+      toast.error(t("secretKeyRequired"));
       return;
     }
 
@@ -96,40 +99,40 @@ function ProviderCard({ provider, label, needsServiceId, account }: {
         });
       }
       setForm((f) => ({ ...f, secretKey: "" }));
-      toast.success(`${label} settings saved`);
+      toast.success(t("gatewaySettingsSaved", { provider: label }));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      toast.error(err instanceof ApiError ? err.message : t("genericError"));
     }
   }
 
   return (
-    <Card title={label} subtitle={account ? (account.is_active ? "Active" : "Disabled") : "Not configured"}>
+    <Card title={label} subtitle={account ? (account.is_active ? t("gatewayActive") : t("gatewayDisabled")) : t("gatewayNotConfigured")}>
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium text-slate-700 block mb-1.5">Merchant ID</label>
-            <Input value={form.merchantId} onChange={(e) => setForm({ ...form, merchantId: e.target.value })} placeholder="Merchant ID" />
+            <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("merchantIdLabel")}</label>
+            <Input value={form.merchantId} onChange={(e) => setForm({ ...form, merchantId: e.target.value })} placeholder={t("merchantIdLabel")} />
           </div>
           {needsServiceId && (
             <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1.5">Service ID</label>
-              <Input value={form.serviceId} onChange={(e) => setForm({ ...form, serviceId: e.target.value })} placeholder="Service ID" />
+              <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("serviceIdLabel")}</label>
+              <Input value={form.serviceId} onChange={(e) => setForm({ ...form, serviceId: e.target.value })} placeholder={t("serviceIdLabel")} />
             </div>
           )}
         </div>
         <div>
-          <label className="text-sm font-medium text-slate-700 block mb-1.5">Secret Key</label>
+          <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("secretKeyLabel")}</label>
           <Input
             type="password"
             value={form.secretKey}
             onChange={(e) => setForm({ ...form, secretKey: e.target.value })}
-            placeholder={account?.has_secret_key ? "•••••••• (configured — leave blank to keep)" : "Enter secret key"}
+            placeholder={account?.has_secret_key ? t("secretKeyConfiguredPlaceholder") : t("secretKeyEnterPlaceholder")}
           />
         </div>
         <div className="flex items-center justify-between py-2">
           <div>
-            <p className="text-sm font-medium text-slate-900">Accept online payments</p>
-            <p className="text-xs text-slate-400">Students can pay via {label} when enabled</p>
+            <p className="text-sm font-medium text-slate-900">{t("acceptOnlinePaymentsLabel")}</p>
+            <p className="text-xs text-slate-400">{t("acceptOnlinePaymentsDescription", { provider: label })}</p>
           </div>
           <ToggleSwitch enabled={form.isActive} onChange={() => setForm({ ...form, isActive: !form.isActive })} />
         </div>
@@ -137,12 +140,12 @@ function ProviderCard({ provider, label, needsServiceId, account }: {
           {account && (
             <Button variant="danger" onClick={() => setConfirmingDelete(true)}>
               <Trash2 className="h-4 w-4" />
-              Remove
+              {t("removeButton")}
             </Button>
           )}
           <Button onClick={handleSave} loading={saving}>
             <Save className="h-4 w-4" />
-            Save
+            {t("saveButton")}
           </Button>
         </div>
       </div>
@@ -150,17 +153,17 @@ function ProviderCard({ provider, label, needsServiceId, account }: {
       <ConfirmDialog
         open={confirmingDelete}
         onOpenChange={setConfirmingDelete}
-        title={`Remove ${label}`}
-        description={`Students will no longer be able to pay via ${label}. This can be reconfigured later.`}
-        confirmLabel="Remove"
+        title={t("removeGatewayTitle", { provider: label })}
+        description={t("removeGatewayDescription", { provider: label })}
+        confirmLabel={t("removeButton")}
         onConfirm={async () => {
           if (!account) return;
           try {
             await deleteMutation.mutateAsync(account.id);
             setForm(EMPTY_FORM);
-            toast.success(`${label} removed`);
+            toast.success(t("gatewayRemovedToast", { provider: label }));
           } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+            toast.error(err instanceof ApiError ? err.message : t("genericError"));
           }
         }}
       />
@@ -169,15 +172,16 @@ function ProviderCard({ provider, label, needsServiceId, account }: {
 }
 
 export function PaymentGatewaysTab() {
+  const t = useTranslations("AdminSettings");
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const { data: accounts, isLoading } = useGatewayAccountsQuery(organizationId ?? "");
 
   if (isLoading) {
     return (
-      <Card title="Payment Gateways" subtitle="Connect Payme and Click so students can pay online">
+      <Card title={t("paymentGatewaysTitle")} subtitle={t("paymentGatewaysSubtitle")}>
         <div className="flex flex-col items-center justify-center py-12 text-slate-400">
           <CreditCard className="h-12 w-12 mb-3 opacity-30" />
-          <p className="text-sm">Loading…</p>
+          <p className="text-sm">{t("loadingLabel")}</p>
         </div>
       </Card>
     );

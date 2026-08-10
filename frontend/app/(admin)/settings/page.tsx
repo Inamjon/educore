@@ -11,23 +11,15 @@ import {
   ChevronRight,
   CreditCard,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/store/toast-store";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { PaymentGatewaysTab } from "./_components/payment-gateways-tab";
-
-const SETTINGS_TABS = [
-  { id: "profile", label: "Profile", icon: User },
-  { id: "organization", label: "Organization", icon: Building2 },
-  { id: "payment-gateways", label: "Payment Gateways", icon: CreditCard },
-  { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "security", label: "Security", icon: Lock },
-  { id: "appearance", label: "Appearance", icon: Palette },
-  { id: "language", label: "Language & Region", icon: Globe },
-];
 
 export function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: () => void }) {
   return (
@@ -51,6 +43,18 @@ export function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange
 }
 
 export default function SettingsPage() {
+  const t = useTranslations("AdminSettings");
+
+  const SETTINGS_TABS = [
+    { id: "profile", label: t("tabProfile"), icon: User },
+    { id: "organization", label: t("tabOrganization"), icon: Building2 },
+    { id: "payment-gateways", label: t("tabPaymentGateways"), icon: CreditCard },
+    { id: "notifications", label: t("tabNotifications"), icon: Bell },
+    { id: "security", label: t("tabSecurity"), icon: Lock },
+    { id: "appearance", label: t("tabAppearance"), icon: Palette },
+    { id: "language", label: t("tabLanguage"), icon: Globe },
+  ];
+
   const [activeTab, setActiveTab] = useState("profile");
   const [emailNotifs, setEmailNotifs] = useState(true);
   const [smsNotifs, setSmsNotifs] = useState(false);
@@ -68,30 +72,39 @@ export default function SettingsPage() {
 
   const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" });
 
+  // Timezone/date-format stay mock/local, same as Teacher/Student Settings'
+  // Language tab — the interface language itself is real, sourced live from
+  // LanguageSwitcher below (see app/teacher/settings/page.tsx's identical
+  // pattern and its comment on why the switcher lives only in Settings).
+  const [regionSettings, setRegionSettings] = useState({
+    timezone: "America/New_York",
+    dateFormat: "MM/DD/YYYY",
+  });
+
   function handleSaveProfile() {
-    toast.success("Profile updated");
+    toast.success(t("profileUpdatedToast"));
   }
 
   function handleUpdatePassword() {
     if (!passwords.current || !passwords.next || !passwords.confirm) {
-      toast.error("Fill in all password fields");
+      toast.error(t("fillAllPasswordFields"));
       return;
     }
     if (passwords.next !== passwords.confirm) {
-      toast.error("New password and confirmation do not match");
+      toast.error(t("passwordMismatch"));
       return;
     }
-    toast.success("Password updated");
+    toast.success(t("passwordUpdatedToast"));
     setPasswords({ current: "", next: "", confirm: "" });
   }
 
   function handleSaveOrganization() {
-    toast.success("Organization settings saved");
+    toast.success(t("organizationSavedToast"));
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Settings" subtitle="Manage your account and system preferences" />
+      <PageHeader title={t("pageTitle")} subtitle={t("pageSubtitle")} />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Sidebar */}
@@ -121,46 +134,46 @@ export default function SettingsPage() {
         {/* Content */}
         <div className="lg:col-span-3 space-y-4">
           {activeTab === "profile" && (
-            <Card title="Profile Settings" subtitle="Update your personal information">
+            <Card title={t("profileSettingsTitle")} subtitle={t("profileSettingsSubtitle")}>
               <div className="space-y-4">
                 <div className="flex items-center gap-5 pb-4 border-b border-slate-50">
                   <div className="h-16 w-16 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-2xl">
                     A
                   </div>
                   <div>
-                    <Button variant="outline" size="sm">Change Photo</Button>
-                    <p className="text-xs text-slate-400 mt-1">JPG, PNG up to 2MB</p>
+                    <Button variant="outline" size="sm">{t("changePhotoButton")}</Button>
+                    <p className="text-xs text-slate-400 mt-1">{t("photoHint")}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-slate-700 block mb-1.5">First Name</label>
+                    <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("firstNameLabel")}</label>
                     <Input
                       value={profile.firstName}
                       onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-slate-700 block mb-1.5">Last Name</label>
+                    <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("lastNameLabel")}</label>
                     <Input
                       value={profile.lastName}
                       onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-slate-700 block mb-1.5">Login ID</label>
+                    <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("loginIdLabel")}</label>
                     <Input value={profile.loginId} disabled />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-slate-700 block mb-1.5">Phone</label>
+                    <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("phoneLabel")}</label>
                     <Input
                       value={profile.phone}
                       onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="text-sm font-medium text-slate-700 block mb-1.5">Role</label>
+                    <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("roleLabel")}</label>
                     <Input value={profile.role} disabled className="bg-slate-50 text-slate-400" />
                   </div>
                 </div>
@@ -168,7 +181,7 @@ export default function SettingsPage() {
                 <div className="flex justify-end pt-2">
                   <Button onClick={handleSaveProfile}>
                     <Save className="h-4 w-4" />
-                    Save Changes
+                    {t("saveChangesButton")}
                   </Button>
                 </div>
               </div>
@@ -176,16 +189,16 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "notifications" && (
-            <Card title="Notification Preferences" subtitle="Choose how you want to be notified">
+            <Card title={t("notificationPreferencesTitle")} subtitle={t("notificationPreferencesSubtitle")}>
               <div className="space-y-0 divide-y divide-slate-50">
                 {[
-                  { label: "Email Notifications", description: "Receive notifications via email", value: emailNotifs, toggle: () => setEmailNotifs(!emailNotifs) },
-                  { label: "SMS Notifications", description: "Receive notifications via SMS", value: smsNotifs, toggle: () => setSmsNotifs(!smsNotifs) },
-                  { label: "Push Notifications", description: "Browser push notifications", value: pushNotifs, toggle: () => setPushNotifs(!pushNotifs) },
-                  { label: "Payment Alerts", description: "Alerts for overdue and pending payments", value: paymentAlerts, toggle: () => setPaymentAlerts(!paymentAlerts) },
-                  { label: "Attendance Alerts", description: "Alerts when attendance drops below threshold", value: attendanceAlerts, toggle: () => setAttendanceAlerts(!attendanceAlerts) },
-                ].map(({ label, description, value, toggle }) => (
-                  <div key={label} className="flex items-center justify-between py-4">
+                  { id: "email", label: t("emailNotificationsLabel"), description: t("emailNotificationsDescription"), value: emailNotifs, toggle: () => setEmailNotifs(!emailNotifs) },
+                  { id: "sms", label: t("smsNotificationsLabel"), description: t("smsNotificationsDescription"), value: smsNotifs, toggle: () => setSmsNotifs(!smsNotifs) },
+                  { id: "push", label: t("pushNotificationsLabel"), description: t("pushNotificationsDescription"), value: pushNotifs, toggle: () => setPushNotifs(!pushNotifs) },
+                  { id: "payment", label: t("paymentAlertsLabel"), description: t("paymentAlertsDescription"), value: paymentAlerts, toggle: () => setPaymentAlerts(!paymentAlerts) },
+                  { id: "attendance", label: t("attendanceAlertsLabel"), description: t("attendanceAlertsDescription"), value: attendanceAlerts, toggle: () => setAttendanceAlerts(!attendanceAlerts) },
+                ].map(({ id, label, description, value, toggle }) => (
+                  <div key={id} className="flex items-center justify-between py-4">
                     <div>
                       <p className="text-sm font-medium text-slate-900">{label}</p>
                       <p className="text-xs text-slate-400">{description}</p>
@@ -198,31 +211,31 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "security" && (
-            <Card title="Security Settings" subtitle="Manage your password and authentication">
+            <Card title={t("securitySettingsTitle")} subtitle={t("securitySettingsSubtitle")}>
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1.5">Current Password</label>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("currentPasswordLabel")}</label>
                   <Input
                     type="password"
-                    placeholder="Enter current password"
+                    placeholder={t("currentPasswordPlaceholder")}
                     value={passwords.current}
                     onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1.5">New Password</label>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("newPasswordLabel")}</label>
                   <Input
                     type="password"
-                    placeholder="Enter new password"
+                    placeholder={t("newPasswordPlaceholder")}
                     value={passwords.next}
                     onChange={(e) => setPasswords({ ...passwords, next: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1.5">Confirm New Password</label>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("confirmNewPasswordLabel")}</label>
                   <Input
                     type="password"
-                    placeholder="Confirm new password"
+                    placeholder={t("confirmNewPasswordPlaceholder")}
                     value={passwords.confirm}
                     onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
                   />
@@ -230,7 +243,7 @@ export default function SettingsPage() {
                 <div className="flex justify-end">
                   <Button onClick={handleUpdatePassword}>
                     <Lock className="h-4 w-4" />
-                    Update Password
+                    {t("updatePasswordButton")}
                   </Button>
                 </div>
               </div>
@@ -238,30 +251,30 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "organization" && (
-            <Card title="Organization Settings" subtitle="Configure your organization details">
+            <Card title={t("organizationSettingsTitle")} subtitle={t("organizationSettingsSubtitle")}>
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1.5">Organization Name</label>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("organizationNameLabel")}</label>
                   <Input defaultValue="EduCore Academy" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-slate-700 block mb-1.5">Contact Email</label>
+                    <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("contactEmailLabel")}</label>
                     <Input type="email" defaultValue="contact@educore.com" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-slate-700 block mb-1.5">Contact Phone</label>
+                    <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("contactPhoneLabel")}</label>
                     <Input defaultValue="+1 555-0000" />
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1.5">Address</label>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("addressLabel")}</label>
                   <Input defaultValue="123 Education Blvd, New York, NY 10001" />
                 </div>
                 <div className="flex justify-end">
                   <Button onClick={handleSaveOrganization}>
                     <Save className="h-4 w-4" />
-                    Save Changes
+                    {t("saveChangesButton")}
                   </Button>
                 </div>
               </div>
@@ -270,11 +283,67 @@ export default function SettingsPage() {
 
           {activeTab === "payment-gateways" && <PaymentGatewaysTab />}
 
-          {(activeTab === "appearance" || activeTab === "language") && (
-            <Card title={activeTab === "appearance" ? "Appearance" : "Language & Region"} subtitle="Customize your experience">
+          {activeTab === "appearance" && (
+            <Card title={t("appearanceTitle")} subtitle={t("customizeExperienceSubtitle")}>
               <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                 <Palette className="h-12 w-12 mb-3 opacity-30" />
-                <p className="text-sm">Coming soon</p>
+                <p className="text-sm">{t("comingSoon")}</p>
+              </div>
+            </Card>
+          )}
+
+          {activeTab === "language" && (
+            <Card title={t("languageRegionTitle")} subtitle={t("customizeExperienceSubtitle")}>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("interfaceLanguageLabel")}</label>
+                  {/* Real, not mock — this is the ONLY place the interface
+                      language can be changed here (see the login page's own
+                      comment on this). Applies immediately, no Save needed. */}
+                  <LanguageSwitcher variant="full" className="w-full [&>select]:w-full" />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("timezoneLabel")}</label>
+                  <select
+                    className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all cursor-pointer"
+                    value={regionSettings.timezone}
+                    onChange={(e) => setRegionSettings({ ...regionSettings, timezone: e.target.value })}
+                  >
+                    <option value="America/New_York">Eastern Time (ET)</option>
+                    <option value="America/Chicago">Central Time (CT)</option>
+                    <option value="America/Denver">Mountain Time (MT)</option>
+                    <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                    <option value="Europe/London">London (GMT)</option>
+                    <option value="Europe/Paris">Paris (CET)</option>
+                    <option value="Asia/Tashkent">Tashkent (UZT)</option>
+                    <option value="Asia/Dubai">Dubai (GST)</option>
+                    <option value="Asia/Karachi">Karachi (PKT)</option>
+                    <option value="Asia/Tokyo">Tokyo (JST)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("dateFormatLabel")}</label>
+                  <select
+                    className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all cursor-pointer"
+                    value={regionSettings.dateFormat}
+                    onChange={(e) => setRegionSettings({ ...regionSettings, dateFormat: e.target.value })}
+                  >
+                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                    <option value="DD MMM YYYY">DD MMM YYYY</option>
+                    <option value="MMM DD, YYYY">MMM DD, YYYY</option>
+                  </select>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button onClick={() => toast.success(t("languageRegionSavedToast"))}>
+                    <Save className="h-4 w-4" />
+                    {t("saveSettingsButton")}
+                  </Button>
+                </div>
               </div>
             </Card>
           )}

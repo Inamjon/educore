@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
@@ -11,15 +12,11 @@ import { useLessonsQuery } from "@/lib/queries/schedule";
 import type { Lesson } from "@/lib/api/schedule";
 import { LessonDetailDialog } from "./_components/lesson-detail-dialog";
 import { LessonFormDialog } from "./_components/lesson-form-dialog";
+import { formatLocalizedDate, weekdayShort, formatWeekRange } from "@/i18n/date-locale";
+import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HOUR_START = 8;
 const HOURS = Array.from({ length: 11 }, (_, i) => `${String(HOUR_START + i).padStart(2, "0")}:00`);
-
-const VIEW_OPTIONS = [
-  { value: "week", label: "Week View" },
-  { value: "list", label: "List View" },
-];
 
 /** Formats a Date as a YYYY-MM-DD string using its local calendar date (not
  * toISOString, which converts to UTC and shifts the date backward a day in
@@ -41,23 +38,12 @@ function getMondayOf(date: Date): Date {
   return d;
 }
 
-function buildWeek(monday: Date) {
+function buildWeek(monday: Date): string[] {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    return {
-      day: DAYS[i],
-      date: toLocalIso(d),
-      label: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-    };
+    return toLocalIso(d);
   });
-}
-
-function formatWeekRange(week: { date: string }[]) {
-  const start = new Date(week[0].date + "T00:00:00");
-  const end = new Date(week[6].date + "T00:00:00");
-  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
-  return `${start.toLocaleDateString("en-US", opts)} – ${end.toLocaleDateString("en-US", { ...opts, year: "numeric" })}`;
 }
 
 function getLessonStyle(startTime: string, endTime: string) {
@@ -71,6 +57,15 @@ function getLessonStyle(startTime: string, endTime: string) {
 }
 
 export default function SchedulePage() {
+  const t = useTranslations("AdminSchedule");
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
+  const VIEW_OPTIONS = [
+    { value: "week", label: t("weekViewOption") },
+    { value: "list", label: t("listViewOption") },
+  ];
+
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const [view, setView] = useState<"week" | "list">("week");
   const [weekOffset, setWeekOffset] = useState(0);
@@ -84,12 +79,12 @@ export default function SchedulePage() {
   }, [weekOffset]);
 
   const weekDates = useMemo(() => buildWeek(currentMonday), [currentMonday]);
-  const weekRange = useMemo(() => formatWeekRange(weekDates), [weekDates]);
+  const weekRange = useMemo(() => formatWeekRange(weekDates, locale), [weekDates, locale]);
 
   const { data: lessons = [], isLoading } = useLessonsQuery({
     organizationId: organizationId ?? "",
-    dateFrom: weekDates[0].date,
-    dateTo: weekDates[6].date,
+    dateFrom: weekDates[0],
+    dateTo: weekDates[6],
   });
   // List view isn't week-bound — widen the window instead of re-deriving a
   // second query shape for one toggle state.
@@ -100,15 +95,15 @@ export default function SchedulePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Schedule"
-        subtitle={`Week of ${weekRange}`}
+        title={t("pageTitle")}
+        subtitle={t("weekOfSubtitle", { range: weekRange })}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setWeekOffset((o) => o - 1)}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button variant={weekOffset === 0 ? "secondary" : "outline"} size="sm" onClick={() => setWeekOffset(0)}>
-              Today
+              {t("todayButton")}
             </Button>
             <Button variant="outline" size="sm" onClick={() => setWeekOffset((o) => o + 1)}>
               <ChevronRight className="h-4 w-4" />
@@ -121,7 +116,7 @@ export default function SchedulePage() {
             />
             <Button size="sm" onClick={() => setFormOpen(true)}>
               <Plus className="h-4 w-4" />
-              New Lesson
+              {t("newLessonButton")}
             </Button>
           </div>
         }
@@ -131,10 +126,10 @@ export default function SchedulePage() {
         <Card noPadding className="overflow-hidden">
           <div className="grid border-b border-slate-100" style={{ gridTemplateColumns: "64px repeat(7, 1fr)" }}>
             <div className="p-3 border-r border-slate-100" />
-            {weekDates.map((d) => (
-              <div key={d.day} className="p-3 text-center border-r border-slate-100 last:border-0">
-                <p className="text-xs font-semibold text-slate-500 uppercase">{d.day}</p>
-                <p className="text-sm font-bold text-slate-900 mt-0.5">{d.label.split(" ")[1]}</p>
+            {weekDates.map((date) => (
+              <div key={date} className="p-3 text-center border-r border-slate-100 last:border-0">
+                <p className="text-xs font-semibold text-slate-500 uppercase">{weekdayShort(date, locale)}</p>
+                <p className="text-sm font-bold text-slate-900 mt-0.5">{new Date(date + "T00:00:00").getDate()}</p>
               </div>
             ))}
           </div>
@@ -149,10 +144,10 @@ export default function SchedulePage() {
                 ))}
               </div>
 
-              {weekDates.map((d) => {
-                const dayLessons = lessons.filter((l) => l.date === d.date);
+              {weekDates.map((date) => {
+                const dayLessons = lessons.filter((l) => l.date === date);
                 return (
-                  <div key={d.date} className="relative border-r border-slate-100 last:border-0">
+                  <div key={date} className="relative border-r border-slate-100 last:border-0">
                     {HOURS.map((h) => (
                       <div key={h} className="h-[60px] border-b border-slate-50" />
                     ))}
@@ -183,7 +178,7 @@ export default function SchedulePage() {
           </div>
         </Card>
       ) : (
-        <Card noPadding title="All Lessons">
+        <Card noPadding title={t("allLessonsTitle")}>
           <div className="divide-y divide-slate-50">
             {[...allLessons]
               .sort((a, b) => a.date.localeCompare(b.date))
@@ -203,20 +198,20 @@ export default function SchedulePage() {
                     <p className="text-sm font-medium text-slate-800">
                       {lesson.start_time.slice(0, 5)} – {lesson.end_time.slice(0, 5)}
                     </p>
-                    <p className="text-xs text-slate-400">{new Date(lesson.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</p>
+                    <p className="text-xs text-slate-400">{formatLocalizedDate(new Date(lesson.date + "T00:00:00"), locale, { weekday: "short", month: "short", day: "numeric" })}</p>
                   </div>
                   <StatusBadge status={lesson.status} />
                 </div>
               ))}
             {allLessons.length === 0 && (
-              <p className="text-sm text-slate-400 text-center py-10">No lessons found.</p>
+              <p className="text-sm text-slate-400 text-center py-10">{t("noLessonsFound")}</p>
             )}
           </div>
         </Card>
       )}
 
       {!isLoading && lessons.length === 0 && view === "week" && (
-        <p className="text-sm text-slate-400 text-center">No lessons scheduled this week.</p>
+        <p className="text-sm text-slate-400 text-center">{t("noLessonsThisWeek")}</p>
       )}
 
       <div className="flex flex-wrap gap-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -17,22 +18,6 @@ import { studentSchema, type StudentFormValues } from "@/lib/schemas/student-sch
 import { useCreateStudentMutation, useStudentRoleQuery, useUpdateStudentMutation, useUserQuery } from "@/lib/queries/students";
 import { ApiError } from "@/lib/api/client";
 import type { StudentProfile } from "@/lib/api/students";
-
-const GENDER_OPTIONS = [
-  { value: "male", label: "Male" },
-  { value: "female", label: "Female" },
-  { value: "other", label: "Other" },
-];
-
-const STATUS_OPTIONS = [
-  { value: "active", label: "Active" },
-  { value: "on_leave", label: "On Leave" },
-  { value: "transferred", label: "Transferred" },
-  { value: "graduated", label: "Graduated" },
-  { value: "expelled", label: "Expelled" },
-  { value: "inactive", label: "Inactive" },
-  { value: "pending", label: "Pending" },
-];
 
 const EMPTY_VALUES: StudentFormValues = {
   firstName: "",
@@ -53,13 +38,14 @@ interface StudentFormDialogProps {
 }
 
 export function StudentFormDialog({ open, onOpenChange, student }: StudentFormDialogProps) {
+  const t = useTranslations("AdminStudents");
   const mode = student ? "edit" : "create";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "Add Student" : "Edit Student"}</DialogTitle>
+          <DialogTitle>{mode === "create" ? t("formTitleAdd") : t("formTitleEdit")}</DialogTitle>
         </DialogHeader>
         {open && (
           <StudentFormFields key={student?.id ?? "new"} student={student} onOpenChange={onOpenChange} />
@@ -76,8 +62,26 @@ function StudentFormFields({
   student?: StudentProfile | null;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useTranslations("AdminStudents");
+  const tc = useTranslations("Common");
   const mode = student ? "edit" : "create";
   const organizationId = useAuthStore((s) => s.user?.organizationId);
+
+  const GENDER_OPTIONS = [
+    { value: "male", label: t("genderMale") },
+    { value: "female", label: t("genderFemale") },
+    { value: "other", label: t("genderOther") },
+  ];
+
+  const STATUS_OPTIONS = [
+    { value: "active", label: t("statusActive") },
+    { value: "on_leave", label: t("statusOnLeave") },
+    { value: "transferred", label: t("statusTransferred") },
+    { value: "graduated", label: t("statusGraduated") },
+    { value: "expelled", label: t("statusExpelled") },
+    { value: "inactive", label: t("statusInactive") },
+    { value: "pending", label: t("statusPending") },
+  ];
 
   const { data: studentRole } = useStudentRoleQuery(organizationId);
   const { data: userRecord, isLoading: userLoading } = useUserQuery(student?.user ?? null);
@@ -129,15 +133,15 @@ function StudentFormFields({
 
     if (mode === "create") {
       if (!password || password.length < 6) {
-        setPasswordError("Password must be at least 6 characters");
+        setPasswordError(t("passwordMinLength"));
         return;
       }
       if (password !== confirmPassword) {
-        setPasswordError("Passwords do not match");
+        setPasswordError(t("passwordMismatch"));
         return;
       }
       if (!organizationId || !studentRole) {
-        toast.error("Student role isn't set up for this organization yet.");
+        toast.error(t("studentRoleMissing"));
         return;
       }
 
@@ -157,10 +161,10 @@ function StudentFormFields({
           parentName: values.parentName,
           parentPhone: values.parentPhone,
         });
-        toast.success("Student created");
+        toast.success(t("createdToast"));
         onOpenChange(false);
       } catch (err) {
-        applyServerErrors(err, setErrors);
+        applyServerErrors(err, setErrors, t);
       } finally {
         setSubmitting(false);
       }
@@ -180,10 +184,10 @@ function StudentFormFields({
             status: values.status,
           },
         });
-        toast.success("Student updated");
+        toast.success(t("updatedToast"));
         onOpenChange(false);
       } catch (err) {
-        applyServerErrors(err, setErrors);
+        applyServerErrors(err, setErrors, t);
       } finally {
         setSubmitting(false);
       }
@@ -193,7 +197,7 @@ function StudentFormFields({
   if (mode === "edit" && (userLoading || !initialized)) {
     return (
       <DialogBody>
-        <p className="text-sm text-slate-400 py-8 text-center">Loading student…</p>
+        <p className="text-sm text-slate-400 py-8 text-center">{t("loadingStudent")}</p>
       </DialogBody>
     );
   }
@@ -203,19 +207,19 @@ function StudentFormFields({
       <DialogBody>
         <div className="grid grid-cols-2 gap-3">
           <Input
-            placeholder="First name"
+            placeholder={t("fieldFirstName")}
             value={values.firstName}
             onChange={(e) => setField("firstName", e.target.value)}
             error={errors.firstName}
           />
           <Input
-            placeholder="Last name"
+            placeholder={t("fieldLastName")}
             value={values.lastName}
             onChange={(e) => setField("lastName", e.target.value)}
             error={errors.lastName}
           />
           <Input
-            placeholder="Phone"
+            placeholder={t("fieldPhone")}
             value={values.phone}
             onChange={(e) => setField("phone", e.target.value)}
             error={errors.phone}
@@ -232,7 +236,7 @@ function StudentFormFields({
             error={errors.dateOfBirth}
           />
           <Input
-            placeholder="Student code"
+            placeholder={t("fieldStudentCode")}
             value={values.studentCode}
             onChange={(e) => setField("studentCode", e.target.value)}
             error={errors.studentCode}
@@ -245,38 +249,38 @@ function StudentFormFields({
           />
 
           {mode === "edit" && student && (
-            <Input value={student.user_login_id} disabled placeholder="Login ID" className="col-span-2" />
+            <Input value={student.user_login_id} disabled placeholder={t("fieldLoginId")} className="col-span-2" />
           )}
 
           {mode === "create" && (
             <>
               <Input
-                placeholder="Parent name"
+                placeholder={t("fieldParentName")}
                 value={values.parentName}
                 onChange={(e) => setField("parentName", e.target.value)}
                 error={errors.parentName}
               />
               <Input
-                placeholder="Parent phone"
+                placeholder={t("fieldParentPhone")}
                 value={values.parentPhone}
                 onChange={(e) => setField("parentPhone", e.target.value)}
                 error={errors.parentPhone}
               />
               <Input
                 type="password"
-                placeholder="Password"
+                placeholder={t("fieldPassword")}
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setPasswordError(undefined); }}
                 error={passwordError}
               />
               <Input
                 type="password"
-                placeholder="Confirm password"
+                placeholder={t("fieldConfirmPassword")}
                 value={confirmPassword}
                 onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(undefined); }}
               />
               <p className="col-span-2 -mt-2 text-xs text-slate-400">
-                A Login ID will be generated automatically after creation.
+                {t("loginIdHint")}
               </p>
             </>
           )}
@@ -284,10 +288,10 @@ function StudentFormFields({
       </DialogBody>
       <DialogFooter>
         <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-          Cancel
+          {tc("cancel")}
         </Button>
         <Button onClick={handleSubmit} loading={submitting}>
-          {mode === "create" ? "Create" : "Save"}
+          {mode === "create" ? t("createButton") : tc("save")}
         </Button>
       </DialogFooter>
     </>
@@ -296,7 +300,8 @@ function StudentFormFields({
 
 function applyServerErrors(
   err: unknown,
-  setErrors: React.Dispatch<React.SetStateAction<Partial<Record<keyof StudentFormValues, string>>>>
+  setErrors: React.Dispatch<React.SetStateAction<Partial<Record<keyof StudentFormValues, string>>>>,
+  t: ReturnType<typeof useTranslations<"AdminStudents">>
 ) {
   if (err instanceof ApiError && err.fieldErrors) {
     const mapped: Partial<Record<keyof StudentFormValues, string>> = {};
@@ -305,8 +310,8 @@ function applyServerErrors(
       mapped[field] = messages[0];
     }
     setErrors(mapped);
-    toast.error("Please fix the highlighted fields.");
+    toast.error(t("fixHighlightedFields"));
   } else {
-    toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+    toast.error(err instanceof ApiError ? err.message : t("genericError"));
   }
 }

@@ -1,23 +1,18 @@
 "use client";
 
 import { ChevronLeft, KeyRound, Phone, Briefcase, DollarSign, Pencil, Trash2 } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/badge";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { useGroupsQuery } from "@/lib/queries/groups";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { useTeacherSalariesQuery, useTeacherSpecializationsQuery } from "@/lib/queries/teachers";
 import type { TeacherProfile } from "@/lib/api/teachers";
-
-const EMPLOYMENT_LABELS: Record<string, string> = {
-  full_time: "Full Time",
-  part_time: "Part Time",
-  contract: "Contract",
-  freelance: "Freelance",
-  intern: "Intern",
-};
+import { formatLocalizedDate } from "@/i18n/date-locale";
+import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 
 interface TeacherDetailPanelProps {
   teacher: TeacherProfile;
@@ -27,6 +22,18 @@ interface TeacherDetailPanelProps {
 }
 
 export function TeacherDetailPanel({ teacher, onBack, onEdit, onDelete }: TeacherDetailPanelProps) {
+  const t = useTranslations("AdminTeachers");
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
+  const EMPLOYMENT_LABELS: Record<string, string> = {
+    full_time: t("employmentFullTime"),
+    part_time: t("employmentPartTime"),
+    contract: t("employmentContract"),
+    freelance: t("employmentFreelance"),
+    intern: t("employmentIntern"),
+  };
+
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const { data: groups } = useGroupsQuery({ organizationId: organizationId ?? "", teacher: teacher.id });
 
@@ -39,7 +46,7 @@ export function TeacherDetailPanel({ teacher, onBack, onEdit, onDelete }: Teache
       <div className="flex items-center gap-4 px-6 py-5 border-b border-slate-100">
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ChevronLeft className="h-4 w-4" />
-          Back
+          {t("backButton")}
         </Button>
         <div className="flex items-center gap-3">
           <Avatar name={teacher.user_full_name} size="md" />
@@ -52,11 +59,11 @@ export function TeacherDetailPanel({ teacher, onBack, onEdit, onDelete }: Teache
           <StatusBadge status={teacher.status} />
           <Button variant="outline" size="sm" onClick={onEdit}>
             <Pencil className="h-3.5 w-3.5" />
-            Edit
+            {t("editButton")}
           </Button>
           <Button variant="danger" size="sm" onClick={onDelete}>
             <Trash2 className="h-3.5 w-3.5" />
-            Delete
+            {t("deleteButton")}
           </Button>
         </div>
       </div>
@@ -64,21 +71,21 @@ export function TeacherDetailPanel({ teacher, onBack, onEdit, onDelete }: Teache
       <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-            Contact Information
+            {t("contactInfoTitle")}
           </h4>
           <div className="space-y-3">
-            <InfoRow icon={<KeyRound className="h-4 w-4" />} label="Login ID" value={teacher.user_login_id} />
-            <InfoRow icon={<Phone className="h-4 w-4" />} label="Phone" value={teacher.user_phone} />
+            <InfoRow icon={<KeyRound className="h-4 w-4" />} label={t("loginIdLabel")} value={teacher.user_login_id} />
+            <InfoRow icon={<Phone className="h-4 w-4" />} label={t("phoneLabel")} value={teacher.user_phone} />
             <InfoRow
               icon={<Briefcase className="h-4 w-4" />}
-              label="Employment"
+              label={t("employmentLabel")}
               value={EMPLOYMENT_LABELS[teacher.employment_type] ?? teacher.employment_type}
             />
-            <InfoRow icon={<KeyRound className="h-4 w-4" />} label="Hired" value={formatDate(teacher.hire_date)} />
+            <InfoRow icon={<KeyRound className="h-4 w-4" />} label={t("hiredLabel")} value={formatLocalizedDate(new Date(teacher.hire_date + "T00:00:00"), locale, { month: "short", day: "numeric", year: "numeric" })} />
             {activeSalary && (
               <InfoRow
                 icon={<DollarSign className="h-4 w-4" />}
-                label="Salary"
+                label={t("salaryLabel")}
                 value={`${formatCurrency(Number(activeSalary.amount))} / ${activeSalary.salary_type.replace("_", " ")}`}
               />
             )}
@@ -93,16 +100,16 @@ export function TeacherDetailPanel({ teacher, onBack, onEdit, onDelete }: Teache
         </div>
 
         <div className="space-y-3">
-          <h4 className="text-sm font-semibold text-slate-700 mb-2">Assigned Groups</h4>
+          <h4 className="text-sm font-semibold text-slate-700 mb-2">{t("assignedGroupsTitle")}</h4>
           {!groups || groups.length === 0 ? (
-            <p className="text-sm text-slate-400">No groups assigned.</p>
+            <p className="text-sm text-slate-400">{t("noGroupsAssigned")}</p>
           ) : (
             <div className="space-y-1.5">
               {groups.map((g) => (
                 <div key={g.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
                   <span className="text-xs text-slate-700">{g.name}</span>
                   <span className="text-xs text-slate-500">
-                    {g.enrolled_count}/{g.max_students} students
+                    {t("studentsRatio", { enrolled: g.enrolled_count, max: g.max_students })}
                   </span>
                 </div>
               ))}

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Plus, Users2, Clock, Pencil, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { DataTable, Column } from "@/components/ui/data-table";
@@ -19,16 +20,27 @@ import { Users, BookOpen } from "lucide-react";
 import { GroupFormDialog } from "./_components/group-form-dialog";
 import { GroupDetailPanel } from "./_components/group-detail-panel";
 
-const STATUS_OPTIONS = [
-  { value: "", label: "All Status" },
-  { value: "forming", label: "Forming" },
-  { value: "active", label: "Active" },
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
-  { value: "archived", label: "Archived" },
-];
-
 export default function GroupsPage() {
+  const t = useTranslations("AdminGroups");
+
+  const STATUS_OPTIONS = [
+    { value: "", label: t("statusAll") },
+    { value: "forming", label: t("statusForming") },
+    { value: "active", label: t("statusActive") },
+    { value: "completed", label: t("statusCompleted") },
+    { value: "cancelled", label: t("statusCancelled") },
+    { value: "archived", label: t("statusArchived") },
+  ];
+
+  // Mon/Tue/... recurrence codes from the API — see also
+  // group-detail-panel.tsx and group-form-dialog.tsx, which redefine the
+  // same map (small enough, and each file's day list is a different shape,
+  // so a shared helper isn't worth the indirection).
+  const DAY_LABELS: Record<string, string> = {
+    Mon: t("dayMon"), Tue: t("dayTue"), Wed: t("dayWed"), Thu: t("dayThu"),
+    Fri: t("dayFri"), Sat: t("daySat"), Sun: t("daySun"),
+  };
+
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<GroupStatus | "">("");
@@ -62,7 +74,7 @@ export default function GroupsPage() {
   const COLUMNS: Column<Group>[] = [
     {
       key: "name",
-      label: "Group",
+      label: t("columnGroup"),
       render: (_, row) => (
         <div>
           <p className="font-medium text-slate-900">{row.name}</p>
@@ -72,7 +84,7 @@ export default function GroupsPage() {
     },
     {
       key: "teacher_name",
-      label: "Teacher",
+      label: t("columnTeacher"),
       render: (_, row) => (
         <div className="flex items-center gap-2">
           <Avatar name={row.teacher_name} size="xs" />
@@ -82,20 +94,20 @@ export default function GroupsPage() {
     },
     {
       key: "days_of_week",
-      label: "Schedule",
+      label: t("columnSchedule"),
       render: (_, row) => (
         <div>
-          <p className="text-sm text-slate-700">{row.days_of_week.join(", ") || "—"}</p>
+          <p className="text-sm text-slate-700">{row.days_of_week.map((d) => DAY_LABELS[d] ?? d).join(", ") || "—"}</p>
           <p className="text-xs text-slate-400">
             {row.start_time && row.end_time ? `${row.start_time.slice(0, 5)} – ${row.end_time.slice(0, 5)}` : "—"}
           </p>
         </div>
       ),
     },
-    { key: "room", label: "Room" },
+    { key: "room", label: t("columnRoom") },
     {
       key: "enrolled_count",
-      label: "Students",
+      label: t("columnStudents"),
       render: (_, row) => (
         <div className="flex items-center gap-2">
           <div className="flex-1 h-1.5 bg-slate-100 rounded-full w-16">
@@ -107,17 +119,17 @@ export default function GroupsPage() {
     },
     {
       key: "course_level",
-      label: "Level",
+      label: t("columnLevel"),
       render: (val) => <StatusBadge status={String(val)} />,
     },
     {
       key: "status",
-      label: "Status",
+      label: t("columnStatus"),
       render: (val) => <StatusBadge status={String(val)} />,
     },
     {
       key: "id",
-      label: "Actions",
+      label: t("columnActions"),
       render: (_, row) => (
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <Button variant="ghost" size="icon" onClick={() => openEdit(row)}>
@@ -134,8 +146,8 @@ export default function GroupsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Groups & Classes"
-        subtitle={`${list.length} groups running`}
+        title={t("pageTitle")}
+        subtitle={t("pageSubtitleCount", { count: list.length })}
         actions={
           <Button
             onClick={() => {
@@ -144,25 +156,25 @@ export default function GroupsPage() {
             }}
           >
             <Plus className="h-4 w-4" />
-            New Group
+            {t("newGroupButton")}
           </Button>
         }
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Groups" value={list.length} icon={<Users2 className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
-        <StatCard label="Total Enrolled" value={totalEnrolled} icon={<Users className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
-        <StatCard label="Total Capacity" value={totalCapacity} icon={<BookOpen className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
-        <StatCard label="Occupancy Rate" value={totalCapacity ? `${Math.round((totalEnrolled / totalCapacity) * 100)}%` : "0%"} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
+        <StatCard label={t("statTotalGroups")} value={list.length} icon={<Users2 className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label={t("statTotalEnrolled")} value={totalEnrolled} icon={<Users className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
+        <StatCard label={t("statTotalCapacity")} value={totalCapacity} icon={<BookOpen className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label={t("statOccupancyRate")} value={totalCapacity ? `${Math.round((totalEnrolled / totalCapacity) * 100)}%` : "0%"} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
       </div>
 
       <Card
         noPadding
-        title="All Groups"
-        subtitle={`${list.length} groups`}
+        title={t("allGroupsTitle")}
+        subtitle={t("groupsCount", { count: list.length })}
         actions={
           <div className="flex items-center gap-2">
-            <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search groups..." />
+            <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPlaceholder")} />
             <Select options={STATUS_OPTIONS} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as GroupStatus | "")} className="w-36" />
           </div>
         }
@@ -170,15 +182,15 @@ export default function GroupsPage() {
         {isError ? (
           <div className="flex items-center gap-2 px-6 py-8 text-sm text-red-500">
             <AlertCircle className="h-4 w-4" />
-            {error instanceof ApiError ? error.message : "Failed to load groups."}
+            {error instanceof ApiError ? error.message : t("loadErrorFallback")}
           </div>
         ) : isLoading ? (
           <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-slate-400">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading groups…
+            {t("loadingGroups")}
           </div>
         ) : (
-          <DataTable columns={COLUMNS} data={list} keyField="id" emptyMessage="No groups found" onRowClick={(row) => setSelectedId(row.id)} />
+          <DataTable columns={COLUMNS} data={list} keyField="id" emptyMessage={t("noGroupsFound")} onRowClick={(row) => setSelectedId(row.id)} />
         )}
       </Card>
 
@@ -196,17 +208,17 @@ export default function GroupsPage() {
       <ConfirmDialog
         open={!!deletingGroup}
         onOpenChange={(open) => !open && setDeletingGroup(null)}
-        title="Delete group"
-        description={`Are you sure you want to remove ${deletingGroup?.name}? This can be restored later from the database if needed.`}
-        confirmLabel="Delete"
+        title={t("deleteDialogTitle")}
+        description={t("deleteDialogDescription", { name: deletingGroup?.name ?? "" })}
+        confirmLabel={t("deleteConfirmLabel")}
         onConfirm={async () => {
           if (!deletingGroup) return;
           try {
             await deleteMutation.mutateAsync(deletingGroup.id);
-            toast.success("Group removed");
+            toast.success(t("deleteSuccessToast"));
             if (selectedId === deletingGroup.id) setSelectedId(null);
           } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : "Failed to delete group.");
+            toast.error(err instanceof ApiError ? err.message : t("deleteErrorFallback"));
           }
         }}
       />

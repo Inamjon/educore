@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -22,14 +23,6 @@ import { ApiError } from "@/lib/api/client";
 import type { Group, DayOfWeek } from "@/lib/api/groups";
 
 const DAYS: DayOfWeek[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-const STATUS_OPTIONS = [
-  { value: "forming", label: "Forming" },
-  { value: "active", label: "Active" },
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
-  { value: "archived", label: "Archived" },
-];
 
 const EMPTY_VALUES: GroupProfileFormValues = {
   name: "",
@@ -53,13 +46,14 @@ interface GroupFormDialogProps {
 }
 
 export function GroupFormDialog({ open, onOpenChange, group }: GroupFormDialogProps) {
+  const t = useTranslations("AdminGroups");
   const mode = group ? "edit" : "create";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "New Group" : "Edit Group"}</DialogTitle>
+          <DialogTitle>{mode === "create" ? t("formTitleNew") : t("formTitleEdit")}</DialogTitle>
         </DialogHeader>
         {open && <GroupFormFields key={group?.id ?? "new"} group={group} onOpenChange={onOpenChange} />}
       </DialogContent>
@@ -74,8 +68,23 @@ function GroupFormFields({
   group?: Group | null;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useTranslations("AdminGroups");
+  const tc = useTranslations("Common");
   const mode = group ? "edit" : "create";
   const organizationId = useAuthStore((s) => s.user?.organizationId);
+
+  const STATUS_OPTIONS = [
+    { value: "forming", label: t("statusForming") },
+    { value: "active", label: t("statusActive") },
+    { value: "completed", label: t("statusCompleted") },
+    { value: "cancelled", label: t("statusCancelled") },
+    { value: "archived", label: t("statusArchived") },
+  ];
+
+  const DAY_LABELS: Record<DayOfWeek, string> = {
+    Mon: t("dayMon"), Tue: t("dayTue"), Wed: t("dayWed"), Thu: t("dayThu"),
+    Fri: t("dayFri"), Sat: t("daySat"), Sun: t("daySun"),
+  };
 
   const { data: courses } = useCoursesQuery({ organizationId: organizationId ?? "" });
   const { data: teachers } = useTeachersQuery({ organizationId: organizationId ?? "" });
@@ -132,14 +141,14 @@ function GroupFormFields({
     try {
       if (mode === "create") {
         if (!organizationId) {
-          toast.error("No organization on this account.");
+          toast.error(t("noOrganizationError"));
           return;
         }
         await createMutation.mutateAsync({ organizationId, ...result.data });
-        toast.success("Group created");
+        toast.success(t("createdToast"));
       } else if (group) {
         await updateMutation.mutateAsync({ groupId: group.id, input: result.data });
-        toast.success("Group updated");
+        toast.success(t("updatedToast"));
       }
       onOpenChange(false);
     } catch (err) {
@@ -153,9 +162,9 @@ function GroupFormFields({
           mapped[field] = messages[0];
         }
         setErrors(mapped);
-        toast.error("Please fix the highlighted fields.");
+        toast.error(t("fixHighlightedFields"));
       } else {
-        toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+        toast.error(err instanceof ApiError ? err.message : t("genericError"));
       }
     } finally {
       setSubmitting(false);
@@ -167,21 +176,21 @@ function GroupFormFields({
       <DialogBody>
         <div className="grid grid-cols-2 gap-3">
           <Input
-            placeholder="Group name"
+            placeholder={t("fieldGroupName")}
             value={values.name}
             onChange={(e) => setField("name", e.target.value)}
             error={errors.name}
             className="col-span-2"
           />
           <Select
-            placeholder="Select course"
+            placeholder={t("selectCoursePlaceholder")}
             options={(courses ?? []).map((c) => ({ value: c.id, label: c.name }))}
             value={values.course}
             onChange={(e) => setField("course", e.target.value)}
           />
           <Select
-            placeholder="Select teacher"
-            options={(teachers ?? []).map((t) => ({ value: t.id, label: t.user_full_name }))}
+            placeholder={t("selectTeacherPlaceholder")}
+            options={(teachers ?? []).map((tc) => ({ value: tc.id, label: tc.user_full_name }))}
             value={values.teacher}
             onChange={(e) => setField("teacher", e.target.value)}
           />
@@ -189,7 +198,7 @@ function GroupFormFields({
             <p className="col-span-2 -mt-2 text-xs text-red-500">{errors.course || errors.teacher}</p>
           )}
           <Input
-            placeholder="Room"
+            placeholder={t("fieldRoom")}
             value={values.room}
             onChange={(e) => setField("room", e.target.value)}
             error={errors.room}
@@ -201,10 +210,10 @@ function GroupFormFields({
           />
 
           <div className="col-span-2">
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">Days</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">{t("daysLabel")}</label>
             <div className="flex flex-wrap gap-3">
               {DAYS.map((day) => (
-                <Checkbox key={day} checked={values.daysOfWeek.includes(day)} onCheckedChange={() => toggleDay(day)} label={day} />
+                <Checkbox key={day} checked={values.daysOfWeek.includes(day)} onCheckedChange={() => toggleDay(day)} label={DAY_LABELS[day]} />
               ))}
             </div>
             {errors.daysOfWeek && <p className="mt-1 text-xs text-red-500">{errors.daysOfWeek}</p>}
@@ -224,14 +233,14 @@ function GroupFormFields({
           />
           <Input
             type="number"
-            placeholder="Capacity"
+            placeholder={t("fieldCapacity")}
             value={values.maxStudents}
             onChange={(e) => setField("maxStudents", Number(e.target.value))}
             error={errors.maxStudents}
           />
           <Input
             type="number"
-            placeholder="Price"
+            placeholder={t("fieldPrice")}
             value={values.price}
             onChange={(e) => setField("price", Number(e.target.value))}
             error={errors.price}
@@ -250,16 +259,16 @@ function GroupFormFields({
           />
 
           {mode === "edit" && group && (
-            <Input value={group.code} disabled placeholder="Group code" className="col-span-2" />
+            <Input value={group.code} disabled placeholder={t("fieldGroupCode")} className="col-span-2" />
           )}
         </div>
       </DialogBody>
       <DialogFooter>
         <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-          Cancel
+          {tc("cancel")}
         </Button>
         <Button onClick={handleSubmit} loading={submitting}>
-          {mode === "create" ? "Create" : "Save"}
+          {mode === "create" ? t("createButton") : tc("save")}
         </Button>
       </DialogFooter>
     </>
