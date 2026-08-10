@@ -42,12 +42,15 @@ export default function TeacherAttendancePage() {
     activeBorder: string;
     inactiveBg: string;
     inactiveText: string;
-  }[] = [
-    { value: 'present', label: t('statusPresent'), activeBg: 'bg-emerald-500', activeText: 'text-white', activeBorder: 'border-emerald-500', inactiveBg: 'bg-white', inactiveText: 'text-emerald-600' },
-    { value: 'absent', label: t('statusAbsent'), activeBg: 'bg-red-500', activeText: 'text-white', activeBorder: 'border-red-500', inactiveBg: 'bg-white', inactiveText: 'text-red-600' },
-    { value: 'late', label: t('statusLate'), activeBg: 'bg-amber-500', activeText: 'text-white', activeBorder: 'border-amber-500', inactiveBg: 'bg-white', inactiveText: 'text-amber-600' },
-    { value: 'excused', label: t('statusExcused'), activeBg: 'bg-blue-500', activeText: 'text-white', activeBorder: 'border-blue-500', inactiveBg: 'bg-white', inactiveText: 'text-blue-600' },
-  ];
+  }[] = useMemo(
+    () => [
+      { value: 'present', label: t('statusPresent'), activeBg: 'bg-emerald-500', activeText: 'text-white', activeBorder: 'border-emerald-500', inactiveBg: 'bg-white', inactiveText: 'text-emerald-600' },
+      { value: 'absent', label: t('statusAbsent'), activeBg: 'bg-red-500', activeText: 'text-white', activeBorder: 'border-red-500', inactiveBg: 'bg-white', inactiveText: 'text-red-600' },
+      { value: 'late', label: t('statusLate'), activeBg: 'bg-amber-500', activeText: 'text-white', activeBorder: 'border-amber-500', inactiveBg: 'bg-white', inactiveText: 'text-amber-600' },
+      { value: 'excused', label: t('statusExcused'), activeBg: 'bg-blue-500', activeText: 'text-white', activeBorder: 'border-blue-500', inactiveBg: 'bg-white', inactiveText: 'text-blue-600' },
+    ],
+    [t],
+  );
 
   function formatDate(iso: string): string {
     const d = new Date(iso + 'T00:00:00');

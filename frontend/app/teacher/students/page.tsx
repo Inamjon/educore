@@ -19,7 +19,14 @@ import { formatLocalizedDate } from '@/i18n/date-locale';
 import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 
 function formatDate(iso: string, locale: Locale) {
-  return formatLocalizedDate(new Date(iso), locale, { month: 'short', day: 'numeric', year: 'numeric' });
+  return formatLocalizedDate(new Date(iso + 'T00:00:00'), locale, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Shared by StudentCard and StudentDetailPanel — both render the same
+// member.status → label mapping, deliberately not the shared <StatusBadge>
+// (see the note on app/student/attendance/page.tsx).
+function memberStatusLabel(status: GroupMember['status'], t: ReturnType<typeof useTranslations<'TeacherStudents'>>) {
+  return status === 'active' ? t('memberStatusActive') : t('memberStatusOther');
 }
 
 // ─── Student Card ─────────────────────────────────────────────────────────────
@@ -36,10 +43,8 @@ function StudentCard({
   const t = useTranslations('TeacherStudents');
 
   // activeRoster (see the page component) already filters to "active"
-  // members only, so that's the only value this card ever actually
-  // renders — deliberately not the shared <StatusBadge>, see the same
-  // note on app/student/attendance/page.tsx.
-  const statusLabel = member.status === 'active' ? t('memberStatusActive') : t('memberStatusOther');
+  // members only, so that's the only value this card ever actually renders.
+  const statusLabel = memberStatusLabel(member.status, t);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col items-center text-center gap-3">
@@ -115,7 +120,7 @@ function StudentDetailPanel({
     excused: t('statusExcused'),
   };
 
-  const statusLabel = member.status === 'active' ? t('memberStatusActive') : t('memberStatusOther');
+  const statusLabel = memberStatusLabel(member.status, t);
 
   return (
     <Card className="mt-6" noPadding>

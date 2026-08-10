@@ -84,7 +84,7 @@ function ResourceCard({
         <div className="flex items-center gap-3 text-xs text-slate-400">
           <span>{resource.size}</span>
           <span className="h-1 w-1 rounded-full bg-slate-300" />
-          <span>{formatLocalizedDate(new Date(resource.uploadedAt), locale, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+          <span>{formatLocalizedDate(new Date(resource.uploadedAt + 'T00:00:00'), locale, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
         </div>
 
         <div className="text-xs text-slate-500">

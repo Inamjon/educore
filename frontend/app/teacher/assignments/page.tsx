@@ -22,7 +22,7 @@ import {
 import type { Assignment, AssignmentStatus } from '@/lib/api/homework';
 import { ApiError } from '@/lib/api/client';
 import { toast } from '@/lib/store/toast-store';
-import { formatLocalizedDate } from '@/i18n/date-locale';
+import { formatLocalizedDate, INTL_DATE_LOCALES } from '@/i18n/date-locale';
 import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 import {
   Plus,
@@ -56,10 +56,13 @@ function formatDate(dateStr: string, locale: Locale) {
   });
 }
 
+// A full timestamp (date + time-of-day), unlike the shared formatClockTime
+// in date-locale.ts which only accepts a bare "HH:MM" time string — reuses
+// its INTL_DATE_LOCALES/hour12 convention rather than re-deriving it.
 function formatDateTime(dateStr: string, locale: Locale) {
   const d = new Date(dateStr);
   const datePart = formatLocalizedDate(d, locale, { month: 'short', day: 'numeric' });
-  const timePart = d.toLocaleTimeString(locale === 'en' ? 'en-US' : locale === 'ru' ? 'ru-RU' : 'uz-Latn-UZ', {
+  const timePart = d.toLocaleTimeString(INTL_DATE_LOCALES[locale], {
     hour: '2-digit',
     minute: '2-digit',
     hour12: locale === 'en',

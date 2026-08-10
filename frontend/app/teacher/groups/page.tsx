@@ -20,7 +20,7 @@ import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 type Tab = 'students' | 'attendance' | 'homework' | 'grades';
 
 function formatDate(dateStr: string, locale: Locale) {
-  return formatLocalizedDate(new Date(dateStr), locale, { month: 'short', day: 'numeric', year: 'numeric' });
+  return formatLocalizedDate(new Date(dateStr + 'T00:00:00'), locale, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 // t is TeacherGroups's useTranslations return value.

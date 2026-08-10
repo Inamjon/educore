@@ -40,7 +40,7 @@ const GROUP_COLORS: Record<string, string> = {
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDate(dateStr: string, locale: Locale) {
-  return formatLocalizedDate(new Date(dateStr), locale, { month: 'short', day: 'numeric', year: 'numeric' });
+  return formatLocalizedDate(new Date(dateStr + 'T00:00:00'), locale, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function scoreBarColor(avg: number, max: number) {
