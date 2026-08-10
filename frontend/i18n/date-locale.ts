@@ -64,3 +64,43 @@ export function formatLocalizedDate(date: Date, locale: Locale, options: Localiz
 
   return segments.join(", ");
 }
+
+// ─── Shared weekly-schedule-grid helpers ───────────────────────────────────
+// Pure locale-formatting utilities (no portal-specific mock-data
+// dependency), so — unlike e.g. each portal's own "days until" helper,
+// which genuinely differs per portal's demo data — these belong here once,
+// not redefined per portal. Every portal's weekly Schedule page imports
+// these instead of hand-rolling its own copy.
+
+/** Short weekday abbreviation for a YYYY-MM-DD date string (e.g. "Mon"/"Dush"). */
+export function weekdayShort(iso: string, locale: Locale): string {
+  return formatLocalizedDate(new Date(iso + "T00:00:00"), locale, { weekday: "short" });
+}
+
+/** "Aug 3"-style day-column header for a YYYY-MM-DD date string. */
+export function formatDayHeader(iso: string, locale: Locale): string {
+  return formatLocalizedDate(new Date(iso + "T00:00:00"), locale, { month: "short", day: "numeric" });
+}
+
+/** "Aug 3 – Aug 9, 2026"-style week-range subtitle for a 7-element Mon–Sun
+ * array of YYYY-MM-DD date strings. */
+export function formatWeekRange(week: string[], locale: Locale): string {
+  const start = new Date(week[0] + "T00:00:00");
+  const end = new Date(week[6] + "T00:00:00");
+  return `${formatLocalizedDate(start, locale, { month: "short", day: "numeric" })} – ${formatLocalizedDate(end, locale, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })}`;
+}
+
+/** Locale-aware "HH:MM" formatting for a bare "HH:MM" time-of-day string
+ * (not a full Date/ISO timestamp) — en gets 12-hour AM/PM, uz/ru get
+ * 24-hour, per each locale's own convention. Shared by every page that
+ * displays a lesson/class start-end time. */
+export function formatClockTime(time: string, locale: Locale): string {
+  const [h, m] = time.split(":").map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toLocaleTimeString(INTL_DATE_LOCALES[locale], { hour: "numeric", minute: "2-digit", hour12: locale === "en" });
+}

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { CheckCircle2, XCircle, Clock, FileQuestion, Save } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
@@ -18,35 +19,44 @@ import {
 } from '@/lib/queries/attendance';
 import { ApiError } from '@/lib/api/client';
 import type { AttendanceStatus } from '@/lib/api/attendance';
+import { formatLocalizedDate } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE } from '@/i18n/locales';
 
 type MarkableStatus = 'present' | 'absent' | 'late' | 'excused';
-
-const STATUS_CONFIG: {
-  value: MarkableStatus;
-  label: string;
-  activeBg: string;
-  activeText: string;
-  activeBorder: string;
-  inactiveBg: string;
-  inactiveText: string;
-}[] = [
-  { value: 'present', label: 'Present', activeBg: 'bg-emerald-500', activeText: 'text-white', activeBorder: 'border-emerald-500', inactiveBg: 'bg-white', inactiveText: 'text-emerald-600' },
-  { value: 'absent', label: 'Absent', activeBg: 'bg-red-500', activeText: 'text-white', activeBorder: 'border-red-500', inactiveBg: 'bg-white', inactiveText: 'text-red-600' },
-  { value: 'late', label: 'Late', activeBg: 'bg-amber-500', activeText: 'text-white', activeBorder: 'border-amber-500', inactiveBg: 'bg-white', inactiveText: 'text-amber-600' },
-  { value: 'excused', label: 'Excused', activeBg: 'bg-blue-500', activeText: 'text-white', activeBorder: 'border-blue-500', inactiveBg: 'bg-white', inactiveText: 'text-blue-600' },
-];
 
 function todayIso(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function formatDate(iso: string): string {
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-}
-
 export default function TeacherAttendancePage() {
+  const t = useTranslations('TeacherAttendance');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
+  const STATUS_CONFIG: {
+    value: MarkableStatus;
+    label: string;
+    activeBg: string;
+    activeText: string;
+    activeBorder: string;
+    inactiveBg: string;
+    inactiveText: string;
+  }[] = useMemo(
+    () => [
+      { value: 'present', label: t('statusPresent'), activeBg: 'bg-emerald-500', activeText: 'text-white', activeBorder: 'border-emerald-500', inactiveBg: 'bg-white', inactiveText: 'text-emerald-600' },
+      { value: 'absent', label: t('statusAbsent'), activeBg: 'bg-red-500', activeText: 'text-white', activeBorder: 'border-red-500', inactiveBg: 'bg-white', inactiveText: 'text-red-600' },
+      { value: 'late', label: t('statusLate'), activeBg: 'bg-amber-500', activeText: 'text-white', activeBorder: 'border-amber-500', inactiveBg: 'bg-white', inactiveText: 'text-amber-600' },
+      { value: 'excused', label: t('statusExcused'), activeBg: 'bg-blue-500', activeText: 'text-white', activeBorder: 'border-blue-500', inactiveBg: 'bg-white', inactiveText: 'text-blue-600' },
+    ],
+    [t],
+  );
+
+  function formatDate(iso: string): string {
+    const d = new Date(iso + 'T00:00:00');
+    return formatLocalizedDate(d, locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  }
+
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const { data: myProfile } = useMyTeacherProfileQuery();
 
@@ -114,9 +124,9 @@ export default function TeacherAttendancePage() {
         })
       );
       setDraft({});
-      toast.success('Attendance saved');
+      toast.success(t('attendanceSavedToast'));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to save attendance.');
+      toast.error(err instanceof ApiError ? err.message : t('saveFailedToast'));
     } finally {
       setSaving(false);
     }
@@ -148,8 +158,8 @@ export default function TeacherAttendancePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Attendance"
-        subtitle="Track and manage student attendance across your groups"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <div className="flex items-center gap-2">
             <Select
@@ -169,22 +179,22 @@ export default function TeacherAttendancePage() {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Present" value={sessionSummary.present} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
-        <StatCard label="Absent" value={sessionSummary.absent} icon={<XCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
-        <StatCard label="Late" value={sessionSummary.late} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
-        <StatCard label="Excused" value={sessionSummary.excused} icon={<FileQuestion className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
+        <StatCard label={t('statPresent')} value={sessionSummary.present} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label={t('statAbsent')} value={sessionSummary.absent} icon={<XCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
+        <StatCard label={t('statLate')} value={sessionSummary.late} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
+        <StatCard label={t('statExcused')} value={sessionSummary.excused} icon={<FileQuestion className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
       </div>
 
       {!groupId ? (
         <Card>
-          <p className="text-sm text-slate-400 text-center py-8">You have no groups assigned yet.</p>
+          <p className="text-sm text-slate-400 text-center py-8">{t('noGroupsAssigned')}</p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-0">
             <Card
               noPadding
-              title="Take Attendance"
+              title={t('takeAttendanceTitle')}
               actions={
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-slate-400 hidden sm:block">{formatDate(date)}</span>
@@ -195,7 +205,7 @@ export default function TeacherAttendancePage() {
                     className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
                   >
                     <Save className="h-4 w-4" />
-                    {saving ? 'Saving…' : 'Save'}
+                    {saving ? t('savingButton') : t('saveButton')}
                   </button>
                 </div>
               }
@@ -204,15 +214,15 @@ export default function TeacherAttendancePage() {
                 <table className="w-full min-w-[560px]">
                   <thead>
                     <tr className="border-b border-slate-100">
-                      <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">Student</th>
-                      <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">Status</th>
-                      <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">Note</th>
+                      <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">{t('colStudent')}</th>
+                      <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">{t('colStatus')}</th>
+                      <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide py-3 px-4">{t('colNote')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {activeMembers.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="py-8 text-center text-sm text-slate-400">No students enrolled in this group.</td>
+                        <td colSpan={3} className="py-8 text-center text-sm text-slate-400">{t('noStudentsInGroup')}</td>
                       </tr>
                     ) : (
                       activeMembers.map((m) => {
@@ -252,7 +262,7 @@ export default function TeacherAttendancePage() {
                                 type="text"
                                 value={currentNote}
                                 onChange={(e) => setNotes(m.student_profile, e.target.value)}
-                                placeholder="Add note…"
+                                placeholder={t('notePlaceholder')}
                                 className="h-8 w-full max-w-[200px] rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-400 transition-all"
                               />
                             </td>
@@ -266,9 +276,9 @@ export default function TeacherAttendancePage() {
             </Card>
           </div>
 
-          <Card title="Attendance Rates" subtitle={`${activeGroup?.name ?? ''} students`}>
+          <Card title={t('attendanceRatesTitle')} subtitle={t('studentsSubtitle', { name: activeGroup?.name ?? '' })}>
             {studentRates.length === 0 ? (
-              <p className="text-sm text-slate-400">No attendance history yet.</p>
+              <p className="text-sm text-slate-400">{t('noAttendanceHistory')}</p>
             ) : (
               <div className="space-y-4">
                 {studentRates.map((s) => (

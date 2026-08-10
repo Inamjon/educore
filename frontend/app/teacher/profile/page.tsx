@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Users, Layers, KeyRound, Phone, Clock, Copy, Check, Edit3, Save, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
@@ -44,6 +45,7 @@ function StatRow({ icon: Icon, label, value, iconClass }: { icon: React.ElementT
 }
 
 function CopyRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+  const t = useTranslations('TeacherProfile');
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -61,7 +63,7 @@ function CopyRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
         <p className="text-xs text-slate-400">{label}</p>
         <p className="text-sm text-slate-900 font-medium truncate">{value}</p>
       </div>
-      <button onClick={handleCopy} className="h-8 w-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-colors" title="Copy">
+      <button onClick={handleCopy} className="h-8 w-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-colors" title={t('copyTitle')}>
         {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4 text-slate-400" />}
       </button>
     </div>
@@ -79,6 +81,7 @@ interface ProfileFormValues {
 }
 
 export default function ProfilePage() {
+  const t = useTranslations('TeacherProfile');
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const { data: profile } = useMyTeacherProfileQuery();
   const { data: user } = useUserQuery(profile?.user ?? null);
@@ -129,15 +132,15 @@ export default function ProfilePage() {
           experienceYears: form.experienceYears,
         },
       });
-      toast.success('Profile updated');
+      toast.success(t('profileUpdatedToast'));
       setIsEditing(false);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to update profile.');
+      toast.error(err instanceof ApiError ? err.message : t('updateFailedToast'));
     }
   }
 
   if (!profile) {
-    return <p className="text-sm text-slate-400 text-center py-12">Loading profile…</p>;
+    return <p className="text-sm text-slate-400 text-center py-12">{t('loadingProfile')}</p>;
   }
 
   const fullName = user ? `${user.first_name} ${user.last_name}` : profile.user_full_name;
@@ -163,13 +166,13 @@ export default function ProfilePage() {
 
           <div className="flex flex-col gap-4 items-start md:items-end">
             <div className="flex gap-3">
-              <StatMiniCard label="Students" value={activeRosterCount} />
-              <StatMiniCard label="Groups" value={(groups ?? []).length} />
+              <StatMiniCard label={t('statStudents')} value={activeRosterCount} />
+              <StatMiniCard label={t('statGroups')} value={(groups ?? []).length} />
             </div>
             {!isEditing && (
               <Button className="bg-white text-indigo-700 hover:bg-indigo-50 shadow-none" variant="outline" onClick={startEdit}>
                 <Edit3 className="h-4 w-4" />
-                Edit Profile
+                {t('editProfile')}
               </Button>
             )}
           </div>
@@ -178,37 +181,37 @@ export default function ProfilePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3">
-          <Card title="Personal Information" subtitle="Your professional and contact details">
+          <Card title={t('personalInfoTitle')} subtitle={t('personalInfoSubtitle')}>
             {isEditing ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-medium text-slate-500 block mb-1.5">First Name</label>
+                    <label className="text-xs font-medium text-slate-500 block mb-1.5">{t('firstName')}</label>
                     <Input value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-slate-500 block mb-1.5">Last Name</label>
+                    <label className="text-xs font-medium text-slate-500 block mb-1.5">{t('lastName')}</label>
                     <Input value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-slate-500 block mb-1.5">Phone</label>
+                    <label className="text-xs font-medium text-slate-500 block mb-1.5">{t('phone')}</label>
                     <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-slate-500 block mb-1.5">Years of Experience</label>
+                    <label className="text-xs font-medium text-slate-500 block mb-1.5">{t('yearsOfExperience')}</label>
                     <Input type="number" value={form.experienceYears} onChange={(e) => setForm({ ...form, experienceYears: Number(e.target.value) })} />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-slate-500 block mb-1.5">Education Degree</label>
+                    <label className="text-xs font-medium text-slate-500 block mb-1.5">{t('educationDegree')}</label>
                     <Input value={form.educationDegree} onChange={(e) => setForm({ ...form, educationDegree: e.target.value })} />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-slate-500 block mb-1.5">University</label>
+                    <label className="text-xs font-medium text-slate-500 block mb-1.5">{t('university')}</label>
                     <Input value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })} />
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-500 block mb-1.5">Bio</label>
+                  <label className="text-xs font-medium text-slate-500 block mb-1.5">{t('bio')}</label>
                   <textarea
                     value={form.bio}
                     onChange={(e) => setForm({ ...form, bio: e.target.value })}
@@ -219,31 +222,31 @@ export default function ProfilePage() {
                 <div className="flex justify-end gap-2 pt-2">
                   <Button variant="secondary" size="sm" onClick={() => setIsEditing(false)}>
                     <X className="h-3.5 w-3.5" />
-                    Cancel
+                    {t('cancelButton')}
                   </Button>
                   <Button size="sm" onClick={handleSave} disabled={!form.firstName.trim() || updateMutation.isPending}>
                     <Save className="h-3.5 w-3.5" />
-                    Save Changes
+                    {t('saveChangesButton')}
                   </Button>
                 </div>
               </div>
             ) : (
               <>
                 <div>
-                  <InfoRow label="Full Name">{fullName}</InfoRow>
-                  <InfoRow label="Login ID">{profile.user_login_id}</InfoRow>
-                  <InfoRow label="Phone">{profile.user_phone}</InfoRow>
-                  <InfoRow label="Teacher Code">{profile.teacher_code}</InfoRow>
-                  <InfoRow label="Education">{profile.education_degree || '—'}</InfoRow>
-                  <InfoRow label="University">{profile.university || '—'}</InfoRow>
-                  <InfoRow label="Bio">
+                  <InfoRow label={t('fullName')}>{fullName}</InfoRow>
+                  <InfoRow label={t('loginId')}>{profile.user_login_id}</InfoRow>
+                  <InfoRow label={t('phone')}>{profile.user_phone}</InfoRow>
+                  <InfoRow label={t('teacherCode')}>{profile.teacher_code}</InfoRow>
+                  <InfoRow label={t('education')}>{profile.education_degree || '—'}</InfoRow>
+                  <InfoRow label={t('university')}>{profile.university || '—'}</InfoRow>
+                  <InfoRow label={t('bio')}>
                     <span className="text-slate-600 leading-relaxed">{profile.bio || '—'}</span>
                   </InfoRow>
                 </div>
                 <div className="pt-4">
                   <Button variant="outline" size="sm" onClick={startEdit}>
                     <Edit3 className="h-3.5 w-3.5" />
-                    Edit Information
+                    {t('editInformation')}
                   </Button>
                 </div>
               </>
@@ -252,18 +255,18 @@ export default function ProfilePage() {
         </div>
 
         <div className="lg:col-span-2 space-y-5">
-          <Card title="Teaching Statistics" subtitle="Your performance overview">
+          <Card title={t('teachingStatisticsTitle')} subtitle={t('performanceOverviewSubtitle')}>
             <div>
-              <StatRow icon={Users} label="Total Students" value={activeRosterCount} iconClass="bg-blue-50 text-blue-600" />
-              <StatRow icon={Layers} label="Active Groups" value={(groups ?? []).length} iconClass="bg-indigo-50 text-indigo-600" />
-              <StatRow icon={Clock} label="Years Experience" value={`${profile.experience_years} years`} iconClass="bg-amber-50 text-amber-600" />
+              <StatRow icon={Users} label={t('totalStudents')} value={activeRosterCount} iconClass="bg-blue-50 text-blue-600" />
+              <StatRow icon={Layers} label={t('activeGroups')} value={(groups ?? []).length} iconClass="bg-indigo-50 text-indigo-600" />
+              <StatRow icon={Clock} label={t('yearsOfExperience')} value={t('yearsExperienceLabel', { count: profile.experience_years })} iconClass="bg-amber-50 text-amber-600" />
             </div>
           </Card>
 
-          <Card title="Contact & Social" subtitle="Quick contact information">
+          <Card title={t('contactSocialTitle')} subtitle={t('quickContactSubtitle')}>
             <div>
-              <CopyRow icon={KeyRound} label="Login ID" value={profile.user_login_id} />
-              <CopyRow icon={Phone} label="Phone number" value={profile.user_phone} />
+              <CopyRow icon={KeyRound} label={t('loginId')} value={profile.user_login_id} />
+              <CopyRow icon={Phone} label={t('phoneNumber')} value={profile.user_phone} />
             </div>
           </Card>
         </div>

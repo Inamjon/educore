@@ -14,10 +14,12 @@ import {
   Monitor,
   Shield,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { LanguageSwitcher } from '@/components/ui/language-switcher';
 import { useTeacherProfileStore } from '@/lib/store/teacher-profile-store';
 import { toast } from '@/lib/store/toast-store';
 import { cn, getInitials } from '@/lib/utils';
@@ -25,14 +27,6 @@ import { cn, getInitials } from '@/lib/utils';
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 type TabId = 'account' | 'security' | 'notifications' | 'appearance' | 'language';
-
-const SETTINGS_TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
-  { id: 'account', label: 'Account', icon: User },
-  { id: 'security', label: 'Security', icon: Lock },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'appearance', label: 'Appearance', icon: Palette },
-  { id: 'language', label: 'Language', icon: Globe },
-];
 
 // ─── Toggle Switch ─────────────────────────────────────────────────────────────
 
@@ -71,8 +65,18 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function TeacherSettingsPage() {
+  const t = useTranslations('TeacherSettings');
+  const tc = useTranslations('Common');
   const p = useTeacherProfileStore((s) => s.profile);
   const updateProfile = useTeacherProfileStore((s) => s.update);
+
+  const SETTINGS_TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
+    { id: 'account', label: t('tabAccount'), icon: User },
+    { id: 'security', label: t('tabSecurity'), icon: Lock },
+    { id: 'notifications', label: t('tabNotifications'), icon: Bell },
+    { id: 'appearance', label: t('tabAppearance'), icon: Palette },
+    { id: 'language', label: t('tabLanguage'), icon: Globe },
+  ];
 
   // Active tab
   const [activeTab, setActiveTab] = useState<TabId>('account');
@@ -101,19 +105,19 @@ export default function TeacherSettingsPage() {
 
   function handleSaveAccount() {
     updateProfile(account);
-    toast.success('Profile updated');
+    toast.success(t('profileUpdatedToast'));
   }
 
   function handleUpdatePassword() {
     if (!passwords.current || !passwords.next || !passwords.confirm) {
-      toast.error('Fill in all password fields');
+      toast.error(t('fillAllPasswordFieldsToast'));
       return;
     }
     if (passwords.next !== passwords.confirm) {
-      toast.error('New password and confirmation do not match');
+      toast.error(t('passwordMismatchToast'));
       return;
     }
-    toast.success('Password updated');
+    toast.success(t('passwordUpdatedToast'));
     setPasswords({ current: '', next: '', confirm: '' });
   }
 
@@ -131,9 +135,12 @@ export default function TeacherSettingsPage() {
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('light');
   const [accent, setAccent] = useState('#6366f1');
 
-  // Language
-  const [langSettings, setLangSettings] = useState({
-    language: 'en',
+  // Region settings — timezone/dateFormat stay mock/local; interface
+  // language itself is real now, sourced live from useLocale() inside
+  // LanguageSwitcher below (see app/student/settings/page.tsx's own
+  // "Language" tab for the identical pattern and its comment on why the
+  // language switcher lives only in Settings, never on Login).
+  const [regionSettings, setRegionSettings] = useState({
     timezone: 'America/New_York',
     dateFormat: 'MM/DD/YYYY',
   });
@@ -141,9 +148,18 @@ export default function TeacherSettingsPage() {
   const ACCENT_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
 
   const THEME_OPTIONS: { id: 'light' | 'dark' | 'system'; label: string; Icon: React.ElementType }[] = [
-    { id: 'light', label: 'Light', Icon: Sun },
-    { id: 'dark', label: 'Dark', Icon: Moon },
-    { id: 'system', label: 'System', Icon: Monitor },
+    { id: 'light', label: t('themeLight'), Icon: Sun },
+    { id: 'dark', label: t('themeDark'), Icon: Moon },
+    { id: 'system', label: t('themeSystem'), Icon: Monitor },
+  ];
+
+  const NOTIF_ROWS: { key: keyof typeof notifToggles; label: string; description: string }[] = [
+    { key: 'emailNotifications', label: t('emailNotifications'), description: t('emailNotificationsHint') },
+    { key: 'smsAlerts', label: t('smsAlerts'), description: t('smsAlertsHint') },
+    { key: 'assignmentReminders', label: t('assignmentReminders'), description: t('assignmentRemindersHint') },
+    { key: 'examReminders', label: t('examReminders'), description: t('examRemindersHint') },
+    { key: 'messageAlerts', label: t('messageAlerts'), description: t('messageAlertsHint') },
+    { key: 'adminAnnouncements', label: t('adminAnnouncements'), description: t('adminAnnouncementsHint') },
   ];
 
   function toggleNotif(key: keyof typeof notifToggles) {
@@ -153,8 +169,8 @@ export default function TeacherSettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Settings"
-        subtitle="Manage your account and preferences"
+        title={t('title')}
+        subtitle={t('subtitle')}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -197,42 +213,42 @@ export default function TeacherSettingsPage() {
 
           {/* ── Account ── */}
           {activeTab === 'account' && (
-            <Card title="Account Settings" subtitle="Update your personal information">
+            <Card title={t('accountTitle')} subtitle={t('accountSubtitle')}>
               <div className="space-y-4">
                 <div className="flex items-center gap-5 pb-4 border-b border-slate-50">
                   <div className="h-16 w-16 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-2xl">
                     {getInitials(account.name)}
                   </div>
                   <div>
-                    <Button variant="outline" size="sm">Change Photo</Button>
-                    <p className="text-xs text-slate-400 mt-1">JPG, PNG up to 2MB</p>
+                    <Button variant="outline" size="sm">{t('changePhoto')}</Button>
+                    <p className="text-xs text-slate-400 mt-1">{t('photoHint')}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Full Name">
+                  <Field label={t('fullName')}>
                     <Input
                       value={account.name}
                       onChange={(e) => setAccount({ ...account, name: e.target.value })}
                     />
                   </Field>
-                  <Field label="Login ID">
+                  <Field label={t('loginId')}>
                     <Input value={p.loginId} disabled />
                   </Field>
-                  <Field label="Phone">
+                  <Field label={t('phone')}>
                     <Input
                       value={account.phone}
                       onChange={(e) => setAccount({ ...account, phone: e.target.value })}
                     />
                   </Field>
-                  <Field label="Subject">
+                  <Field label={t('subject')}>
                     <Input
                       value={account.subject}
                       onChange={(e) => setAccount({ ...account, subject: e.target.value })}
                     />
                   </Field>
                   <div className="sm:col-span-2">
-                    <Field label="Bio">
+                    <Field label={t('bio')}>
                       <textarea
                         className="w-full min-h-[96px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none"
                         value={account.bio}
@@ -245,7 +261,7 @@ export default function TeacherSettingsPage() {
                 <div className="flex justify-end pt-2">
                   <Button onClick={handleSaveAccount}>
                     <Save className="h-4 w-4" />
-                    Save Changes
+                    {tc('saveChanges')}
                   </Button>
                 </div>
               </div>
@@ -255,28 +271,28 @@ export default function TeacherSettingsPage() {
           {/* ── Security ── */}
           {activeTab === 'security' && (
             <>
-              <Card title="Change Password" subtitle="Update your password to keep your account secure">
+              <Card title={t('changePasswordTitle')} subtitle={t('changePasswordSubtitle')}>
                 <div className="space-y-4">
-                  <Field label="Current Password">
+                  <Field label={t('currentPassword')}>
                     <Input
                       type="password"
-                      placeholder="Enter current password"
+                      placeholder={t('currentPasswordPlaceholder')}
                       value={passwords.current}
                       onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
                     />
                   </Field>
-                  <Field label="New Password">
+                  <Field label={t('newPassword')}>
                     <Input
                       type="password"
-                      placeholder="Enter new password"
+                      placeholder={t('newPasswordPlaceholder')}
                       value={passwords.next}
                       onChange={(e) => setPasswords({ ...passwords, next: e.target.value })}
                     />
                   </Field>
-                  <Field label="Confirm New Password">
+                  <Field label={t('confirmNewPassword')}>
                     <Input
                       type="password"
-                      placeholder="Confirm new password"
+                      placeholder={t('confirmNewPasswordPlaceholder')}
                       value={passwords.confirm}
                       onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
                     />
@@ -284,25 +300,23 @@ export default function TeacherSettingsPage() {
                   <div className="flex justify-end pt-2">
                     <Button onClick={handleUpdatePassword}>
                       <Lock className="h-4 w-4" />
-                      Update Password
+                      {t('updatePassword')}
                     </Button>
                   </div>
                 </div>
               </Card>
 
-              <Card title="Two-Factor Authentication" subtitle="Add an extra layer of security to your account">
+              <Card title={t('twoFactorTitle')} subtitle={t('twoFactorSubtitle')}>
                 <div className="flex items-start gap-4">
                   <div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
                     <Shield className="h-6 w-6 text-indigo-600" />
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-slate-900">
-                      {twoFAEnabled ? '2FA is Enabled' : '2FA is Disabled'}
+                      {twoFAEnabled ? t('twoFactorEnabled') : t('twoFactorDisabled')}
                     </p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      {twoFAEnabled
-                        ? 'Your account is protected with two-factor authentication.'
-                        : 'Enable 2FA to secure your account with a one-time code.'}
+                      {twoFAEnabled ? t('twoFactorEnabledHint') : t('twoFactorDisabledHint')}
                     </p>
                   </div>
                   <ToggleSwitch enabled={twoFAEnabled} onChange={() => setTwoFAEnabled(!twoFAEnabled)} />
@@ -313,18 +327,9 @@ export default function TeacherSettingsPage() {
 
           {/* ── Notifications ── */}
           {activeTab === 'notifications' && (
-            <Card title="Notification Preferences" subtitle="Choose how you want to be notified">
+            <Card title={t('notificationsTitle')} subtitle={t('notificationsSubtitle')}>
               <div className="divide-y divide-slate-50">
-                {(
-                  [
-                    { key: 'emailNotifications', label: 'Email Notifications', description: 'Receive important updates via email' },
-                    { key: 'smsAlerts', label: 'SMS Alerts', description: 'Get urgent alerts as text messages' },
-                    { key: 'assignmentReminders', label: 'Assignment Reminders', description: 'Reminders before assignment due dates' },
-                    { key: 'examReminders', label: 'Exam Reminders', description: 'Notifications about upcoming exams' },
-                    { key: 'messageAlerts', label: 'Message Alerts', description: 'Alerts for new messages from students and parents' },
-                    { key: 'adminAnnouncements', label: 'Admin Announcements', description: 'Important announcements from administration' },
-                  ] as { key: keyof typeof notifToggles; label: string; description: string }[]
-                ).map(({ key, label, description }) => (
+                {NOTIF_ROWS.map(({ key, label, description }) => (
                   <div key={key} className="flex items-center justify-between py-4">
                     <div>
                       <p className="text-sm font-medium text-slate-900">{label}</p>
@@ -342,11 +347,11 @@ export default function TeacherSettingsPage() {
 
           {/* ── Appearance ── */}
           {activeTab === 'appearance' && (
-            <Card title="Appearance" subtitle="Customize the look and feel of your dashboard">
+            <Card title={t('appearanceTitle')} subtitle={t('appearanceSubtitle')}>
               <div className="space-y-6">
                 {/* Theme selector */}
                 <div>
-                  <p className="text-sm font-medium text-slate-700 mb-3">Theme</p>
+                  <p className="text-sm font-medium text-slate-700 mb-3">{t('theme')}</p>
                   <div className="grid grid-cols-3 gap-3">
                     {THEME_OPTIONS.map(({ id, label, Icon }) => (
                       <button
@@ -368,7 +373,7 @@ export default function TeacherSettingsPage() {
 
                 {/* Accent color picker */}
                 <div>
-                  <p className="text-sm font-medium text-slate-700 mb-3">Accent Color</p>
+                  <p className="text-sm font-medium text-slate-700 mb-3">{t('accentColor')}</p>
                   <div className="flex gap-3">
                     {ACCENT_COLORS.map((color) => (
                       <button
@@ -386,9 +391,9 @@ export default function TeacherSettingsPage() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button onClick={() => toast.success('Appearance preferences saved')}>
+                  <Button onClick={() => toast.success(t('appearancePrefsSavedToast'))}>
                     <Save className="h-4 w-4" />
-                    Save Preferences
+                    {t('savePreferences')}
                   </Button>
                 </div>
               </div>
@@ -397,28 +402,20 @@ export default function TeacherSettingsPage() {
 
           {/* ── Language ── */}
           {activeTab === 'language' && (
-            <Card title="Language & Region" subtitle="Set your preferred language and regional settings">
+            <Card title={t('languageRegionTitle')} subtitle={t('languageRegionSubtitle')}>
               <div className="space-y-4">
-                <Field label="Language">
-                  <select
-                    className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all cursor-pointer"
-                    value={langSettings.language}
-                    onChange={(e) => setLangSettings({ ...langSettings, language: e.target.value })}
-                  >
-                    <option value="en">English</option>
-                    <option value="es">Spanish</option>
-                    <option value="fr">French</option>
-                    <option value="de">German</option>
-                    <option value="ar">Arabic</option>
-                    <option value="zh">Chinese (Simplified)</option>
-                  </select>
+                <Field label={t('interfaceLanguage')}>
+                  {/* Real, not mock — this is the ONLY place the interface
+                      language can be changed (see the login page's own
+                      comment on this). Applies immediately, no Save needed. */}
+                  <LanguageSwitcher variant="full" className="w-full [&>select]:w-full" />
                 </Field>
 
-                <Field label="Timezone">
+                <Field label={t('timezone')}>
                   <select
                     className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all cursor-pointer"
-                    value={langSettings.timezone}
-                    onChange={(e) => setLangSettings({ ...langSettings, timezone: e.target.value })}
+                    value={regionSettings.timezone}
+                    onChange={(e) => setRegionSettings({ ...regionSettings, timezone: e.target.value })}
                   >
                     <option value="America/New_York">Eastern Time (ET)</option>
                     <option value="America/Chicago">Central Time (CT)</option>
@@ -432,11 +429,11 @@ export default function TeacherSettingsPage() {
                   </select>
                 </Field>
 
-                <Field label="Date Format">
+                <Field label={t('dateFormat')}>
                   <select
                     className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all cursor-pointer"
-                    value={langSettings.dateFormat}
-                    onChange={(e) => setLangSettings({ ...langSettings, dateFormat: e.target.value })}
+                    value={regionSettings.dateFormat}
+                    onChange={(e) => setRegionSettings({ ...regionSettings, dateFormat: e.target.value })}
                   >
                     <option value="MM/DD/YYYY">MM/DD/YYYY</option>
                     <option value="DD/MM/YYYY">DD/MM/YYYY</option>
@@ -447,9 +444,9 @@ export default function TeacherSettingsPage() {
                 </Field>
 
                 <div className="flex justify-end pt-2">
-                  <Button onClick={() => toast.success('Language & region settings saved')}>
+                  <Button onClick={() => toast.success(t('languageRegionSavedToast'))}>
                     <Save className="h-4 w-4" />
-                    Save Settings
+                    {t('saveSettings')}
                   </Button>
                 </div>
               </div>

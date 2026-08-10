@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock, MapPin, BookOpen } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -10,11 +11,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/lib/store/toast-store";
 import { useUpdateLessonMutation } from "@/lib/queries/schedule";
 import { ApiError } from "@/lib/api/client";
 import type { Lesson } from "@/lib/api/schedule";
+import { formatLocalizedDate } from "@/i18n/date-locale";
+import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 
 interface LessonDetailDialogProps {
   lesson: Lesson | null;
@@ -22,16 +25,28 @@ interface LessonDetailDialogProps {
 }
 
 export function LessonDetailDialog({ lesson, onOpenChange }: LessonDetailDialogProps) {
+  const t = useTranslations("TeacherSchedule");
+  const tc = useTranslations("Common");
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const updateMutation = useUpdateLessonMutation();
+
+  // Local status → label map, deliberately not the shared <StatusBadge> —
+  // see the same note on app/student/attendance/page.tsx.
+  const STATUS_CONFIG: Record<Lesson["status"], { label: string; variant: "info" | "success" | "secondary" }> = {
+    scheduled: { label: t("statusScheduled"), variant: "info" },
+    completed: { label: t("statusCompleted"), variant: "success" },
+    cancelled: { label: t("statusCancelled"), variant: "secondary" },
+  };
 
   async function setStatus(status: "completed" | "cancelled") {
     if (!lesson) return;
     try {
       await updateMutation.mutateAsync({ id: lesson.id, input: { status } });
-      toast.success(status === "cancelled" ? "Lesson cancelled" : "Lesson marked completed");
+      toast.success(status === "cancelled" ? t("lessonCancelledToast") : t("lessonCompletedToast"));
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      toast.error(err instanceof ApiError ? err.message : tc("somethingWentWrong"));
     }
   }
 
@@ -46,29 +61,29 @@ export function LessonDetailDialog({ lesson, onOpenChange }: LessonDetailDialogP
             <DialogBody>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-500">
-                  {new Date(lesson.date + "T00:00:00").toLocaleDateString("en-US", {
+                  {formatLocalizedDate(new Date(lesson.date + "T00:00:00"), locale, {
                     weekday: "long",
                     month: "short",
                     day: "numeric",
                   })}
                 </span>
-                <StatusBadge status={lesson.status} />
+                <Badge label={STATUS_CONFIG[lesson.status].label} variant={STATUS_CONFIG[lesson.status].variant} dot />
               </div>
-              <InfoRow icon={<BookOpen className="h-4 w-4" />} label="Topic" value={lesson.topic || "—"} />
-              <InfoRow icon={<MapPin className="h-4 w-4" />} label="Room" value={lesson.room || "—"} />
+              <InfoRow icon={<BookOpen className="h-4 w-4" />} label={t("detailTopicLabel")} value={lesson.topic || "—"} />
+              <InfoRow icon={<MapPin className="h-4 w-4" />} label={t("detailRoomLabel")} value={lesson.room || "—"} />
               <InfoRow
                 icon={<Clock className="h-4 w-4" />}
-                label="Time"
+                label={t("detailTimeLabel")}
                 value={`${lesson.start_time.slice(0, 5)} – ${lesson.end_time.slice(0, 5)}`}
               />
             </DialogBody>
             {lesson.status === "scheduled" && (
               <DialogFooter>
                 <Button variant="outline" onClick={() => setStatus("cancelled")} loading={updateMutation.isPending}>
-                  Cancel Lesson
+                  {t("cancelLessonButton")}
                 </Button>
                 <Button onClick={() => setStatus("completed")} loading={updateMutation.isPending}>
-                  Mark Completed
+                  {t("markCompletedButton")}
                 </Button>
               </DialogFooter>
             )}

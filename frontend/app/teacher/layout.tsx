@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
 import {
   LayoutDashboard,
   Users2,
@@ -27,66 +28,70 @@ import { cn, getInitials } from "@/lib/utils";
 import { useNotificationsQuery } from "@/lib/queries/notifications";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { useLogout } from "@/lib/hooks/use-logout";
+import { formatLocalizedDate } from "@/i18n/date-locale";
+import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 
 // ─── Nav Config ───────────────────────────────────────────────────────────────
+// Labels are TeacherNav translation keys, resolved at render time via t().
 
 const NAV_GROUPS = [
   {
-    label: "Main",
+    groupKey: "navGroupMain",
     items: [
-      { href: "/teacher", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/teacher", labelKey: "navDashboard", icon: LayoutDashboard },
     ],
   },
   {
-    label: "Teaching",
+    groupKey: "navGroupTeaching",
     items: [
-      { href: "/teacher/groups", label: "My Groups", icon: Users2 },
-      { href: "/teacher/students", label: "Students", icon: Users },
-      { href: "/teacher/attendance", label: "Attendance", icon: ClipboardCheck },
-      { href: "/teacher/schedule", label: "Schedule", icon: Calendar },
+      { href: "/teacher/groups", labelKey: "navMyGroups", icon: Users2 },
+      { href: "/teacher/students", labelKey: "navStudents", icon: Users },
+      { href: "/teacher/attendance", labelKey: "navAttendance", icon: ClipboardCheck },
+      { href: "/teacher/schedule", labelKey: "navSchedule", icon: Calendar },
     ],
   },
   {
-    label: "Academics",
+    groupKey: "navGroupAcademics",
     items: [
-      { href: "/teacher/assignments", label: "Assignments", icon: FileText },
-      { href: "/teacher/exams", label: "Exams", icon: BookOpen },
-      { href: "/teacher/grades", label: "Grades", icon: BarChart2 },
+      { href: "/teacher/assignments", labelKey: "navAssignments", icon: FileText },
+      { href: "/teacher/exams", labelKey: "navExams", icon: BookOpen },
+      { href: "/teacher/grades", labelKey: "navGrades", icon: BarChart2 },
     ],
   },
   {
-    label: "Communication",
+    groupKey: "navGroupCommunication",
     items: [
-      { href: "/teacher/messages", label: "Messages", icon: MessageSquare },
-      { href: "/teacher/resources", label: "Resources", icon: FolderOpen },
-      { href: "/teacher/notifications", label: "Notifications", icon: Bell },
+      { href: "/teacher/messages", labelKey: "navMessages", icon: MessageSquare },
+      { href: "/teacher/resources", labelKey: "navResources", icon: FolderOpen },
+      { href: "/teacher/notifications", labelKey: "navNotifications", icon: Bell },
     ],
   },
   {
-    label: "Account",
+    groupKey: "navGroupAccount",
     items: [
-      { href: "/teacher/profile", label: "Profile", icon: UserCircle },
-      { href: "/teacher/settings", label: "Settings", icon: Settings },
+      { href: "/teacher/profile", labelKey: "navProfile", icon: UserCircle },
+      { href: "/teacher/settings", labelKey: "navSettings", icon: Settings },
     ],
   },
 ];
 
 // ─── Page title map ───────────────────────────────────────────────────────────
+// Maps pathname to a TeacherNav translation key (falls back to portalFallbackTitle).
 
-const PAGE_TITLES: Record<string, string> = {
-  "/teacher": "Dashboard",
-  "/teacher/groups": "My Groups",
-  "/teacher/students": "Students",
-  "/teacher/attendance": "Attendance",
-  "/teacher/schedule": "Schedule",
-  "/teacher/assignments": "Assignments",
-  "/teacher/exams": "Exams",
-  "/teacher/grades": "Grades",
-  "/teacher/messages": "Messages",
-  "/teacher/resources": "Resources",
-  "/teacher/notifications": "Notifications",
-  "/teacher/profile": "Profile",
-  "/teacher/settings": "Settings",
+const PAGE_TITLE_KEYS: Record<string, string> = {
+  "/teacher": "navDashboard",
+  "/teacher/groups": "navMyGroups",
+  "/teacher/students": "navStudents",
+  "/teacher/attendance": "navAttendance",
+  "/teacher/schedule": "navSchedule",
+  "/teacher/assignments": "navAssignments",
+  "/teacher/exams": "navExams",
+  "/teacher/grades": "navGrades",
+  "/teacher/messages": "navMessages",
+  "/teacher/resources": "navResources",
+  "/teacher/notifications": "navNotifications",
+  "/teacher/profile": "navProfile",
+  "/teacher/settings": "navSettings",
 };
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
@@ -98,6 +103,7 @@ interface SidebarProps {
 
 function TeacherSidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const t = useTranslations("TeacherNav");
 
   return (
     <aside
@@ -127,7 +133,7 @@ function TeacherSidebar({ collapsed, onToggle }: SidebarProps) {
             "ml-auto flex-shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors",
             collapsed && "rotate-180"
           )}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? t("expandSidebar") : t("collapseSidebar")}
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -136,18 +142,19 @@ function TeacherSidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
         {NAV_GROUPS.map((group) => (
-          <div key={group.label}>
+          <div key={group.groupKey}>
             {!collapsed && (
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 px-2">
-                {group.label}
+                {t(group.groupKey)}
               </p>
             )}
             <ul className="space-y-0.5">
-              {group.items.map(({ href, label, icon: Icon }) => {
+              {group.items.map(({ href, labelKey, icon: Icon }) => {
                 const isActive =
                   href === "/teacher"
                     ? pathname === "/teacher"
                     : pathname.startsWith(href);
+                const label = t(labelKey);
                 return (
                   <li key={href}>
                     <Link
@@ -195,8 +202,12 @@ interface HeaderProps {
 
 function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
   const pathname = usePathname();
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+  const t = useTranslations("TeacherNav");
   const authUser = useAuthStore((s) => s.user);
-  const title = PAGE_TITLES[pathname] ?? "Teacher Portal";
+  const titleKey = PAGE_TITLE_KEYS[pathname];
+  const title = titleKey ? t(titleKey) : t("portalFallbackTitle");
   const { data: notifications = [] } = useNotificationsQuery();
   const unreadCount = notifications.filter((n) => !n.read).length;
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -229,7 +240,7 @@ function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
           {title}
         </h2>
         <p className="text-xs text-slate-400 mt-0.5">
-          {new Date().toLocaleDateString("en-US", {
+          {formatLocalizedDate(new Date(), locale, {
             weekday: "long",
             year: "numeric",
             month: "long",
@@ -245,7 +256,7 @@ function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <input
           type="text"
-          placeholder="Quick search..."
+          placeholder={t("quickSearchPlaceholder")}
           className="h-9 w-60 pl-9 pr-4 rounded-xl border border-slate-200 bg-slate-50 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
         />
       </div>
@@ -254,7 +265,7 @@ function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
       <Link
         href="/teacher/notifications"
         className="relative h-9 w-9 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-500 transition-colors"
-        aria-label={`Notifications (${unreadCount} unread)`}
+        aria-label={t("notificationsAriaLabel", { count: unreadCount })}
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
@@ -273,13 +284,13 @@ function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
           aria-haspopup="true"
         >
           <div className="h-8 w-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-            {getInitials(authUser?.fullName ?? "Teacher")}
+            {getInitials(authUser?.fullName ?? t("roleTeacher"))}
           </div>
           <div className="hidden sm:block text-left">
             <p className="text-sm font-medium text-slate-900 leading-none">
-              {authUser?.fullName ?? "Teacher"}
+              {authUser?.fullName ?? t("roleTeacher")}
             </p>
-            <p className="text-xs text-slate-400 mt-0.5">Teacher</p>
+            <p className="text-xs text-slate-400 mt-0.5">{t("roleTeacher")}</p>
           </div>
           <ChevronDown
             className={cn(
@@ -293,7 +304,7 @@ function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
           <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-lg border border-slate-100 py-1.5 z-50">
             <div className="px-4 py-2.5 border-b border-slate-50">
               <p className="text-sm font-semibold text-slate-900">
-                {authUser?.fullName ?? "Teacher"}
+                {authUser?.fullName ?? t("roleTeacher")}
               </p>
               <p className="text-xs text-slate-400">{authUser?.loginId}</p>
             </div>
@@ -303,7 +314,7 @@ function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <UserCircle className="h-4 w-4 text-slate-400" />
-              Profile
+              {t("navProfile")}
             </Link>
             <Link
               href="/teacher/settings"
@@ -311,7 +322,7 @@ function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <Settings className="h-4 w-4 text-slate-400" />
-              Settings
+              {t("navSettings")}
             </Link>
             <div className="border-t border-slate-50 mt-1 pt-1">
               <button
@@ -319,7 +330,7 @@ function TeacherHeader({ sidebarCollapsed }: HeaderProps) {
                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full"
               >
                 <LogOut className="h-4 w-4" />
-                Sign Out
+                {t("signOut")}
               </button>
             </div>
           </div>

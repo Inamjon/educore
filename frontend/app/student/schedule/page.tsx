@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useLessonsQuery } from '@/lib/queries/schedule';
 import type { Lesson } from '@/lib/api/schedule';
-import { formatLocalizedDate, INTL_DATE_LOCALES } from '@/i18n/date-locale';
-import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
+import { formatLocalizedDate, weekdayShort, formatDayHeader, formatWeekRange, formatClockTime } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE } from '@/i18n/locales';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -51,26 +51,6 @@ function buildWeek(monday: Date): string[] {
   });
 }
 
-function weekdayShort(iso: string, locale: Locale): string {
-  const d = new Date(iso + 'T00:00:00');
-  return formatLocalizedDate(d, locale, { weekday: 'short' });
-}
-
-function formatDayHeader(iso: string, locale: Locale): string {
-  const d = new Date(iso + 'T00:00:00');
-  return formatLocalizedDate(d, locale, { month: 'short', day: 'numeric' });
-}
-
-function formatWeekRange(week: string[], locale: Locale): string {
-  const start = new Date(week[0] + 'T00:00:00');
-  const end = new Date(week[6] + 'T00:00:00');
-  return `${formatLocalizedDate(start, locale, { month: 'short', day: 'numeric' })} – ${formatLocalizedDate(end, locale, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })}`;
-}
-
 function getLessonStyle(startTime: string, endTime: string): { top: string; height: string } {
   const [sh, sm] = startTime.split(':').map(Number);
   const [eh, em] = endTime.split(':').map(Number);
@@ -80,13 +60,6 @@ function getLessonStyle(startTime: string, endTime: string): { top: string; heig
     top: `${startMin}px`,
     height: `${Math.max(endMin - startMin, 40)}px`,
   };
-}
-
-function formatTime(time: string, locale: Locale): string {
-  const [h, m] = time.split(':').map(Number);
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
-  return d.toLocaleTimeString(INTL_DATE_LOCALES[locale], { hour: 'numeric', minute: '2-digit', hour12: locale === 'en' });
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -294,7 +267,7 @@ export default function StudentSchedulePage() {
                     <div className="flex items-center gap-3 mt-1 text-xs text-slate-400 flex-wrap">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {formatTime(lesson.start_time, locale)} – {formatTime(lesson.end_time, locale)}
+                        {formatClockTime(lesson.start_time, locale)} – {formatClockTime(lesson.end_time, locale)}
                       </span>
                       <span className="flex items-center gap-1">
                         <MapPin className="h-3 w-3" />

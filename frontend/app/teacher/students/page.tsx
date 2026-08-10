@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import { Users, ClipboardCheck, KeyRound, Phone, ChevronLeft, Loader2 } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
-import { StatusBadge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { SearchInput, Select } from '@/components/ui/input';
@@ -14,9 +15,18 @@ import { useMyTeacherProfileQuery } from '@/lib/queries/teachers';
 import { useGroupsQuery, useMyRosterQuery } from '@/lib/queries/groups';
 import { useAttendanceForGroupsQuery } from '@/lib/queries/attendance';
 import type { GroupMember } from '@/lib/api/groups';
+import { formatLocalizedDate } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+function formatDate(iso: string, locale: Locale) {
+  return formatLocalizedDate(new Date(iso + 'T00:00:00'), locale, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Shared by StudentCard and StudentDetailPanel — both render the same
+// member.status → label mapping, deliberately not the shared <StatusBadge>
+// (see the note on app/student/attendance/page.tsx).
+function memberStatusLabel(status: GroupMember['status'], t: ReturnType<typeof useTranslations<'TeacherStudents'>>) {
+  return status === 'active' ? t('memberStatusActive') : t('memberStatusOther');
 }
 
 // ─── Student Card ─────────────────────────────────────────────────────────────
@@ -30,6 +40,12 @@ function StudentCard({
   attendanceRate: number;
   onViewProfile: (m: GroupMember) => void;
 }) {
+  const t = useTranslations('TeacherStudents');
+
+  // activeRoster (see the page component) already filters to "active"
+  // members only, so that's the only value this card ever actually renders.
+  const statusLabel = memberStatusLabel(member.status, t);
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col items-center text-center gap-3">
       <Avatar name={member.student_name} size="xl" />
@@ -40,14 +56,14 @@ function StudentCard({
           <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-indigo-50 text-indigo-700">
             {member.group_name}
           </span>
-          <StatusBadge status={member.status} />
+          <Badge label={statusLabel} variant="success" dot />
         </div>
       </div>
 
       <div className="w-full space-y-2 text-left">
         <div>
           <div className="flex justify-between text-xs text-slate-500 mb-1">
-            <span>Attendance</span>
+            <span>{t('attendanceLabel')}</span>
             <span className="font-medium text-slate-700">{attendanceRate}%</span>
           </div>
           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -68,7 +84,7 @@ function StudentCard({
       </div>
 
       <Button variant="outline" size="sm" className="w-full mt-1" onClick={() => onViewProfile(member)}>
-        View Profile
+        {t('viewProfileButton')}
       </Button>
     </div>
   );
@@ -87,19 +103,31 @@ function StudentDetailPanel({
   records: { id: string; date: string; status: string; notes: string | null }[];
   onBack: () => void;
 }) {
+  const t = useTranslations('TeacherStudents');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
   const statusColors: Record<string, string> = {
     present: 'bg-emerald-100 text-emerald-700',
     absent: 'bg-red-100 text-red-600',
     late: 'bg-amber-100 text-amber-700',
     excused: 'bg-blue-100 text-blue-700',
   };
+  const statusLabels: Record<string, string> = {
+    present: t('statusPresent'),
+    absent: t('statusAbsent'),
+    late: t('statusLate'),
+    excused: t('statusExcused'),
+  };
+
+  const statusLabel = memberStatusLabel(member.status, t);
 
   return (
     <Card className="mt-6" noPadding>
       <div className="flex items-center gap-4 px-6 py-5 border-b border-slate-100">
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ChevronLeft className="h-4 w-4" />
-          Back
+          {t('backButton')}
         </Button>
         <div className="flex items-center gap-3">
           <Avatar name={member.student_name} size="md" />
@@ -109,39 +137,39 @@ function StudentDetailPanel({
           </div>
         </div>
         <div className="ml-auto">
-          <StatusBadge status={member.status} />
+          <Badge label={statusLabel} variant="success" dot />
         </div>
       </div>
 
       <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Personal Information</h4>
+          <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">{t('personalInfoTitle')}</h4>
           <div className="space-y-3">
-            <InfoRow icon={<KeyRound className="h-4 w-4" />} label="Login ID" value={member.student_login_id} />
-            <InfoRow icon={<Phone className="h-4 w-4" />} label="Phone" value={member.student_phone} />
-            <InfoRow icon={<Users className="h-4 w-4" />} label="Group" value={member.group_name} />
-            <InfoRow icon={<Users className="h-4 w-4" />} label="Course" value={member.course_name} />
+            <InfoRow icon={<KeyRound className="h-4 w-4" />} label={t('loginIdLabel')} value={member.student_login_id} />
+            <InfoRow icon={<Phone className="h-4 w-4" />} label={t('phoneLabel')} value={member.student_phone} />
+            <InfoRow icon={<Users className="h-4 w-4" />} label={t('groupLabel')} value={member.group_name} />
+            <InfoRow icon={<Users className="h-4 w-4" />} label={t('courseLabel')} value={member.course_name} />
           </div>
         </div>
 
         <div className="space-y-5">
           <div className="grid grid-cols-1 gap-3">
-            <MiniStat icon={<ClipboardCheck className="h-4 w-4 text-indigo-600" />} label="Attendance" value={`${attendanceRate}%`} bg="bg-indigo-50" />
+            <MiniStat icon={<ClipboardCheck className="h-4 w-4 text-indigo-600" />} label={t('attendanceLabel')} value={`${attendanceRate}%`} bg="bg-indigo-50" />
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold text-slate-700 mb-2">Recent Attendance</h4>
+            <h4 className="text-sm font-semibold text-slate-700 mb-2">{t('recentAttendanceTitle')}</h4>
             {records.length === 0 ? (
-              <p className="text-sm text-slate-400">No attendance records.</p>
+              <p className="text-sm text-slate-400">{t('noAttendanceRecords')}</p>
             ) : (
               <div className="space-y-1.5">
                 {records.map((rec) => (
                   <div key={rec.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
                     <div className="flex items-center gap-2">
                       <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${statusColors[rec.status] ?? 'bg-slate-100 text-slate-600'}`}>
-                        {rec.status.charAt(0).toUpperCase() + rec.status.slice(1)}
+                        {statusLabels[rec.status] ?? rec.status}
                       </span>
-                      <span className="text-xs text-slate-500">{formatDate(rec.date)}</span>
+                      <span className="text-xs text-slate-500">{formatDate(rec.date, locale)}</span>
                     </div>
                     {rec.notes && <span className="text-xs text-slate-400 truncate max-w-[140px]">{rec.notes}</span>}
                   </div>
@@ -182,6 +210,9 @@ function MiniStat({ icon, label, value, bg }: { icon: React.ReactNode; label: st
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TeacherStudentsPage() {
+  const t = useTranslations('TeacherStudents');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const { data: myProfile } = useMyTeacherProfileQuery();
   const { data: groups } = useGroupsQuery({ organizationId: organizationId ?? '', teacher: myProfile?.id });
@@ -229,30 +260,30 @@ export default function TeacherStudentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Students"
-        subtitle="Manage and monitor your students across all groups"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <>
-            <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search students..." />
-            <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} options={groupOptions} placeholder="All Groups" className="w-40" />
+            <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('searchPlaceholder')} />
+            <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} options={groupOptions} placeholder={t('allGroupsPlaceholder')} className="w-40" />
           </>
         }
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <StatCard label="Total Students" value={totalStudents} icon={<Users className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
-        <StatCard label="Avg Attendance" value={`${avgAttendance}%`} icon={<ClipboardCheck className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label={t('statTotalStudents')} value={totalStudents} icon={<Users className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label={t('statAvgAttendance')} value={`${avgAttendance}%`} icon={<ClipboardCheck className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-400">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Loading students…
+          {t('loadingStudents')}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.length === 0 ? (
-            <div className="col-span-full text-center py-12 text-slate-400">No students found.</div>
+            <div className="col-span-full text-center py-12 text-slate-400">{t('noStudentsFound')}</div>
           ) : (
             filtered.map((member) => (
               <StudentCard key={member.id} member={member} attendanceRate={rateFor(member.student_profile)} onViewProfile={handleViewProfile} />
