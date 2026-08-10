@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
 import {
   LayoutDashboard,
   Building2,
@@ -27,66 +28,72 @@ import { cn } from "@/lib/utils";
 import { useSANotificationsStore } from "@/lib/store/sa-notifications-store";
 import { useSAProfileStore } from "@/lib/store/sa-profile-store";
 import { useLogout } from "@/lib/hooks/use-logout";
+import { formatLocalizedDate } from "@/i18n/date-locale";
+import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 
 // ─── Nav Config ───────────────────────────────────────────────────────────────
+// Labels are SuperAdminNav translation keys, resolved at render time via t()
+// (see app/teacher/layout.tsx for the identical pattern this mirrors).
 
 const NAV_GROUPS = [
   {
-    label: "Overview",
+    groupKey: "navGroupOverview",
     items: [
-      { href: "/super-admin", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/super-admin", labelKey: "navDashboard", icon: LayoutDashboard },
     ],
   },
   {
-    label: "Management",
+    groupKey: "navGroupManagement",
     items: [
-      { href: "/super-admin/centers",       label: "Educational Centers", icon: Building2      },
-      { href: "/super-admin/branches",      label: "Branches",            icon: GitBranch      },
-      { href: "/super-admin/administrators",label: "Administrators",      icon: ShieldCheck    },
-      { href: "/super-admin/teachers",      label: "Teachers",            icon: GraduationCap  },
-      { href: "/super-admin/students",      label: "Students",            icon: Users          },
+      { href: "/super-admin/centers",        labelKey: "navCenters",        icon: Building2     },
+      { href: "/super-admin/branches",       labelKey: "navBranches",       icon: GitBranch     },
+      { href: "/super-admin/administrators", labelKey: "navAdministrators", icon: ShieldCheck   },
+      { href: "/super-admin/teachers",       labelKey: "navTeachers",       icon: GraduationCap },
+      { href: "/super-admin/students",       labelKey: "navStudents",       icon: Users         },
     ],
   },
   {
-    label: "Business",
+    groupKey: "navGroupBusiness",
     items: [
-      { href: "/super-admin/subscriptions", label: "Subscription Plans", icon: CreditCard  },
-      { href: "/super-admin/payments",      label: "Payments",           icon: DollarSign  },
-      { href: "/super-admin/reports",       label: "Reports",            icon: BarChart2   },
+      { href: "/super-admin/subscriptions", labelKey: "navSubscriptions", icon: CreditCard },
+      { href: "/super-admin/payments",      labelKey: "navPayments",      icon: DollarSign },
+      { href: "/super-admin/reports",       labelKey: "navReports",       icon: BarChart2  },
     ],
   },
   {
-    label: "System",
+    groupKey: "navGroupSystem",
     items: [
-      { href: "/super-admin/notifications", label: "Notifications",   icon: Bell       },
-      { href: "/super-admin/settings",      label: "System Settings", icon: Settings   },
-      { href: "/super-admin/audit-logs",    label: "Audit Logs",      icon: ScrollText },
+      { href: "/super-admin/notifications", labelKey: "navNotifications", icon: Bell       },
+      { href: "/super-admin/settings",      labelKey: "navSettings",      icon: Settings   },
+      { href: "/super-admin/audit-logs",    labelKey: "navAuditLogs",     icon: ScrollText },
     ],
   },
   {
-    label: "Account",
+    groupKey: "navGroupAccount",
     items: [
-      { href: "/super-admin/profile", label: "Profile", icon: UserCircle },
+      { href: "/super-admin/profile", labelKey: "navProfile", icon: UserCircle },
     ],
   },
 ];
 
-// ─── Page Title Map ───────────────────────────────────────────────────────────
+// ─── Page title map ───────────────────────────────────────────────────────────
+// Maps pathname to a SuperAdminNav translation key (falls back to
+// portalFallbackTitle) — see app/teacher/layout.tsx's PAGE_TITLE_KEYS.
 
-const PAGE_TITLES: Record<string, string> = {
-  "/super-admin":                  "Dashboard",
-  "/super-admin/centers":          "Educational Centers",
-  "/super-admin/branches":         "Branches",
-  "/super-admin/administrators":   "Administrators",
-  "/super-admin/teachers":         "Teachers",
-  "/super-admin/students":         "Students",
-  "/super-admin/subscriptions":    "Subscription Plans",
-  "/super-admin/payments":         "Payments",
-  "/super-admin/reports":          "Reports",
-  "/super-admin/notifications":    "Notifications",
-  "/super-admin/settings":         "System Settings",
-  "/super-admin/audit-logs":       "Audit Logs",
-  "/super-admin/profile":          "Profile",
+const PAGE_TITLE_KEYS: Record<string, string> = {
+  "/super-admin":                  "navDashboard",
+  "/super-admin/centers":          "navCenters",
+  "/super-admin/branches":         "navBranches",
+  "/super-admin/administrators":   "navAdministrators",
+  "/super-admin/teachers":         "navTeachers",
+  "/super-admin/students":         "navStudents",
+  "/super-admin/subscriptions":    "navSubscriptions",
+  "/super-admin/payments":         "navPayments",
+  "/super-admin/reports":          "navReports",
+  "/super-admin/notifications":    "navNotifications",
+  "/super-admin/settings":         "navSettings",
+  "/super-admin/audit-logs":       "navAuditLogs",
+  "/super-admin/profile":          "navProfile",
 };
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
@@ -98,6 +105,7 @@ interface SidebarProps {
 
 function SuperAdminSidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const t = useTranslations("SuperAdminNav");
 
   return (
     <aside
@@ -117,7 +125,7 @@ function SuperAdminSidebar({ collapsed, onToggle }: SidebarProps) {
               EduCore
             </span>
             <span className="text-[11px] font-semibold bg-violet-100 text-violet-700 rounded-md px-1.5 py-0.5 leading-none flex-shrink-0">
-              Super Admin
+              {t("superAdminBadge")}
             </span>
           </div>
         )}
@@ -127,7 +135,7 @@ function SuperAdminSidebar({ collapsed, onToggle }: SidebarProps) {
             "ml-auto flex-shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors",
             collapsed && "rotate-180"
           )}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? t("expandSidebar") : t("collapseSidebar")}
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -136,18 +144,19 @@ function SuperAdminSidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
         {NAV_GROUPS.map((group) => (
-          <div key={group.label}>
+          <div key={group.groupKey}>
             {!collapsed && (
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 px-2">
-                {group.label}
+                {t(group.groupKey)}
               </p>
             )}
             <ul className="space-y-0.5">
-              {group.items.map(({ href, label, icon: Icon }) => {
+              {group.items.map(({ href, labelKey, icon: Icon }) => {
                 const isActive =
                   href === "/super-admin"
                     ? pathname === "/super-admin"
                     : pathname.startsWith(href);
+                const label = t(labelKey);
                 return (
                   <li key={href}>
                     <Link
@@ -193,7 +202,11 @@ interface HeaderProps {
 
 function SuperAdminHeader({ sidebarCollapsed }: HeaderProps) {
   const pathname = usePathname();
-  const title = PAGE_TITLES[pathname] ?? "Super Admin";
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+  const t = useTranslations("SuperAdminNav");
+  const titleKey = PAGE_TITLE_KEYS[pathname];
+  const title = titleKey ? t(titleKey) : t("portalFallbackTitle");
   const notifications = useSANotificationsStore((s) => s.items);
   const unreadCount = notifications.filter((n) => !n.read).length;
   const profile = useSAProfileStore((s) => s.profile);
@@ -235,7 +248,7 @@ function SuperAdminHeader({ sidebarCollapsed }: HeaderProps) {
           {title}
         </h2>
         <p className="text-xs text-slate-400 mt-0.5">
-          {new Date().toLocaleDateString("en-US", {
+          {formatLocalizedDate(new Date(), locale, {
             weekday: "long",
             year: "numeric",
             month: "long",
@@ -251,7 +264,7 @@ function SuperAdminHeader({ sidebarCollapsed }: HeaderProps) {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <input
           type="text"
-          placeholder="Quick search..."
+          placeholder={t("quickSearchPlaceholder")}
           className="h-9 w-60 pl-9 pr-4 rounded-xl border border-slate-200 bg-slate-50 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
         />
       </div>
@@ -260,7 +273,7 @@ function SuperAdminHeader({ sidebarCollapsed }: HeaderProps) {
       <Link
         href="/super-admin/notifications"
         className="relative h-9 w-9 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-500 transition-colors"
-        aria-label={`Notifications (${unreadCount} unread)`}
+        aria-label={t("notificationsAriaLabel", { count: unreadCount })}
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
@@ -309,7 +322,7 @@ function SuperAdminHeader({ sidebarCollapsed }: HeaderProps) {
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <UserCircle className="h-4 w-4 text-slate-400" />
-              Profile
+              {t("navProfile")}
             </Link>
             <Link
               href="/super-admin/settings"
@@ -317,7 +330,7 @@ function SuperAdminHeader({ sidebarCollapsed }: HeaderProps) {
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <Settings className="h-4 w-4 text-slate-400" />
-              System Settings
+              {t("navSettings")}
             </Link>
             <div className="border-t border-slate-50 mt-1 pt-1">
               <button
@@ -325,7 +338,7 @@ function SuperAdminHeader({ sidebarCollapsed }: HeaderProps) {
                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full"
               >
                 <LogOut className="h-4 w-4" />
-                Sign Out
+                {t("signOut")}
               </button>
             </div>
           </div>

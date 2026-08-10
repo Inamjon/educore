@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import {
   AreaChart,
   Area,
@@ -45,15 +46,17 @@ import { useSAProfileStore } from '@/lib/store/sa-profile-store';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatRelativeTime(isoString: string) {
+// t is SuperAdminDashboard's useTranslations return value — see
+// app/teacher/notifications/page.tsx's formatTime for the identical pattern.
+function formatRelativeTime(isoString: string, t: ReturnType<typeof useTranslations<'SuperAdminDashboard'>>) {
   const now = new Date('2026-07-04T16:47:40Z');
   const then = new Date(isoString);
   const diffMs = now.getTime() - then.getTime();
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 60) return t('minutesAgo', { count: diffMin });
   const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  return `${Math.floor(diffH / 24)}d ago`;
+  if (diffH < 24) return t('hoursAgo', { count: diffH });
+  return t('daysAgo', { count: Math.floor(diffH / 24) });
 }
 
 const severityDot: Record<string, string> = {
@@ -76,110 +79,6 @@ const actionBadgeVariant: Record<
   USER_DELETED: 'danger',
 };
 
-// ─── Quick Actions ────────────────────────────────────────────────────────────
-
-const QUICK_ACTIONS = [
-  {
-    label: 'Create Educational Center',
-    href: '/super-admin/centers',
-    icon: <Building2 className="h-6 w-6 text-violet-600" />,
-    iconBg: 'bg-violet-50',
-  },
-  {
-    label: 'Create Branch',
-    href: '/super-admin/branches',
-    icon: <GitBranch className="h-6 w-6 text-indigo-600" />,
-    iconBg: 'bg-indigo-50',
-  },
-  {
-    label: 'Add Administrator',
-    href: '/super-admin/administrators',
-    icon: <ShieldCheck className="h-6 w-6 text-amber-600" />,
-    iconBg: 'bg-amber-50',
-  },
-  {
-    label: 'Assign Branch',
-    href: '/super-admin/administrators',
-    icon: <Link2 className="h-6 w-6 text-blue-600" />,
-    iconBg: 'bg-blue-50',
-  },
-  {
-    label: 'View Reports',
-    href: '/super-admin/reports',
-    icon: <BarChart2 className="h-6 w-6 text-emerald-600" />,
-    iconBg: 'bg-emerald-50',
-  },
-];
-
-// ─── KPI card definitions ─────────────────────────────────────────────────────
-
-const KPI_CARDS = [
-  {
-    label: 'Total Centers',
-    value: SA_STATS.totalCenters,
-    change: 12.5,
-    changeLabel: 'vs last month',
-    icon: <Building2 className="h-5 w-5 text-violet-600" />,
-    iconBg: 'bg-violet-50',
-  },
-  {
-    label: 'Total Branches',
-    value: SA_STATS.totalBranches,
-    change: 4.8,
-    changeLabel: 'vs last month',
-    icon: <GitBranch className="h-5 w-5 text-indigo-600" />,
-    iconBg: 'bg-indigo-50',
-  },
-  {
-    label: 'Total Students',
-    value: SA_STATS.totalStudents,
-    change: 7.2,
-    changeLabel: 'vs last month',
-    icon: <Users className="h-5 w-5 text-blue-600" />,
-    iconBg: 'bg-blue-50',
-  },
-  {
-    label: 'Total Teachers',
-    value: SA_STATS.totalTeachers,
-    change: 3.1,
-    changeLabel: 'vs last month',
-    icon: <GraduationCap className="h-5 w-5 text-emerald-600" />,
-    iconBg: 'bg-emerald-50',
-  },
-  {
-    label: 'Active Admins',
-    value: SA_STATS.activeAdmins,
-    change: -1.3,
-    changeLabel: 'vs last month',
-    icon: <ShieldCheck className="h-5 w-5 text-amber-600" />,
-    iconBg: 'bg-amber-50',
-  },
-  {
-    label: 'Monthly Revenue',
-    value: '$284,600',
-    change: 4.1,
-    changeLabel: 'vs last month',
-    icon: <DollarSign className="h-5 w-5 text-green-600" />,
-    iconBg: 'bg-green-50',
-  },
-  {
-    label: 'Active Subscriptions',
-    value: SA_STATS.activeSubscriptions,
-    change: 2.6,
-    changeLabel: 'vs last month',
-    icon: <CreditCard className="h-5 w-5 text-purple-600" />,
-    iconBg: 'bg-purple-50',
-  },
-  {
-    label: 'New Registrations',
-    value: SA_STATS.newRegistrations,
-    change: 18.4,
-    changeLabel: 'vs last month',
-    icon: <UserPlus className="h-5 w-5 text-pink-600" />,
-    iconBg: 'bg-pink-50',
-  },
-];
-
 // ─── Tooltip style shared ─────────────────────────────────────────────────────
 
 const tooltipStyle = {
@@ -194,8 +93,120 @@ const tooltipStyle = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SuperAdminDashboardPage() {
+  const t = useTranslations('SuperAdminDashboard');
   const profile = useSAProfileStore((s) => s.profile);
   const recentLogs = SA_AUDIT_LOGS.slice(0, 5);
+
+  const ACTION_LABELS: Record<string, string> = {
+    CENTER_CREATED: t('actionCenterCreated'),
+    LOGIN_FAILED: t('actionLoginFailed'),
+    SUBSCRIPTION_UPGRADED: t('actionSubscriptionUpgraded'),
+    BRANCH_SUSPENDED: t('actionBranchSuspended'),
+    PAYMENT_RECEIVED: t('actionPaymentReceived'),
+    ADMIN_ADDED: t('actionAdminAdded'),
+    SETTINGS_UPDATED: t('actionSettingsUpdated'),
+    USER_DELETED: t('actionUserDeleted'),
+  };
+
+  const QUICK_ACTIONS = [
+    {
+      label: t('quickActionCreateCenter'),
+      href: '/super-admin/centers',
+      icon: <Building2 className="h-6 w-6 text-violet-600" />,
+      iconBg: 'bg-violet-50',
+    },
+    {
+      label: t('quickActionCreateBranch'),
+      href: '/super-admin/branches',
+      icon: <GitBranch className="h-6 w-6 text-indigo-600" />,
+      iconBg: 'bg-indigo-50',
+    },
+    {
+      label: t('quickActionAddAdministrator'),
+      href: '/super-admin/administrators',
+      icon: <ShieldCheck className="h-6 w-6 text-amber-600" />,
+      iconBg: 'bg-amber-50',
+    },
+    {
+      label: t('quickActionAssignBranch'),
+      href: '/super-admin/administrators',
+      icon: <Link2 className="h-6 w-6 text-blue-600" />,
+      iconBg: 'bg-blue-50',
+    },
+    {
+      label: t('quickActionViewReports'),
+      href: '/super-admin/reports',
+      icon: <BarChart2 className="h-6 w-6 text-emerald-600" />,
+      iconBg: 'bg-emerald-50',
+    },
+  ];
+
+  const KPI_CARDS = [
+    {
+      label: t('kpiTotalCenters'),
+      value: SA_STATS.totalCenters,
+      change: 12.5,
+      changeLabel: t('vsLastMonth'),
+      icon: <Building2 className="h-5 w-5 text-violet-600" />,
+      iconBg: 'bg-violet-50',
+    },
+    {
+      label: t('kpiTotalBranches'),
+      value: SA_STATS.totalBranches,
+      change: 4.8,
+      changeLabel: t('vsLastMonth'),
+      icon: <GitBranch className="h-5 w-5 text-indigo-600" />,
+      iconBg: 'bg-indigo-50',
+    },
+    {
+      label: t('kpiTotalStudents'),
+      value: SA_STATS.totalStudents,
+      change: 7.2,
+      changeLabel: t('vsLastMonth'),
+      icon: <Users className="h-5 w-5 text-blue-600" />,
+      iconBg: 'bg-blue-50',
+    },
+    {
+      label: t('kpiTotalTeachers'),
+      value: SA_STATS.totalTeachers,
+      change: 3.1,
+      changeLabel: t('vsLastMonth'),
+      icon: <GraduationCap className="h-5 w-5 text-emerald-600" />,
+      iconBg: 'bg-emerald-50',
+    },
+    {
+      label: t('kpiActiveAdmins'),
+      value: SA_STATS.activeAdmins,
+      change: -1.3,
+      changeLabel: t('vsLastMonth'),
+      icon: <ShieldCheck className="h-5 w-5 text-amber-600" />,
+      iconBg: 'bg-amber-50',
+    },
+    {
+      label: t('kpiMonthlyRevenue'),
+      value: '$284,600',
+      change: 4.1,
+      changeLabel: t('vsLastMonth'),
+      icon: <DollarSign className="h-5 w-5 text-green-600" />,
+      iconBg: 'bg-green-50',
+    },
+    {
+      label: t('kpiActiveSubscriptions'),
+      value: SA_STATS.activeSubscriptions,
+      change: 2.6,
+      changeLabel: t('vsLastMonth'),
+      icon: <CreditCard className="h-5 w-5 text-purple-600" />,
+      iconBg: 'bg-purple-50',
+    },
+    {
+      label: t('kpiNewRegistrations'),
+      value: SA_STATS.newRegistrations,
+      change: 18.4,
+      changeLabel: t('vsLastMonth'),
+      icon: <UserPlus className="h-5 w-5 text-pink-600" />,
+      iconBg: 'bg-pink-50',
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -203,20 +214,20 @@ export default function SuperAdminDashboardPage() {
       <div className="bg-gradient-to-r from-violet-700 to-indigo-600 rounded-2xl p-6 text-white">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold">Welcome back, {profile.name} 👋</h2>
+            <h2 className="text-2xl font-bold">{t('welcomeBack', { name: profile.name })}</h2>
             <p className="text-violet-200 text-sm mt-1">
-              Super Administrator — Full platform overview
+              {t('welcomeSubtitle')}
             </p>
           </div>
           <div className="hidden sm:flex flex-col items-end gap-2">
             <div className="bg-white/20 rounded-full px-4 py-1.5 text-sm font-medium backdrop-blur-sm">
-              🏢 {SA_STATS.totalCenters} Centers
+              🏢 {t('centersBadge', { count: SA_STATS.totalCenters })}
             </div>
             <div className="bg-white/20 rounded-full px-4 py-1.5 text-sm font-medium backdrop-blur-sm">
-              💰 $284,600 Revenue
+              💰 {t('revenueBadge')}
             </div>
             <div className="bg-white/20 rounded-full px-4 py-1.5 text-sm font-medium backdrop-blur-sm">
-              📋 {SA_STATS.activeSubscriptions} Active Subs
+              📋 {t('activeSubsBadge', { count: SA_STATS.activeSubscriptions })}
             </div>
           </div>
         </div>
@@ -241,7 +252,7 @@ export default function SuperAdminDashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Revenue Overview — col-span-2 */}
         <div className="lg:col-span-2">
-          <Card title="Revenue Overview" subtitle="Monthly revenue & active subscriptions">
+          <Card title={t('revenueOverviewTitle')} subtitle={t('revenueOverviewSubtitle')}>
             <ResponsiveContainer width="100%" height={240}>
               <AreaChart
                 data={MONTHLY_REVENUE_SA}
@@ -282,8 +293,8 @@ export default function SuperAdminDashboardPage() {
                   {...tooltipStyle}
                   formatter={(value: unknown, name: string) =>
                     name === 'revenue'
-                      ? [`$${Number(value).toLocaleString()}`, 'Revenue']
-                      : [value, 'Subscriptions']
+                      ? [`$${Number(value).toLocaleString()}`, t('revenueLegend')]
+                      : [value, t('subscriptionsLegend')]
                   }
                 />
                 <Area
@@ -308,17 +319,17 @@ export default function SuperAdminDashboardPage() {
             </ResponsiveContainer>
             <div className="flex items-center gap-4 mt-2 justify-center">
               <span className="flex items-center gap-1.5 text-xs text-slate-500">
-                <span className="h-2.5 w-2.5 rounded-full bg-indigo-500 inline-block" /> Revenue
+                <span className="h-2.5 w-2.5 rounded-full bg-indigo-500 inline-block" /> {t('revenueLegend')}
               </span>
               <span className="flex items-center gap-1.5 text-xs text-slate-500">
-                <span className="h-2.5 w-2.5 rounded-full bg-purple-500 inline-block" /> Subscriptions
+                <span className="h-2.5 w-2.5 rounded-full bg-purple-500 inline-block" /> {t('subscriptionsLegend')}
               </span>
             </div>
           </Card>
         </div>
 
         {/* Subscription Distribution */}
-        <Card title="Subscription Distribution" subtitle="Active plans breakdown">
+        <Card title={t('subscriptionDistributionTitle')} subtitle={t('subscriptionDistributionSubtitle')}>
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie
@@ -336,7 +347,7 @@ export default function SuperAdminDashboardPage() {
               </Pie>
               <Tooltip
                 {...tooltipStyle}
-                formatter={(value: unknown) => [`${value} centers`, undefined]}
+                formatter={(value: unknown) => [t('centersCount', { count: Number(value) }), undefined]}
               />
               <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '11px' }} />
             </PieChart>
@@ -347,7 +358,7 @@ export default function SuperAdminDashboardPage() {
       {/* ── Charts Row 2 ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Student Growth */}
-        <Card title="Student Growth" subtitle="Cumulative enrollments">
+        <Card title={t('studentGrowthTitle')} subtitle={t('studentGrowthSubtitle')}>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart
               data={STUDENT_GROWTH_SA}
@@ -368,7 +379,7 @@ export default function SuperAdminDashboardPage() {
               />
               <Tooltip
                 {...tooltipStyle}
-                formatter={(value: unknown) => [Number(value).toLocaleString(), 'Students']}
+                formatter={(value: unknown) => [Number(value).toLocaleString(), t('studentsLegend')]}
               />
               <Line
                 type="monotone"
@@ -383,7 +394,7 @@ export default function SuperAdminDashboardPage() {
         </Card>
 
         {/* Branch Growth */}
-        <Card title="Branch Growth" subtitle="New branches per month">
+        <Card title={t('branchGrowthTitle')} subtitle={t('branchGrowthSubtitle')}>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart
               data={BRANCH_GROWTH_SA}
@@ -404,7 +415,7 @@ export default function SuperAdminDashboardPage() {
               />
               <Tooltip
                 {...tooltipStyle}
-                formatter={(value: unknown) => [value, 'Branches']}
+                formatter={(value: unknown) => [value, t('branchesLegend')]}
               />
               <Bar dataKey="branches" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Branches" />
             </BarChart>
@@ -412,7 +423,7 @@ export default function SuperAdminDashboardPage() {
         </Card>
 
         {/* Recent Activity */}
-        <Card title="Recent Activity" subtitle="Last 5 audit events">
+        <Card title={t('recentActivityTitle')} subtitle={t('recentActivitySubtitle')}>
           <div className="space-y-3.5">
             {recentLogs.map((log) => (
               <div key={log.id} className="flex items-start gap-2.5">
@@ -425,7 +436,7 @@ export default function SuperAdminDashboardPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge
-                      label={log.action.replace(/_/g, ' ')}
+                      label={ACTION_LABELS[log.action] ?? log.action.replace(/_/g, ' ')}
                       variant={actionBadgeVariant[log.action] ?? 'default'}
                     />
                   </div>
@@ -435,7 +446,7 @@ export default function SuperAdminDashboardPage() {
                   <div className="flex items-center justify-between gap-2 mt-0.5">
                     <span className="text-xs text-slate-400 truncate">{log.user}</span>
                     <span className="text-xs text-slate-400 flex-shrink-0">
-                      {formatRelativeTime(log.date)}
+                      {formatRelativeTime(log.date, t)}
                     </span>
                   </div>
                 </div>
@@ -446,7 +457,7 @@ export default function SuperAdminDashboardPage() {
       </div>
 
       {/* ── Quick Actions ────────────────────────────────────────────────── */}
-      <Card title="Quick Actions">
+      <Card title={t('quickActionsTitle')}>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {QUICK_ACTIONS.map((action) => (
             <Link
