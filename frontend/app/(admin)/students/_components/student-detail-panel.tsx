@@ -40,6 +40,8 @@ export function StudentDetailPanel({ student, onBack, onEdit, onDelete }: Studen
     absent: t("statusAbsent"),
     late: t("statusLate"),
     excused: t("statusExcused"),
+    early_leave: t("statusEarlyLeave"),
+    sick: t("statusSick"),
   };
 
   const { data: parents } = useStudentParentsQuery(student.id);

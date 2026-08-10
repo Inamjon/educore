@@ -72,13 +72,18 @@ function NotificationItem({ notification, onRead }: { notification: Notification
 export default function NotificationsPage() {
   const t = useTranslations("AdminNotifications");
 
-  const TYPE_OPTIONS = [
-    { value: "", label: t("typeAll") },
+  // Single source of truth for the 4 real notification types — TYPE_OPTIONS
+  // (the filter dropdown) and TYPE_LABELS (the stat cards below) both derive
+  // from this instead of each hand-listing the same 4 entries separately.
+  const NOTIFICATION_TYPES: { value: NotificationType; label: string }[] = [
     { value: "info", label: t("typeInfo") },
     { value: "success", label: t("typeSuccess") },
     { value: "warning", label: t("typeWarning") },
     { value: "error", label: t("typeError") },
   ];
+  const TYPE_LABELS = Object.fromEntries(NOTIFICATION_TYPES.map((o) => [o.value, o.label])) as Record<NotificationType, string>;
+
+  const TYPE_OPTIONS = [{ value: "", label: t("typeAll") }, ...NOTIFICATION_TYPES];
 
   const FILTER_OPTIONS = [
     { value: "", label: t("filterAll") },
@@ -110,13 +115,6 @@ export default function NotificationsPage() {
   const groups = {
     unread: filtered.filter((n) => !n.read),
     read: filtered.filter((n) => n.read),
-  };
-
-  const TYPE_LABELS: Record<NotificationType, string> = {
-    info: t("typeInfo"),
-    success: t("typeSuccess"),
-    warning: t("typeWarning"),
-    error: t("typeError"),
   };
 
   return (

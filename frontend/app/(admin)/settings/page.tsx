@@ -192,13 +192,13 @@ export default function SettingsPage() {
             <Card title={t("notificationPreferencesTitle")} subtitle={t("notificationPreferencesSubtitle")}>
               <div className="space-y-0 divide-y divide-slate-50">
                 {[
-                  { label: t("emailNotificationsLabel"), description: t("emailNotificationsDescription"), value: emailNotifs, toggle: () => setEmailNotifs(!emailNotifs) },
-                  { label: t("smsNotificationsLabel"), description: t("smsNotificationsDescription"), value: smsNotifs, toggle: () => setSmsNotifs(!smsNotifs) },
-                  { label: t("pushNotificationsLabel"), description: t("pushNotificationsDescription"), value: pushNotifs, toggle: () => setPushNotifs(!pushNotifs) },
-                  { label: t("paymentAlertsLabel"), description: t("paymentAlertsDescription"), value: paymentAlerts, toggle: () => setPaymentAlerts(!paymentAlerts) },
-                  { label: t("attendanceAlertsLabel"), description: t("attendanceAlertsDescription"), value: attendanceAlerts, toggle: () => setAttendanceAlerts(!attendanceAlerts) },
-                ].map(({ label, description, value, toggle }) => (
-                  <div key={label} className="flex items-center justify-between py-4">
+                  { id: "email", label: t("emailNotificationsLabel"), description: t("emailNotificationsDescription"), value: emailNotifs, toggle: () => setEmailNotifs(!emailNotifs) },
+                  { id: "sms", label: t("smsNotificationsLabel"), description: t("smsNotificationsDescription"), value: smsNotifs, toggle: () => setSmsNotifs(!smsNotifs) },
+                  { id: "push", label: t("pushNotificationsLabel"), description: t("pushNotificationsDescription"), value: pushNotifs, toggle: () => setPushNotifs(!pushNotifs) },
+                  { id: "payment", label: t("paymentAlertsLabel"), description: t("paymentAlertsDescription"), value: paymentAlerts, toggle: () => setPaymentAlerts(!paymentAlerts) },
+                  { id: "attendance", label: t("attendanceAlertsLabel"), description: t("attendanceAlertsDescription"), value: attendanceAlerts, toggle: () => setAttendanceAlerts(!attendanceAlerts) },
+                ].map(({ id, label, description, value, toggle }) => (
+                  <div key={id} className="flex items-center justify-between py-4">
                     <div>
                       <p className="text-sm font-medium text-slate-900">{label}</p>
                       <p className="text-xs text-slate-400">{description}</p>

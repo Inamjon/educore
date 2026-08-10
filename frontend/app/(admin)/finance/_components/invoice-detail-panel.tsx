@@ -47,14 +47,12 @@ export function InvoiceDetailPanel({ invoice, onBack, onDelete }: InvoiceDetailP
     { value: "mobile_payment", label: t("paymentMethodMobilePayment") },
     { value: "other", label: t("paymentMethodOther") },
   ];
-  const PAYMENT_METHOD_LABELS: Record<string, string> = {
-    cash: t("paymentMethodCash"),
-    card: t("paymentMethodCard"),
-    bank_transfer: t("paymentMethodBankTransfer"),
-    online: t("paymentMethodOnline"),
-    mobile_payment: t("paymentMethodMobilePayment"),
-    other: t("paymentMethodOther"),
-  };
+  // Derived from PAYMENT_METHOD_OPTIONS above rather than a second
+  // hand-written map — keeps the Select's options and the payment-history
+  // list's labels from drifting out of sync.
+  const PAYMENT_METHOD_LABELS: Record<string, string> = Object.fromEntries(
+    PAYMENT_METHOD_OPTIONS.map((o) => [o.value, o.label])
+  );
 
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const { data: payments } = usePaymentsQuery({ organizationId: organizationId ?? "", invoice: invoice.id });

@@ -1002,7 +1002,9 @@
     "createdToast": "Студент создан",
     "updatedToast": "Студент обновлён",
     "fixHighlightedFields": "Пожалуйста, исправьте выделенные поля.",
-    "genericError": "Что-то пошло не так. Попробуйте снова."
+    "genericError": "Что-то пошло не так. Попробуйте снова.",
+    "statusEarlyLeave": "Ушёл раньше",
+    "statusSick": "Болен"
   },
   "AdminTeachers": {
     "pageTitle": "Преподаватели",

@@ -1002,7 +1002,9 @@
     "createdToast": "Student created",
     "updatedToast": "Student updated",
     "fixHighlightedFields": "Please fix the highlighted fields.",
-    "genericError": "Something went wrong. Please try again."
+    "genericError": "Something went wrong. Please try again.",
+    "statusEarlyLeave": "Early Leave",
+    "statusSick": "Sick"
   },
   "AdminTeachers": {
     "pageTitle": "Teachers",

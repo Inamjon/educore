@@ -1002,7 +1002,9 @@
     "createdToast": "O'quvchi yaratildi",
     "updatedToast": "O'quvchi yangilandi",
     "fixHighlightedFields": "Iltimos, belgilangan maydonlarni to'g'irlang.",
-    "genericError": "Nimadir xato ketdi. Qaytadan urinib ko'ring."
+    "genericError": "Nimadir xato ketdi. Qaytadan urinib ko'ring.",
+    "statusEarlyLeave": "Erta ketgan",
+    "statusSick": "Kasal"
   },
   "AdminTeachers": {
     "pageTitle": "O'qituvchilar",
