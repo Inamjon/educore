@@ -11,6 +11,7 @@ import {
   UserPlus,
   ReceiptText,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
@@ -40,6 +41,7 @@ function toLocalIso(d: Date): string {
 }
 
 export default function DashboardPage() {
+  const t = useTranslations("AdminDashboard");
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const todayIso = toLocalIso(new Date());
   const { data: lessons = [] } = useLessonsQuery({
@@ -48,39 +50,46 @@ export default function DashboardPage() {
   });
   const todayLessons = lessons.slice(0, 4);
 
+  const QUICK_ACTIONS = [
+    { label: t("quickActionNewStudent"), href: "/students", icon: UserPlus, color: "text-indigo-600", bg: "bg-indigo-50" },
+    { label: t("quickActionNewTeacher"), href: "/teachers", icon: GraduationCap, color: "text-blue-600", bg: "bg-blue-50" },
+    { label: t("quickActionNewInvoice"), href: "/finance", icon: ReceiptText, color: "text-violet-600", bg: "bg-violet-50" },
+    { label: t("quickActionTakeAttendance"), href: "/attendance", icon: ClipboardCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Stat Cards Row 1 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Total Students"
+          label={t("statTotalStudents")}
           value={DASHBOARD_STATS.totalStudents}
           change={12}
-          changeLabel="vs last month"
+          changeLabel={t("changeVsLastMonth")}
           icon={<Users className="h-5 w-5 text-indigo-600" />}
           iconBg="bg-indigo-50"
         />
         <StatCard
-          label="Total Teachers"
+          label={t("statTotalTeachers")}
           value={DASHBOARD_STATS.totalTeachers}
           change={5}
-          changeLabel="vs last month"
+          changeLabel={t("changeVsLastMonth")}
           icon={<GraduationCap className="h-5 w-5 text-blue-600" />}
           iconBg="bg-blue-50"
         />
         <StatCard
-          label="Active Courses"
+          label={t("statActiveCourses")}
           value={DASHBOARD_STATS.totalCourses}
           change={2}
-          changeLabel="new this month"
+          changeLabel={t("changeNewThisMonth")}
           icon={<BookOpen className="h-5 w-5 text-emerald-600" />}
           iconBg="bg-emerald-50"
         />
         <StatCard
-          label="Active Groups"
+          label={t("statActiveGroups")}
           value={DASHBOARD_STATS.totalGroups}
           change={8}
-          changeLabel="vs last month"
+          changeLabel={t("changeVsLastMonth")}
           icon={<Users2 className="h-5 w-5 text-amber-600" />}
           iconBg="bg-amber-50"
         />
@@ -89,50 +98,45 @@ export default function DashboardPage() {
       {/* Stat Cards Row 2 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Monthly Revenue"
+          label={t("statMonthlyRevenue")}
           value={formatCurrency(DASHBOARD_STATS.monthlyRevenue)}
           change={14}
-          changeLabel="vs last month"
+          changeLabel={t("changeVsLastMonth")}
           icon={<DollarSign className="h-5 w-5 text-violet-600" />}
           iconBg="bg-violet-50"
         />
         <StatCard
-          label="Avg. Attendance"
+          label={t("statAvgAttendance")}
           value={`${DASHBOARD_STATS.avgAttendance}%`}
           change={-2}
-          changeLabel="vs last week"
+          changeLabel={t("changeVsLastWeek")}
           icon={<ClipboardCheck className="h-5 w-5 text-pink-600" />}
           iconBg="bg-pink-50"
         />
         <StatCard
-          label="New Enrollments"
+          label={t("statNewEnrollments")}
           value={DASHBOARD_STATS.newEnrollments}
           change={18}
-          changeLabel="this month"
+          changeLabel={t("changeThisMonth")}
           icon={<UserPlus className="h-5 w-5 text-teal-600" />}
           iconBg="bg-teal-50"
         />
         <StatCard
-          label="Pending Payments"
+          label={t("statPendingPayments")}
           value={DASHBOARD_STATS.pendingPayments}
           change={-25}
-          changeLabel="vs last month"
+          changeLabel={t("changeVsLastMonth")}
           icon={<TrendingUp className="h-5 w-5 text-red-600" />}
           iconBg="bg-red-50"
         />
       </div>
 
       {/* Quick Actions */}
-      <Card title="Quick Actions" subtitle="Jump to a common task">
+      <Card title={t("quickActionsTitle")} subtitle={t("quickActionsSubtitle")}>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: "New Student", href: "/students", icon: UserPlus, color: "text-indigo-600", bg: "bg-indigo-50" },
-            { label: "New Teacher", href: "/teachers", icon: GraduationCap, color: "text-blue-600", bg: "bg-blue-50" },
-            { label: "New Invoice", href: "/finance", icon: ReceiptText, color: "text-violet-600", bg: "bg-violet-50" },
-            { label: "Take Attendance", href: "/attendance", icon: ClipboardCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
-          ].map(({ label, href, icon: Icon, color, bg }) => (
+          {QUICK_ACTIONS.map(({ label, href, icon: Icon, color, bg }) => (
             <Link
-              key={label}
+              key={href}
               href={href}
               className="flex flex-col items-center gap-2 rounded-xl border border-slate-100 p-4 text-center hover:border-slate-200 hover:bg-slate-50 transition-colors"
             >
@@ -147,10 +151,10 @@ export default function DashboardPage() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2" title="Revenue & Expenses" subtitle="Monthly overview">
+        <Card className="lg:col-span-2" title={t("revenueExpensesTitle")} subtitle={t("revenueExpensesSubtitle")}>
           <RevenueChart />
         </Card>
-        <Card title="Enrollment by Course" subtitle="Current distribution">
+        <Card title={t("enrollmentByCourseTitle")} subtitle={t("enrollmentByCourseSubtitle")}>
           <EnrollmentPieChart />
         </Card>
       </div>
@@ -158,15 +162,15 @@ export default function DashboardPage() {
       {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Attendance Chart */}
-        <Card title="Weekly Attendance" subtitle="Present vs Absent (%)">
+        <Card title={t("weeklyAttendanceTitle")} subtitle={t("weeklyAttendanceSubtitle")}>
           <AttendanceBarChart />
         </Card>
 
         {/* Today's Lessons */}
-        <Card title="Today's Lessons" subtitle="Scheduled for today">
+        <Card title={t("todaysLessonsTitle")} subtitle={t("todaysLessonsSubtitle")}>
           <div className="space-y-3">
             {todayLessons.length === 0 && (
-              <p className="text-sm text-slate-400 text-center py-6">No lessons scheduled for today.</p>
+              <p className="text-sm text-slate-400 text-center py-6">{t("noLessonsToday")}</p>
             )}
             {todayLessons.map((lesson) => (
               <div key={lesson.id} className="flex items-center gap-3">
@@ -188,7 +192,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Recent Students */}
-        <Card title="Recent Students" subtitle="Latest enrollments">
+        <Card title={t("recentStudentsTitle")} subtitle={t("recentStudentsSubtitle")}>
           <div className="space-y-3">
             {recentStudents.map((student) => (
               <div key={student.id} className="flex items-center gap-3">
@@ -205,7 +209,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent Transactions */}
-      <Card title="Recent Transactions" subtitle="Latest payment activity">
+      <Card title={t("recentTransactionsTitle")} subtitle={t("recentTransactionsSubtitle")}>
         <div className="space-y-3">
           {recentTransactions.map((tx) => (
             <div key={tx.id} className="flex items-center gap-4 py-1">

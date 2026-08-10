@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { UserPlus, Pencil, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { DataTable, Column } from "@/components/ui/data-table";
@@ -16,27 +17,33 @@ import { useDeleteTeacherMutation, useTeachersQuery } from "@/lib/queries/teache
 import type { TeacherProfile, TeacherStatus } from "@/lib/api/teachers";
 import { ApiError } from "@/lib/api/client";
 import { GraduationCap, UserCheck, UserX, Clock } from "lucide-react";
+import { formatLocalizedDate } from "@/i18n/date-locale";
+import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 import { TeacherFormDialog } from "./_components/teacher-form-dialog";
 import { TeacherDetailPanel } from "./_components/teacher-detail-panel";
 
-const STATUS_OPTIONS = [
-  { value: "", label: "All Status" },
-  { value: "active", label: "Active" },
-  { value: "on_leave", label: "On Leave" },
-  { value: "terminated", label: "Terminated" },
-  { value: "inactive", label: "Inactive" },
-  { value: "pending", label: "Pending" },
-];
-
-const EMPLOYMENT_LABELS: Record<string, string> = {
-  full_time: "Full Time",
-  part_time: "Part Time",
-  contract: "Contract",
-  freelance: "Freelance",
-  intern: "Intern",
-};
-
 export default function TeachersPage() {
+  const t = useTranslations("AdminTeachers");
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
+  const STATUS_OPTIONS = [
+    { value: "", label: t("statusAll") },
+    { value: "active", label: t("statusActive") },
+    { value: "on_leave", label: t("statusOnLeave") },
+    { value: "terminated", label: t("statusTerminated") },
+    { value: "inactive", label: t("statusInactive") },
+    { value: "pending", label: t("statusPending") },
+  ];
+
+  const EMPLOYMENT_LABELS: Record<string, string> = {
+    full_time: t("employmentFullTime"),
+    part_time: t("employmentPartTime"),
+    contract: t("employmentContract"),
+    freelance: t("employmentFreelance"),
+    intern: t("employmentIntern"),
+  };
+
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TeacherStatus | "">("");
@@ -70,7 +77,7 @@ export default function TeachersPage() {
   const COLUMNS: Column<TeacherProfile>[] = [
     {
       key: "user_full_name",
-      label: "Teacher",
+      label: t("columnTeacher"),
       render: (_, row) => (
         <div className="flex items-center gap-3">
           <Avatar name={row.user_full_name} size="sm" />
@@ -81,26 +88,26 @@ export default function TeachersPage() {
         </div>
       ),
     },
-    { key: "user_phone", label: "Phone" },
-    { key: "teacher_code", label: "Teacher Code" },
+    { key: "user_phone", label: t("columnPhone") },
+    { key: "teacher_code", label: t("columnTeacherCode") },
     {
       key: "employment_type",
-      label: "Employment",
+      label: t("columnEmployment"),
       render: (val) => EMPLOYMENT_LABELS[String(val)] ?? String(val),
     },
     {
       key: "status",
-      label: "Status",
+      label: t("columnStatus"),
       render: (val) => <StatusBadge status={String(val)} />,
     },
     {
       key: "hire_date",
-      label: "Hired",
-      render: (val) => new Date(String(val)).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
+      label: t("columnHired"),
+      render: (val) => formatLocalizedDate(new Date(String(val) + "T00:00:00"), locale, { year: "numeric", month: "short", day: "numeric" }),
     },
     {
       key: "id",
-      label: "Actions",
+      label: t("columnActions"),
       render: (_, row) => (
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <Button
@@ -124,8 +131,8 @@ export default function TeachersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Teachers"
-        subtitle={`${stats.total} teachers on staff`}
+        title={t("pageTitle")}
+        subtitle={t("pageSubtitleCount", { count: stats.total })}
         actions={
           <Button
             onClick={() => {
@@ -134,25 +141,25 @@ export default function TeachersPage() {
             }}
           >
             <UserPlus className="h-4 w-4" />
-            Add Teacher
+            {t("addTeacherButton")}
           </Button>
         }
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Teachers" value={stats.total} icon={<GraduationCap className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
-        <StatCard label="Active" value={stats.active} icon={<UserCheck className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
-        <StatCard label="Inactive" value={stats.inactive} icon={<UserX className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
-        <StatCard label="Pending" value={stats.pending} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
+        <StatCard label={t("statTotalTeachers")} value={stats.total} icon={<GraduationCap className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label={t("statActive")} value={stats.active} icon={<UserCheck className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label={t("statInactive")} value={stats.inactive} icon={<UserX className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
+        <StatCard label={t("statPending")} value={stats.pending} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
       </div>
 
       <Card
         noPadding
-        title="All Teachers"
-        subtitle={`Showing ${list.length} teachers`}
+        title={t("allTeachersTitle")}
+        subtitle={t("showingCount", { count: list.length })}
         actions={
           <div className="flex items-center gap-2">
-            <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search teachers..." />
+            <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPlaceholder")} />
             <Select
               options={STATUS_OPTIONS}
               value={statusFilter}
@@ -165,19 +172,19 @@ export default function TeachersPage() {
         {isError ? (
           <div className="flex items-center gap-2 px-6 py-8 text-sm text-red-500">
             <AlertCircle className="h-4 w-4" />
-            {error instanceof ApiError ? error.message : "Failed to load teachers."}
+            {error instanceof ApiError ? error.message : t("loadErrorFallback")}
           </div>
         ) : isLoading ? (
           <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-slate-400">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading teachers…
+            {t("loadingTeachers")}
           </div>
         ) : (
           <DataTable
             columns={COLUMNS}
             data={list}
             keyField="id"
-            emptyMessage="No teachers found"
+            emptyMessage={t("noTeachersFound")}
             onRowClick={(row) => setSelectedId(row.id)}
           />
         )}
@@ -200,17 +207,17 @@ export default function TeachersPage() {
       <ConfirmDialog
         open={!!deletingTeacher}
         onOpenChange={(open) => !open && setDeletingTeacher(null)}
-        title="Delete teacher"
-        description={`Are you sure you want to remove ${deletingTeacher?.user_full_name}? This can be restored later from the database if needed.`}
-        confirmLabel="Delete"
+        title={t("deleteDialogTitle")}
+        description={t("deleteDialogDescription", { name: deletingTeacher?.user_full_name ?? "" })}
+        confirmLabel={t("deleteConfirmLabel")}
         onConfirm={async () => {
           if (!deletingTeacher) return;
           try {
             await deleteMutation.mutateAsync(deletingTeacher.id);
-            toast.success("Teacher removed");
+            toast.success(t("deleteSuccessToast"));
             if (selectedId === deletingTeacher.id) setSelectedId(null);
           } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : "Failed to delete teacher.");
+            toast.error(err instanceof ApiError ? err.message : t("deleteErrorFallback"));
           }
         }}
       />

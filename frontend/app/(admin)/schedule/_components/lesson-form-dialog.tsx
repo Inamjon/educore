@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -26,11 +27,12 @@ interface LessonFormDialogProps {
 }
 
 export function LessonFormDialog({ open, onOpenChange }: LessonFormDialogProps) {
+  const t = useTranslations("AdminSchedule");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New Lesson</DialogTitle>
+          <DialogTitle>{t("newLessonDialogTitle")}</DialogTitle>
         </DialogHeader>
         {open && <LessonFormFields onOpenChange={onOpenChange} />}
       </DialogContent>
@@ -39,6 +41,8 @@ export function LessonFormDialog({ open, onOpenChange }: LessonFormDialogProps) 
 }
 
 function LessonFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => void }) {
+  const t = useTranslations("AdminSchedule");
+  const tc = useTranslations("Common");
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const { data: groups } = useGroupsQuery({ organizationId: organizationId ?? "" });
   const createMutation = useCreateLessonMutation();
@@ -92,7 +96,7 @@ function LessonFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => v
         room: result.data.room,
         topic: result.data.topic,
       });
-      toast.success("Lesson scheduled");
+      toast.success(t("lessonScheduledToast"));
       onOpenChange(false);
     } catch (err) {
       if (err instanceof ApiError && err.fieldErrors) {
@@ -103,9 +107,9 @@ function LessonFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => v
           mapped[field] = messages[0];
         }
         setErrors(mapped);
-        toast.error("Please fix the highlighted fields.");
+        toast.error(t("fixHighlightedFields"));
       } else {
-        toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+        toast.error(err instanceof ApiError ? err.message : t("genericError"));
       }
     } finally {
       setSubmitting(false);
@@ -117,7 +121,7 @@ function LessonFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => v
       <DialogBody>
         <div className="grid grid-cols-2 gap-3">
           <Select
-            placeholder="Select group"
+            placeholder={t("selectGroupPlaceholder")}
             options={(groups ?? []).map((g) => ({ value: g.id, label: g.name }))}
             value={values.group}
             onChange={(e) => handleGroupChange(e.target.value)}
@@ -133,25 +137,25 @@ function LessonFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => v
           />
           <Input
             type="time"
-            placeholder="Start time"
+            placeholder={t("fieldStartTime")}
             value={values.startTime}
             onChange={(e) => setField("startTime", e.target.value)}
             error={errors.startTime}
           />
           <Input
             type="time"
-            placeholder="End time"
+            placeholder={t("fieldEndTime")}
             value={values.endTime}
             onChange={(e) => setField("endTime", e.target.value)}
             error={errors.endTime}
           />
           <Input
-            placeholder="Room (optional)"
+            placeholder={t("fieldRoomOptional")}
             value={values.room}
             onChange={(e) => setField("room", e.target.value)}
           />
           <Input
-            placeholder="Topic (optional)"
+            placeholder={t("fieldTopicOptional")}
             value={values.topic}
             onChange={(e) => setField("topic", e.target.value)}
           />
@@ -159,10 +163,10 @@ function LessonFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => v
       </DialogBody>
       <DialogFooter>
         <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-          Cancel
+          {tc("cancel")}
         </Button>
         <Button onClick={handleSubmit} loading={submitting}>
-          Schedule
+          {t("scheduleButton")}
         </Button>
       </DialogFooter>
     </>

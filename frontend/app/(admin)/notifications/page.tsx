@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Bell, Info, CheckCircle2, AlertTriangle, XCircle, Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,20 +9,6 @@ import { Select } from "@/components/ui/input";
 import { useNotificationsQuery, useMarkNotificationReadMutation } from "@/lib/queries/notifications";
 import type { Notification, NotificationType } from "@/lib/api/notifications";
 import { cn } from "@/lib/utils";
-
-const TYPE_OPTIONS = [
-  { value: "", label: "All Types" },
-  { value: "info", label: "Info" },
-  { value: "success", label: "Success" },
-  { value: "warning", label: "Warning" },
-  { value: "error", label: "Error" },
-];
-
-const FILTER_OPTIONS = [
-  { value: "", label: "All" },
-  { value: "unread", label: "Unread" },
-  { value: "read", label: "Read" },
-];
 
 function NotificationIcon({ type }: { type: NotificationType }) {
   const map = {
@@ -38,16 +25,19 @@ function NotificationIcon({ type }: { type: NotificationType }) {
   );
 }
 
-function timeAgo(dateStr: string) {
+// t is AdminNotifications's useTranslations return value — see
+// app/teacher/notifications/page.tsx's formatTime for the identical pattern.
+function timeAgo(dateStr: string, t: ReturnType<typeof useTranslations<"AdminNotifications">>) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return t("minutesAgo", { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+  if (hours < 24) return t("hoursAgo", { count: hours });
+  return t("daysAgo", { count: Math.floor(hours / 24) });
 }
 
 function NotificationItem({ notification, onRead }: { notification: Notification; onRead: (id: string) => void }) {
+  const t = useTranslations("AdminNotifications");
   return (
     <div
       className={cn(
@@ -62,7 +52,7 @@ function NotificationItem({ notification, onRead }: { notification: Notification
             {notification.title}
             {!notification.read && <span className="ml-2 h-1.5 w-1.5 bg-indigo-500 rounded-full inline-block" />}
           </p>
-          <span className="text-xs text-slate-400 flex-shrink-0">{timeAgo(notification.created_at)}</span>
+          <span className="text-xs text-slate-400 flex-shrink-0">{timeAgo(notification.created_at, t)}</span>
         </div>
         <p className="text-sm text-slate-500 mt-0.5">{notification.message}</p>
       </div>
@@ -70,7 +60,7 @@ function NotificationItem({ notification, onRead }: { notification: Notification
         <button
           onClick={() => onRead(notification.id)}
           className="flex-shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors"
-          title="Mark as read"
+          title={t("markAsReadTitle")}
         >
           <Check className="h-4 w-4" />
         </button>
@@ -80,6 +70,22 @@ function NotificationItem({ notification, onRead }: { notification: Notification
 }
 
 export default function NotificationsPage() {
+  const t = useTranslations("AdminNotifications");
+
+  const TYPE_OPTIONS = [
+    { value: "", label: t("typeAll") },
+    { value: "info", label: t("typeInfo") },
+    { value: "success", label: t("typeSuccess") },
+    { value: "warning", label: t("typeWarning") },
+    { value: "error", label: t("typeError") },
+  ];
+
+  const FILTER_OPTIONS = [
+    { value: "", label: t("filterAll") },
+    { value: "unread", label: t("filterUnread") },
+    { value: "read", label: t("filterRead") },
+  ];
+
   const { data: notifications = [], isLoading } = useNotificationsQuery();
   const markReadMutation = useMarkNotificationReadMutation();
   const [typeFilter, setTypeFilter] = useState("");
@@ -106,11 +112,18 @@ export default function NotificationsPage() {
     read: filtered.filter((n) => n.read),
   };
 
+  const TYPE_LABELS: Record<NotificationType, string> = {
+    info: t("typeInfo"),
+    success: t("typeSuccess"),
+    warning: t("typeWarning"),
+    error: t("typeError"),
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Notifications"
-        subtitle={isLoading ? "Loading…" : `${unreadCount} unread notifications`}
+        title={t("pageTitle")}
+        subtitle={isLoading ? t("loadingLabel") : t("unreadCountSubtitle", { count: unreadCount })}
         actions={
           <div className="flex items-center gap-2">
             <Select options={TYPE_OPTIONS} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-32" />
@@ -118,7 +131,7 @@ export default function NotificationsPage() {
             {unreadCount > 0 && (
               <Button variant="outline" size="sm" onClick={markAllRead}>
                 <Check className="h-4 w-4" />
-                Mark all read
+                {t("markAllReadButton")}
               </Button>
             )}
           </div>
@@ -141,7 +154,7 @@ export default function NotificationsPage() {
               <Icon className={cn("h-6 w-6", text)} />
               <div>
                 <p className={cn("text-xl font-bold", text)}>{count}</p>
-                <p className={cn("text-xs font-medium capitalize", text)}>{type}</p>
+                <p className={cn("text-xs font-medium", text)}>{TYPE_LABELS[type]}</p>
               </div>
             </div>
           );
@@ -149,10 +162,10 @@ export default function NotificationsPage() {
       </div>
 
       {/* Notifications list */}
-      <Card title="All Notifications" subtitle={`${filtered.length} notifications`}>
+      <Card title={t("allNotificationsTitle")} subtitle={t("notificationsCount", { count: filtered.length })}>
         {groups.unread.length > 0 && (
           <div className="mb-4">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Unread</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">{t("unreadGroupLabel")}</p>
             <div className="space-y-1">
               {groups.unread.map((n) => (
                 <NotificationItem key={n.id} notification={n} onRead={markAsRead} />
@@ -163,7 +176,7 @@ export default function NotificationsPage() {
 
         {groups.read.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Earlier</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">{t("earlierGroupLabel")}</p>
             <div className="space-y-1">
               {groups.read.map((n) => (
                 <NotificationItem key={n.id} notification={n} onRead={markAsRead} />
@@ -175,7 +188,7 @@ export default function NotificationsPage() {
         {!isLoading && filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-slate-400">
             <Bell className="h-12 w-12 mb-3 opacity-30" />
-            <p>No notifications found</p>
+            <p>{t("noNotificationsFound")}</p>
           </div>
         )}
       </Card>

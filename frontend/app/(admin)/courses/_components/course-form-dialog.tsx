@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -18,19 +19,6 @@ import { courseProfileSchema, type CourseProfileFormValues } from "@/lib/schemas
 import { useCreateCourseMutation, useUpdateCourseMutation } from "@/lib/queries/courses";
 import { ApiError } from "@/lib/api/client";
 import type { CourseProfile } from "@/lib/api/courses";
-
-const LEVEL_OPTIONS = [
-  { value: "beginner", label: "Beginner" },
-  { value: "intermediate", label: "Intermediate" },
-  { value: "advanced", label: "Advanced" },
-];
-
-const STATUS_OPTIONS = [
-  { value: "draft", label: "Draft" },
-  { value: "active", label: "Active" },
-  { value: "archived", label: "Archived" },
-  { value: "discontinued", label: "Discontinued" },
-];
 
 const EMPTY_VALUES: CourseProfileFormValues = {
   name: "",
@@ -50,13 +38,14 @@ interface CourseFormDialogProps {
 }
 
 export function CourseFormDialog({ open, onOpenChange, course }: CourseFormDialogProps) {
+  const t = useTranslations("AdminCourses");
   const mode = course ? "edit" : "create";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "New Course" : "Edit Course"}</DialogTitle>
+          <DialogTitle>{mode === "create" ? t("formTitleNew") : t("formTitleEdit")}</DialogTitle>
         </DialogHeader>
         {open && <CourseFormFields key={course?.id ?? "new"} course={course} onOpenChange={onOpenChange} />}
       </DialogContent>
@@ -71,10 +60,25 @@ function CourseFormFields({
   course?: CourseProfile | null;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useTranslations("AdminCourses");
+  const tc = useTranslations("Common");
   const mode = course ? "edit" : "create";
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const createMutation = useCreateCourseMutation();
   const updateMutation = useUpdateCourseMutation();
+
+  const LEVEL_OPTIONS = [
+    { value: "beginner", label: t("levelBeginner") },
+    { value: "intermediate", label: t("levelIntermediate") },
+    { value: "advanced", label: t("levelAdvanced") },
+  ];
+
+  const STATUS_OPTIONS = [
+    { value: "draft", label: t("statusDraft") },
+    { value: "active", label: t("statusActive") },
+    { value: "archived", label: t("statusArchived") },
+    { value: "discontinued", label: t("statusDiscontinued") },
+  ];
 
   const [values, setValues] = useState<CourseProfileFormValues>(() =>
     course
@@ -114,14 +118,14 @@ function CourseFormFields({
     try {
       if (mode === "create") {
         if (!organizationId) {
-          toast.error("No organization on this account.");
+          toast.error(t("noOrganizationError"));
           return;
         }
         await createMutation.mutateAsync({ organizationId, ...result.data });
-        toast.success("Course created");
+        toast.success(t("createdToast"));
       } else if (course) {
         await updateMutation.mutateAsync({ courseId: course.id, input: result.data });
-        toast.success("Course updated");
+        toast.success(t("updatedToast"));
       }
       onOpenChange(false);
     } catch (err) {
@@ -132,9 +136,9 @@ function CourseFormFields({
           mapped[field] = messages[0];
         }
         setErrors(mapped);
-        toast.error("Please fix the highlighted fields.");
+        toast.error(t("fixHighlightedFields"));
       } else {
-        toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+        toast.error(err instanceof ApiError ? err.message : t("genericError"));
       }
     } finally {
       setSubmitting(false);
@@ -146,14 +150,14 @@ function CourseFormFields({
       <DialogBody>
         <div className="grid grid-cols-2 gap-3">
           <Input
-            placeholder="Course name"
+            placeholder={t("fieldCourseName")}
             value={values.name}
             onChange={(e) => setField("name", e.target.value)}
             error={errors.name}
             className="col-span-2"
           />
           <Input
-            placeholder="Category"
+            placeholder={t("fieldCategory")}
             value={values.category}
             onChange={(e) => setField("category", e.target.value)}
             error={errors.category}
@@ -164,7 +168,7 @@ function CourseFormFields({
             onChange={(e) => setField("level", e.target.value as CourseProfileFormValues["level"])}
           />
           <Textarea
-            placeholder="Description"
+            placeholder={t("fieldDescription")}
             value={values.description}
             onChange={(e) => setField("description", e.target.value)}
             error={errors.description}
@@ -172,14 +176,14 @@ function CourseFormFields({
           />
           <Input
             type="number"
-            placeholder="Duration (weeks)"
+            placeholder={t("fieldDurationWeeks")}
             value={values.durationWeeks}
             onChange={(e) => setField("durationWeeks", Number(e.target.value))}
             error={errors.durationWeeks}
           />
           <Input
             type="number"
-            placeholder="Price"
+            placeholder={t("fieldPrice")}
             value={values.price}
             onChange={(e) => setField("price", Number(e.target.value))}
             error={errors.price}
@@ -196,20 +200,20 @@ function CourseFormFields({
               onChange={(e) => setField("color", e.target.value)}
               className="h-9 w-9 rounded-lg border border-slate-200 cursor-pointer"
             />
-            <span className="text-sm text-slate-500">Course color</span>
+            <span className="text-sm text-slate-500">{t("courseColorLabel")}</span>
           </div>
 
           {mode === "edit" && course && (
-            <Input value={course.code} disabled placeholder="Course code" className="col-span-2" />
+            <Input value={course.code} disabled placeholder={t("fieldCourseCode")} className="col-span-2" />
           )}
         </div>
       </DialogBody>
       <DialogFooter>
         <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-          Cancel
+          {tc("cancel")}
         </Button>
         <Button onClick={handleSubmit} loading={submitting}>
-          {mode === "create" ? "Create" : "Save"}
+          {mode === "create" ? t("createButton") : tc("save")}
         </Button>
       </DialogFooter>
     </>

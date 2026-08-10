@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -33,11 +34,12 @@ interface InvoiceFormDialogProps {
 }
 
 export function InvoiceFormDialog({ open, onOpenChange }: InvoiceFormDialogProps) {
+  const t = useTranslations("AdminFinance");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New Invoice</DialogTitle>
+          <DialogTitle>{t("newInvoiceDialogTitle")}</DialogTitle>
         </DialogHeader>
         {open && <InvoiceFormFields onOpenChange={onOpenChange} />}
       </DialogContent>
@@ -46,6 +48,8 @@ export function InvoiceFormDialog({ open, onOpenChange }: InvoiceFormDialogProps
 }
 
 function InvoiceFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => void }) {
+  const t = useTranslations("AdminFinance");
+  const tc = useTranslations("Common");
   const organizationId = useAuthStore((s) => s.user?.organizationId);
   const { data: students } = useStudentsQuery({ organizationId: organizationId ?? "" });
   const { data: groups } = useGroupsQuery({ organizationId: organizationId ?? "" });
@@ -83,7 +87,7 @@ function InvoiceFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => 
         dueDate: result.data.dueDate,
         notes: result.data.notes,
       });
-      toast.success("Invoice created");
+      toast.success(t("invoiceCreatedToast"));
       onOpenChange(false);
     } catch (err) {
       if (err instanceof ApiError && err.fieldErrors) {
@@ -93,9 +97,9 @@ function InvoiceFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => 
           mapped[field] = messages[0];
         }
         setErrors(mapped);
-        toast.error("Please fix the highlighted fields.");
+        toast.error(t("fixHighlightedFields"));
       } else {
-        toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+        toast.error(err instanceof ApiError ? err.message : t("genericError"));
       }
     } finally {
       setSubmitting(false);
@@ -107,7 +111,7 @@ function InvoiceFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => 
       <DialogBody>
         <div className="grid grid-cols-2 gap-3">
           <Select
-            placeholder="Select student"
+            placeholder={t("selectStudentPlaceholder")}
             options={(students ?? []).map((s) => ({ value: s.id, label: s.user_full_name }))}
             value={values.studentProfile}
             onChange={(e) => setField("studentProfile", e.target.value)}
@@ -115,7 +119,7 @@ function InvoiceFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => 
           />
           {errors.studentProfile && <p className="col-span-2 -mt-2 text-xs text-red-500">{errors.studentProfile}</p>}
           <Select
-            placeholder="Select group (optional)"
+            placeholder={t("selectGroupOptionalPlaceholder")}
             options={(groups ?? []).map((g) => ({ value: g.id, label: g.name }))}
             value={values.group ?? ""}
             onChange={(e) => setField("group", e.target.value)}
@@ -123,7 +127,7 @@ function InvoiceFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => 
           />
           <Input
             type="number"
-            placeholder="Total amount"
+            placeholder={t("totalAmountPlaceholder")}
             value={values.totalAmount}
             onChange={(e) => setField("totalAmount", Number(e.target.value))}
             error={errors.totalAmount}
@@ -135,7 +139,7 @@ function InvoiceFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => 
             error={errors.dueDate}
           />
           <Input
-            placeholder="Notes (optional)"
+            placeholder={t("notesOptionalPlaceholder")}
             value={values.notes}
             onChange={(e) => setField("notes", e.target.value)}
             className="col-span-2"
@@ -144,10 +148,10 @@ function InvoiceFormFields({ onOpenChange }: { onOpenChange: (open: boolean) => 
       </DialogBody>
       <DialogFooter>
         <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-          Cancel
+          {tc("cancel")}
         </Button>
         <Button onClick={handleSubmit} loading={submitting}>
-          Create
+          {t("createButton")}
         </Button>
       </DialogFooter>
     </>

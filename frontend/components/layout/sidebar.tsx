@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   LayoutDashboard,
   Users,
@@ -18,36 +19,39 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Labels are AdminNav translation keys, resolved at render time via t()
+// (see app/teacher/layout.tsx for the identical pattern this mirrors).
+
 const NAV_ITEMS = [
   {
-    group: "Main",
+    groupKey: "navGroupMain",
     items: [
-      { href: "/", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/", labelKey: "navDashboard", icon: LayoutDashboard },
     ],
   },
   {
-    group: "People",
+    groupKey: "navGroupPeople",
     items: [
-      { href: "/students", label: "Students", icon: Users },
-      { href: "/teachers", label: "Teachers", icon: GraduationCap },
+      { href: "/students", labelKey: "navStudents", icon: Users },
+      { href: "/teachers", labelKey: "navTeachers", icon: GraduationCap },
     ],
   },
   {
-    group: "Academics",
+    groupKey: "navGroupAcademics",
     items: [
-      { href: "/courses", label: "Courses", icon: BookOpen },
-      { href: "/groups", label: "Groups", icon: Users2 },
-      { href: "/schedule", label: "Schedule", icon: Calendar },
-      { href: "/attendance", label: "Attendance", icon: ClipboardCheck },
-      { href: "/homework", label: "Homework", icon: ClipboardList },
+      { href: "/courses", labelKey: "navCourses", icon: BookOpen },
+      { href: "/groups", labelKey: "navGroups", icon: Users2 },
+      { href: "/schedule", labelKey: "navSchedule", icon: Calendar },
+      { href: "/attendance", labelKey: "navAttendance", icon: ClipboardCheck },
+      { href: "/homework", labelKey: "navHomework", icon: ClipboardList },
     ],
   },
   {
-    group: "Administration",
+    groupKey: "navGroupAdministration",
     items: [
-      { href: "/finance", label: "Finance", icon: CreditCard },
-      { href: "/notifications", label: "Notifications", icon: Bell },
-      { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/finance", labelKey: "navFinance", icon: CreditCard },
+      { href: "/notifications", labelKey: "navNotifications", icon: Bell },
+      { href: "/settings", labelKey: "navSettings", icon: Settings },
     ],
   },
 ];
@@ -59,6 +63,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const t = useTranslations("AdminNav");
 
   return (
     <aside
@@ -83,6 +88,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             "ml-auto flex-shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors",
             collapsed && "rotate-180"
           )}
+          aria-label={collapsed ? t("expandSidebar") : t("collapseSidebar")}
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -91,16 +97,17 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
         {NAV_ITEMS.map((group) => (
-          <div key={group.group}>
+          <div key={group.groupKey}>
             {!collapsed && (
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 px-2">
-                {group.group}
+                {t(group.groupKey)}
               </p>
             )}
             <ul className="space-y-0.5">
-              {group.items.map(({ href, label, icon: Icon }) => {
+              {group.items.map(({ href, labelKey, icon: Icon }) => {
                 const isActive =
                   href === "/" ? pathname === "/" : pathname.startsWith(href);
+                const label = t(labelKey);
                 return (
                   <li key={href}>
                     <Link
