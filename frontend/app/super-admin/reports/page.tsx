@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Download, DollarSign, Users, UserPlus, Activity } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -32,13 +33,6 @@ import {
 } from 'recharts';
 
 type Period = 'week' | 'month' | 'quarter' | 'year';
-
-const PERIODS: { key: Period; label: string }[] = [
-  { key: 'week', label: 'This Week' },
-  { key: 'month', label: 'This Month' },
-  { key: 'quarter', label: 'This Quarter' },
-  { key: 'year', label: 'This Year' },
-];
 
 const SUBSCRIPTION_REVENUE_ESTIMATE: Record<string, number> = {
   Starter: 49 * 12,
@@ -79,6 +73,15 @@ const SUBSCRIPTION_COLORS: Record<string, string> = {
 };
 
 export default function ReportsPage() {
+  const t = useTranslations('SuperAdminReports');
+
+  const PERIODS: { key: Period; label: string }[] = [
+    { key: 'week', label: t('periodWeek') },
+    { key: 'month', label: t('periodMonth') },
+    { key: 'quarter', label: t('periodQuarter') },
+    { key: 'year', label: t('periodYear') },
+  ];
+
   const [period, setPeriod] = useState<Period>('month');
 
   const sortedCenters = [...SA_CENTERS].sort((a, b) => b.studentCount - a.studentCount);
@@ -96,7 +99,7 @@ export default function ReportsPage() {
 
   const handleExportReport = () => {
     const rows = [
-      ['Center', 'City', 'Country', 'Students', 'Branches', 'Plan', 'Est. Revenue'],
+      [t('csvHeaderCenter'), t('csvHeaderCity'), t('csvHeaderCountry'), t('csvHeaderStudents'), t('csvHeaderBranches'), t('csvHeaderPlan'), t('csvHeaderEstRevenue')],
       ...sortedCenters.map((c) => [
         c.name,
         c.city,
@@ -115,18 +118,18 @@ export default function ReportsPage() {
     link.download = `platform-report-${period}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success('Report exported');
+    toast.success(t('reportExportedToast'));
   };
 
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-6">
       <PageHeader
-        title="Reports & Analytics"
-        subtitle="Platform-wide insights and performance metrics"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <Button variant="outline" onClick={handleExportReport}>
             <Download className="h-4 w-4" />
-            Export Report
+            {t('exportReportButton')}
           </Button>
         }
       />
@@ -151,34 +154,34 @@ export default function ReportsPage() {
       {/* Top stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
-          label="Total Revenue"
+          label={t('statTotalRevenue')}
           value={formatCurrency(SA_STATS.monthlyRevenue)}
           change={4.3}
-          changeLabel="vs last period"
+          changeLabel={t('vsLastPeriod')}
           icon={<DollarSign className="h-5 w-5 text-indigo-600" />}
           iconBg="bg-indigo-50"
         />
         <StatCard
-          label="Total Students"
+          label={t('statTotalStudents')}
           value={SA_STATS.totalStudents}
           change={3.8}
-          changeLabel="vs last period"
+          changeLabel={t('vsLastPeriod')}
           icon={<Users className="h-5 w-5 text-violet-600" />}
           iconBg="bg-violet-50"
         />
         <StatCard
-          label="New Registrations"
+          label={t('statNewRegistrations')}
           value={SA_STATS.newRegistrations}
           change={12.5}
-          changeLabel="vs last period"
+          changeLabel={t('vsLastPeriod')}
           icon={<UserPlus className="h-5 w-5 text-emerald-600" />}
           iconBg="bg-emerald-50"
         />
         <StatCard
-          label="Avg Attendance"
+          label={t('statAvgAttendance')}
           value="87.6%"
           change={1.2}
-          changeLabel="vs last period"
+          changeLabel={t('vsLastPeriod')}
           icon={<Activity className="h-5 w-5 text-amber-600" />}
           iconBg="bg-amber-50"
         />
@@ -187,7 +190,7 @@ export default function ReportsPage() {
       {/* Charts 2x2 grid */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Student Growth */}
-        <Card title="Student Growth">
+        <Card title={t('studentGrowthTitle')}>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={STUDENT_GROWTH_SA} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -195,7 +198,7 @@ export default function ReportsPage() {
               <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}
-                formatter={(v: number) => [v.toLocaleString(), 'Students']}
+                formatter={(v: number) => [v.toLocaleString(), t('tooltipStudents')]}
               />
               <Line
                 type="monotone"
@@ -210,7 +213,7 @@ export default function ReportsPage() {
         </Card>
 
         {/* Revenue Overview */}
-        <Card title="Revenue Overview">
+        <Card title={t('revenueOverviewTitle')}>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={MONTHLY_REVENUE_SA} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
               <defs>
@@ -224,7 +227,7 @@ export default function ReportsPage() {
               <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}
-                formatter={(v: number) => [formatCurrency(v), 'Revenue']}
+                formatter={(v: number) => [formatCurrency(v), t('tooltipRevenue')]}
               />
               <Area
                 type="monotone"
@@ -238,7 +241,7 @@ export default function ReportsPage() {
         </Card>
 
         {/* Branch Growth */}
-        <Card title="Branch Growth">
+        <Card title={t('branchGrowthTitle')}>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={BRANCH_GROWTH_SA} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -246,7 +249,7 @@ export default function ReportsPage() {
               <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}
-                formatter={(v: number) => [v, 'Branches']}
+                formatter={(v: number) => [v, t('tooltipBranches')]}
               />
               <Bar dataKey="branches" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
             </BarChart>
@@ -254,16 +257,16 @@ export default function ReportsPage() {
         </Card>
 
         {/* Top Centers */}
-        <Card title="Top Centers by Students" noPadding>
+        <Card title={t('topCentersTitle')} noPadding>
           <div className="overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-50">
-                  <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wide px-6 py-3">Center</th>
-                  <th className="text-right text-xs font-medium text-slate-400 uppercase tracking-wide px-6 py-3">Students</th>
-                  <th className="text-right text-xs font-medium text-slate-400 uppercase tracking-wide px-3 py-3">Branches</th>
-                  <th className="text-center text-xs font-medium text-slate-400 uppercase tracking-wide px-3 py-3">Plan</th>
-                  <th className="text-right text-xs font-medium text-slate-400 uppercase tracking-wide px-6 py-3">Est. Revenue</th>
+                  <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wide px-6 py-3">{t('columnCenter')}</th>
+                  <th className="text-right text-xs font-medium text-slate-400 uppercase tracking-wide px-6 py-3">{t('columnStudents')}</th>
+                  <th className="text-right text-xs font-medium text-slate-400 uppercase tracking-wide px-3 py-3">{t('columnBranches')}</th>
+                  <th className="text-center text-xs font-medium text-slate-400 uppercase tracking-wide px-3 py-3">{t('columnPlan')}</th>
+                  <th className="text-right text-xs font-medium text-slate-400 uppercase tracking-wide px-6 py-3">{t('columnEstRevenue')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -306,7 +309,7 @@ export default function ReportsPage() {
       {/* Bottom section */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Subscription Revenue Breakdown */}
-        <Card title="Subscription Revenue Breakdown">
+        <Card title={t('subscriptionRevenueBreakdownTitle')}>
           <div className="space-y-4">
             {SA_SUBSCRIPTIONS.map((plan) => {
               const revenue = SUBSCRIPTION_REVENUE_ESTIMATE[plan.name] ?? 0;
@@ -317,7 +320,7 @@ export default function ReportsPage() {
                     <div className="flex items-center gap-2">
                       <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: plan.color }} />
                       <span className="text-sm font-medium text-slate-700">{plan.name}</span>
-                      <span className="text-xs text-slate-400">{plan.activeCount} centers</span>
+                      <span className="text-xs text-slate-400">{t('centersCountLabel', { count: plan.activeCount })}</span>
                     </div>
                     <span className="text-sm font-semibold text-slate-900">{formatCurrency(revenue)}</span>
                   </div>
@@ -327,7 +330,7 @@ export default function ReportsPage() {
                       style={{ width: `${pct}%`, backgroundColor: plan.color }}
                     />
                   </div>
-                  <p className="text-xs text-slate-400 text-right">{pct.toFixed(1)}% of total</p>
+                  <p className="text-xs text-slate-400 text-right">{t('pctOfTotal', { pct: pct.toFixed(1) })}</p>
                 </div>
               );
             })}
@@ -335,7 +338,7 @@ export default function ReportsPage() {
         </Card>
 
         {/* Attendance Rate by Center */}
-        <Card title="Attendance Rate by Center">
+        <Card title={t('attendanceRateByCenterTitle')}>
           <div className="space-y-4">
             {SA_CENTERS.map((center) => {
               const rate = CENTER_ATTENDANCE[center.id] ?? 80;
