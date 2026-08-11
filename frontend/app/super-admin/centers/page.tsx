@@ -294,8 +294,8 @@ export default function CentersPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="Educational Centers"
-        subtitle="Manage all registered educational centers on the platform"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <Button
             onClick={() => {
@@ -308,24 +308,24 @@ export default function CentersPage() {
             }}
           >
             <Plus className="h-4 w-4" />
-            Create Center
+            {t('createCenterButton')}
           </Button>
         }
       />
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Centers" value={total} icon={<Building2 className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
-        <StatCard label="Active" value={active} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
-        <StatCard label="Trial" value={trial} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
-        <StatCard label="Suspended" value={suspended} icon={<XCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
+        <StatCard label={t('statTotalCenters')} value={total} icon={<Building2 className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label={t('statActive')} value={active} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label={t('statTrial')} value={trial} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
+        <StatCard label={t('statSuspended')} value={suspended} icon={<XCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
       </div>
 
       {/* Create/Edit Center Form */}
       {showForm && (
         <Card>
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-base font-semibold text-slate-900">{editingOrg ? 'Edit Educational Center' : 'Create New Educational Center'}</h3>
+            <h3 className="text-base font-semibold text-slate-900">{editingOrg ? t('formTitleEdit') : t('formTitleCreate')}</h3>
             <button onClick={handleCancel} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
               <X className="h-4 w-4" />
             </button>
@@ -333,43 +333,43 @@ export default function CentersPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Center Name</label>
-              <Input placeholder="e.g. Bright Future Academy" value={form.name} onChange={(e) => handleFormChange('name', e.target.value)} />
+              <label className="text-xs font-medium text-slate-600">{t('fieldCenterName')}</label>
+              <Input placeholder={t('centerNamePlaceholder')} value={form.name} onChange={(e) => handleFormChange('name', e.target.value)} />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Contact Email</label>
-              <Input type="email" placeholder="contact@center.com" value={form.email} onChange={(e) => handleFormChange('email', e.target.value)} />
+              <label className="text-xs font-medium text-slate-600">{t('fieldContactEmail')}</label>
+              <Input type="email" placeholder={t('contactEmailPlaceholder')} value={form.email} onChange={(e) => handleFormChange('email', e.target.value)} />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">City</label>
-              <Input placeholder="City" value={form.city} onChange={(e) => handleFormChange('city', e.target.value)} />
+              <label className="text-xs font-medium text-slate-600">{t('fieldCity')}</label>
+              <Input placeholder={t('cityPlaceholder')} value={form.city} onChange={(e) => handleFormChange('city', e.target.value)} />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Country Code</label>
-              <Input placeholder="ISO alpha-3, e.g. UZB" maxLength={3} value={form.country} onChange={(e) => handleFormChange('country', e.target.value.toUpperCase())} />
+              <label className="text-xs font-medium text-slate-600">{t('fieldCountryCode')}</label>
+              <Input placeholder={t('countryCodePlaceholder')} maxLength={3} value={form.country} onChange={(e) => handleFormChange('country', e.target.value.toUpperCase())} />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Subscription Plan</label>
+              <label className="text-xs font-medium text-slate-600">{t('fieldSubscriptionPlan')}</label>
               <Select className="w-full" value={form.subscriptionPlan} options={planFormOptions} onChange={(e) => handleFormChange('subscriptionPlan', e.target.value)} />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Status</label>
+              <label className="text-xs font-medium text-slate-600">{t('fieldStatus')}</label>
               <Select className="w-full" value={form.status} options={STATUS_OPTIONS} onChange={(e) => handleFormChange('status', e.target.value as OrganizationStatus)} />
             </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-slate-100">
             <Button variant="secondary" onClick={handleCancel} disabled={saving}>
-              Cancel
+              {t('cancelButton')}
             </Button>
             <Button onClick={handleSubmit} loading={saving}>
               <Plus className="h-4 w-4" />
-              {editingOrg ? 'Save Changes' : 'Create Center'}
+              {editingOrg ? t('saveChangesButton') : t('createCenterButton')}
             </Button>
           </div>
         </Card>
@@ -378,16 +378,16 @@ export default function CentersPage() {
       {/* Table */}
       <Card noPadding>
         <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-b border-slate-50">
-          <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search centers..." />
+          <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('searchPlaceholder')} />
           <Select
             value={filterStatus}
-            placeholder="All Statuses"
+            placeholder={t('allStatusesPlaceholder')}
             options={STATUS_OPTIONS}
             onChange={(e) => setFilterStatus(e.target.value as OrganizationStatus | '')}
           />
           <Select
             value={filterPlan}
-            placeholder="All Plans"
+            placeholder={t('allPlansPlaceholder')}
             options={planFilterOptions}
             onChange={(e) => setFilterPlan(e.target.value)}
           />
@@ -400,40 +400,40 @@ export default function CentersPage() {
               }}
               className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
             >
-              <X className="h-3 w-3" /> Clear
+              <X className="h-3 w-3" /> {t('clearButton')}
             </button>
           )}
-          <span className="ml-auto text-xs text-slate-400">{filtered.length} centers</span>
+          <span className="ml-auto text-xs text-slate-400">{t('centersCountLabel', { count: filtered.length })}</span>
         </div>
 
         {isError ? (
           <div className="flex items-center gap-2 px-6 py-8 text-sm text-red-500">
             <AlertCircle className="h-4 w-4" />
-            {error instanceof ApiError ? error.message : 'Failed to load centers.'}
+            {error instanceof ApiError ? error.message : t('loadErrorFallback')}
           </div>
         ) : isLoading ? (
           <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-slate-400">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading centers…
+            {t('loadingCenters')}
           </div>
         ) : (
-          <DataTable<Organization> columns={columns} data={filtered} keyField="id" emptyMessage="No educational centers found" />
+          <DataTable<Organization> columns={columns} data={filtered} keyField="id" emptyMessage={t('noCentersFound')} />
         )}
       </Card>
 
       <ConfirmDialog
         open={!!deletingCenter}
         onOpenChange={(open) => !open && setDeletingCenter(null)}
-        title="Delete educational center"
-        description={`Are you sure you want to delete "${deletingCenter?.name}"? This can be restored later if needed.`}
-        confirmLabel="Delete"
+        title={t('deleteDialogTitle')}
+        description={t('deleteDialogDescription', { name: deletingCenter?.name ?? '' })}
+        confirmLabel={t('deleteConfirmLabel')}
         onConfirm={async () => {
           if (!deletingCenter) return;
           try {
             await deleteMutation.mutateAsync(deletingCenter.id);
-            toast.success('Center deleted');
+            toast.success(t('centerDeletedToast'));
           } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+            toast.error(err instanceof ApiError ? err.message : t('genericError'));
           } finally {
             setDeletingCenter(null);
           }
