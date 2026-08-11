@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   DollarSign,
   CreditCard,
@@ -39,9 +40,11 @@ import {
   useCreatePlatformPaymentMutation,
 } from '@/lib/queries/billing';
 import { toast } from '@/lib/store/toast-store';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import { ApiError } from '@/lib/api/client';
 import type { PlatformInvoice, PlatformInvoiceStatus, PlatformPaymentMethod } from '@/lib/api/billing';
+import { formatLocalizedDate } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE } from '@/i18n/locales';
 
 // ─── CSV download helper ──────────────────────────────────────────────────────
 
@@ -59,12 +62,13 @@ function downloadCsv(filename: string, rows: string[][]) {
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
 function InvoiceStatusBadge({ status }: { status: PlatformInvoiceStatus }) {
+  const t = useTranslations('SuperAdminPayments');
   const map: Record<PlatformInvoiceStatus, { label: string; className: string }> = {
-    paid: { label: 'Paid', className: 'bg-emerald-50 text-emerald-700' },
-    partially_paid: { label: 'Partially Paid', className: 'bg-amber-50 text-amber-700' },
-    pending: { label: 'Pending', className: 'bg-slate-100 text-slate-600' },
-    overdue: { label: 'Overdue', className: 'bg-red-50 text-red-600' },
-    cancelled: { label: 'Cancelled', className: 'bg-slate-100 text-slate-400' },
+    paid: { label: t('statusPaid'), className: 'bg-emerald-50 text-emerald-700' },
+    partially_paid: { label: t('statusPartiallyPaid'), className: 'bg-amber-50 text-amber-700' },
+    pending: { label: t('statusPending'), className: 'bg-slate-100 text-slate-600' },
+    overdue: { label: t('statusOverdue'), className: 'bg-red-50 text-red-600' },
+    cancelled: { label: t('statusCancelled'), className: 'bg-slate-100 text-slate-400' },
   };
   const cfg = map[status] ?? { label: status, className: 'bg-slate-50 text-slate-600' };
   return (
@@ -74,13 +78,6 @@ function InvoiceStatusBadge({ status }: { status: PlatformInvoiceStatus }) {
     </span>
   );
 }
-
-const METHOD_OPTIONS: { value: PlatformPaymentMethod; label: string }[] = [
-  { value: 'bank_transfer', label: 'Bank Transfer' },
-  { value: 'cash', label: 'Cash' },
-  { value: 'card', label: 'Card' },
-  { value: 'other', label: 'Other' },
-];
 
 // A billing_cycle-aware period-end default for the Create Invoice form —
 // purely a starting suggestion, still editable before submit.
@@ -112,6 +109,28 @@ const emptyInvoiceForm = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PaymentsPage() {
+  const t = useTranslations('SuperAdminPayments');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
+  const METHOD_OPTIONS: { value: PlatformPaymentMethod; label: string }[] = [
+    { value: 'bank_transfer', label: t('methodBankTransfer') },
+    { value: 'cash', label: t('methodCash') },
+    { value: 'card', label: t('methodCard') },
+    { value: 'other', label: t('methodOther') },
+  ];
+  const METHOD_LABELS: Record<PlatformPaymentMethod, string> = {
+    bank_transfer: t('methodBankTransfer'),
+    cash: t('methodCash'),
+    card: t('methodCard'),
+    other: t('methodOther'),
+  };
+
+  function formatDate(iso: string | null) {
+    if (!iso) return '—';
+    return formatLocalizedDate(new Date(iso + 'T00:00:00'), locale, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
@@ -156,10 +175,10 @@ export default function PaymentsPage() {
 
   const handleExportCsv = () => {
     downloadCsv('platform-invoices-export.csv', [
-      ['Invoice', 'Center', 'Plan', 'Amount', 'Balance', 'Status', 'Due Date'],
+      [t('csvHeaderInvoice'), t('csvHeaderCenter'), t('csvHeaderPlan'), t('csvHeaderAmount'), t('csvHeaderBalance'), t('csvHeaderStatus'), t('csvHeaderDueDate')],
       ...filtered.map((i) => [i.invoice_number, i.organization_name, i.plan_name, i.amount, i.balance, i.status, i.due_date]),
     ]);
-    toast.success('Invoices exported');
+    toast.success(t('invoicesExportedToast'));
   };
 
   // ── Create Invoice ────────────────────────────────────────────────────────
@@ -188,7 +207,7 @@ export default function PaymentsPage() {
   async function handleCreateInvoice(e: React.FormEvent) {
     e.preventDefault();
     if (!invoiceForm.organization || !invoiceForm.subscriptionPlan) {
-      toast.error('Center and plan are required');
+      toast.error(t('centerPlanRequired'));
       return;
     }
     try {
@@ -201,11 +220,11 @@ export default function PaymentsPage() {
         dueDate: invoiceForm.dueDate,
         notes: invoiceForm.notes || undefined,
       });
-      toast.success('Invoice created');
+      toast.success(t('invoiceCreatedToast'));
       setShowInvoiceForm(false);
       setInvoiceForm(emptyInvoiceForm);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      toast.error(err instanceof ApiError ? err.message : t('genericError'));
     }
   }
 
@@ -225,10 +244,10 @@ export default function PaymentsPage() {
         method: paymentForm.method,
         referenceNote: paymentForm.referenceNote || undefined,
       });
-      toast.success('Payment recorded');
+      toast.success(t('paymentRecordedToast'));
       setPayingInvoice(null);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      toast.error(err instanceof ApiError ? err.message : t('genericError'));
     }
   }
 
@@ -237,7 +256,7 @@ export default function PaymentsPage() {
   const columns: Column<PlatformInvoice>[] = [
     {
       key: 'invoice_number',
-      label: 'Invoice',
+      label: t('columnInvoice'),
       render: (_, row) => (
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
@@ -249,22 +268,22 @@ export default function PaymentsPage() {
     },
     {
       key: 'organization_name',
-      label: 'Center',
+      label: t('columnCenter'),
       render: (_, row) => <span className="font-medium text-slate-800">{row.organization_name}</span>,
     },
     {
       key: 'plan_name',
-      label: 'Plan',
+      label: t('columnPlan'),
       render: (_, row) => <Badge label={row.plan_name} variant="secondary" />,
     },
     {
       key: 'amount',
-      label: 'Amount',
+      label: t('columnAmount'),
       render: (_, row) => <span className="font-semibold text-slate-900">{formatCurrency(Number(row.amount))}</span>,
     },
     {
       key: 'balance',
-      label: 'Balance',
+      label: t('columnBalance'),
       render: (_, row) => (
         <span className={Number(row.balance) > 0 ? 'text-red-500 font-medium' : 'text-slate-400'}>
           {Number(row.balance) > 0 ? formatCurrency(Number(row.balance)) : '—'}
@@ -273,27 +292,27 @@ export default function PaymentsPage() {
     },
     {
       key: 'due_date',
-      label: 'Due Date',
+      label: t('columnDueDate'),
       render: (_, row) => <span className="text-slate-500 text-sm whitespace-nowrap">{formatDate(row.due_date)}</span>,
     },
     {
       key: 'status',
-      label: 'Status',
+      label: t('columnStatus'),
       render: (_, row) => <InvoiceStatusBadge status={row.status} />,
     },
     {
       key: 'id',
-      label: 'Actions',
+      label: t('columnActions'),
       headerClassName: 'text-right',
       className: 'text-right',
       render: (_, row) => (
         <div className="flex items-center gap-1 justify-end">
           {Number(row.balance) > 0 && row.status !== 'cancelled' && (
             <Button variant="ghost" size="sm" onClick={() => openRecordPayment(row)}>
-              Record Payment
+              {t('recordPaymentButton')}
             </Button>
           )}
-          <Button variant="ghost" size="icon" title="Delete invoice" onClick={() => setDeletingInvoice(row)}>
+          <Button variant="ghost" size="icon" title={t('deleteInvoiceIconTitle')} onClick={() => setDeletingInvoice(row)}>
             <Trash2 className="h-4 w-4 text-slate-400" />
           </Button>
         </div>
@@ -305,17 +324,17 @@ export default function PaymentsPage() {
     <div className="space-y-6">
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
       <PageHeader
-        title="Payments"
-        subtitle="Track subscription invoices and manually-confirmed payments across the platform"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={handleExportCsv}>
               <Download className="h-4 w-4" />
-              Export CSV
+              {t('exportCsvButton')}
             </Button>
             <Button onClick={() => setShowInvoiceForm(true)}>
               <Plus className="h-4 w-4" />
-              Create Invoice
+              {t('createInvoiceButton')}
             </Button>
           </div>
         }
@@ -323,30 +342,30 @@ export default function PaymentsPage() {
 
       {/* ── Stats Row ────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Revenue" value={formatCurrency(totalRevenue)} icon={<DollarSign className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
-        <StatCard label="Paid Invoices" value={paidCount} icon={<CreditCard className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
-        <StatCard label="Pending" value={pendingCount} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
-        <StatCard label="Overdue" value={overdueCount} icon={<AlertCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
+        <StatCard label={t('statTotalRevenue')} value={formatCurrency(totalRevenue)} icon={<DollarSign className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label={t('statPaidInvoices')} value={paidCount} icon={<CreditCard className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label={t('statPending')} value={pendingCount} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
+        <StatCard label={t('statOverdue')} value={overdueCount} icon={<AlertCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
       </div>
 
       {/* ── Table Card ───────────────────────────────────────────────────────── */}
       <Card
         noPadding
-        title="Platform Invoices"
-        subtitle={`${filtered.length} of ${invoices.length} invoices`}
+        title={t('platformInvoicesTitle')}
+        subtitle={t('invoicesOfCount', { filtered: filtered.length, total: invoices.length })}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
-            <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search invoices…" className="w-52" />
+            <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('searchPlaceholder')} className="w-52" />
             <Select
               value={filterStatus}
-              placeholder="All Statuses"
+              placeholder={t('allStatusesPlaceholder')}
               onChange={(e) => setFilterStatus(e.target.value)}
               options={[
-                { value: 'pending', label: 'Pending' },
-                { value: 'partially_paid', label: 'Partially Paid' },
-                { value: 'paid', label: 'Paid' },
-                { value: 'overdue', label: 'Overdue' },
-                { value: 'cancelled', label: 'Cancelled' },
+                { value: 'pending', label: t('statusPending') },
+                { value: 'partially_paid', label: t('statusPartiallyPaid') },
+                { value: 'paid', label: t('statusPaid') },
+                { value: 'overdue', label: t('statusOverdue') },
+                { value: 'cancelled', label: t('statusCancelled') },
               ]}
             />
             {(search || filterStatus) && (
@@ -357,7 +376,7 @@ export default function PaymentsPage() {
                 }}
                 className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
               >
-                <X className="h-3 w-3" /> Clear
+                <X className="h-3 w-3" /> {t('clearButton')}
               </button>
             )}
           </div>
@@ -366,30 +385,30 @@ export default function PaymentsPage() {
         {isError ? (
           <div className="flex items-center gap-2 px-6 py-8 text-sm text-red-500">
             <AlertCircle className="h-4 w-4" />
-            {error instanceof ApiError ? error.message : 'Failed to load invoices.'}
+            {error instanceof ApiError ? error.message : t('loadErrorFallback')}
           </div>
         ) : isLoading ? (
           <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-slate-400">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading invoices…
+            {t('loadingInvoices')}
           </div>
         ) : (
-          <DataTable<PlatformInvoice> columns={columns} data={filtered} keyField="id" emptyMessage="No invoices match your filters." />
+          <DataTable<PlatformInvoice> columns={columns} data={filtered} keyField="id" emptyMessage={t('noInvoicesFound')} />
         )}
       </Card>
 
       {/* ── Recent Payments ─────────────────────────────────────────────────── */}
-      <Card title="Recent Payments" subtitle="Last 5 confirmed payments">
+      <Card title={t('recentPaymentsTitle')} subtitle={t('recentPaymentsSubtitle')}>
         <div className="space-y-3">
           {recentPayments.length === 0 ? (
-            <p className="text-sm text-slate-400">No payments recorded yet.</p>
+            <p className="text-sm text-slate-400">{t('noPaymentsYet')}</p>
           ) : (
             recentPayments.map((p) => (
               <div key={p.id} className="flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-800 truncate">{p.organization_name}</p>
                   <p className="text-xs text-slate-400">
-                    {p.invoice_number} · <span className="capitalize">{p.method.replace('_', ' ')}</span>
+                    {p.invoice_number} · <span>{METHOD_LABELS[p.method] ?? p.method}</span>
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -406,33 +425,33 @@ export default function PaymentsPage() {
       <Dialog open={showInvoiceForm} onOpenChange={setShowInvoiceForm}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Create Platform Invoice</DialogTitle>
+            <DialogTitle>{t('createInvoiceDialogTitle')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreateInvoice}>
             <DialogBody>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-600">Center</label>
+                  <label className="text-xs font-medium text-slate-600">{t('fieldCenter')}</label>
                   <Select
                     className="w-full"
                     value={invoiceForm.organization}
                     onChange={(e) => handleOrgOrPlanChange('organization', e.target.value)}
-                    placeholder="Select a center"
+                    placeholder={t('selectCenterPlaceholder')}
                     options={(organizations ?? []).map((o) => ({ value: o.id, label: o.name }))}
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-600">Subscription Plan</label>
+                  <label className="text-xs font-medium text-slate-600">{t('fieldSubscriptionPlan')}</label>
                   <Select
                     className="w-full"
                     value={invoiceForm.subscriptionPlan}
                     onChange={(e) => handleOrgOrPlanChange('subscriptionPlan', e.target.value)}
-                    placeholder="Select a plan"
+                    placeholder={t('selectPlanPlaceholder')}
                     options={(plans ?? []).map((p) => ({ value: p.id, label: p.name }))}
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-600">Amount (USD)</label>
+                  <label className="text-xs font-medium text-slate-600">{t('fieldAmountUsd')}</label>
                   <Input
                     type="number"
                     min={0}
@@ -441,7 +460,7 @@ export default function PaymentsPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-600">Due Date</label>
+                  <label className="text-xs font-medium text-slate-600">{t('fieldDueDate')}</label>
                   <Input
                     type="date"
                     value={invoiceForm.dueDate}
@@ -449,7 +468,7 @@ export default function PaymentsPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-600">Period Start</label>
+                  <label className="text-xs font-medium text-slate-600">{t('fieldPeriodStart')}</label>
                   <Input
                     type="date"
                     value={invoiceForm.periodStart}
@@ -457,7 +476,7 @@ export default function PaymentsPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-600">Period End</label>
+                  <label className="text-xs font-medium text-slate-600">{t('fieldPeriodEnd')}</label>
                   <Input
                     type="date"
                     value={invoiceForm.periodEnd}
@@ -466,7 +485,7 @@ export default function PaymentsPage() {
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-600">Notes (optional)</label>
+                <label className="text-xs font-medium text-slate-600">{t('fieldNotesOptional')}</label>
                 <textarea
                   rows={2}
                   value={invoiceForm.notes}
@@ -477,11 +496,11 @@ export default function PaymentsPage() {
             </DialogBody>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowInvoiceForm(false)}>
-                Cancel
+                {t('cancelButton')}
               </Button>
               <Button type="submit" loading={createInvoiceMutation.isPending}>
                 <Plus className="h-4 w-4" />
-                Create Invoice
+                {t('createInvoiceButton')}
               </Button>
             </DialogFooter>
           </form>
@@ -492,17 +511,17 @@ export default function PaymentsPage() {
       <Dialog open={!!payingInvoice} onOpenChange={(open) => !open && setPayingInvoice(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Record Payment — {payingInvoice?.invoice_number}</DialogTitle>
+            <DialogTitle>{t('recordPaymentDialogTitle', { invoiceNumber: payingInvoice?.invoice_number ?? '' })}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleRecordPayment}>
             <DialogBody>
               {payingInvoice && (
                 <>
                   <p className="text-sm text-slate-500">
-                    Balance: <span className="font-semibold text-slate-900">{formatCurrency(Number(payingInvoice.balance))}</span>
+                    {t('balanceLabel')} <span className="font-semibold text-slate-900">{formatCurrency(Number(payingInvoice.balance))}</span>
                   </p>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-600">Amount</label>
+                    <label className="text-xs font-medium text-slate-600">{t('fieldAmount')}</label>
                     <Input
                       type="number"
                       min={0}
@@ -511,7 +530,7 @@ export default function PaymentsPage() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-600">Method</label>
+                    <label className="text-xs font-medium text-slate-600">{t('fieldMethod')}</label>
                     <Select
                       className="w-full"
                       value={paymentForm.method}
@@ -520,9 +539,9 @@ export default function PaymentsPage() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-600">Reference Note (optional)</label>
+                    <label className="text-xs font-medium text-slate-600">{t('fieldReferenceNoteOptional')}</label>
                     <Input
-                      placeholder="e.g. wire #123, bank ref"
+                      placeholder={t('referenceNotePlaceholder')}
                       value={paymentForm.referenceNote}
                       onChange={(e) => setPaymentForm((f) => ({ ...f, referenceNote: e.target.value }))}
                     />
@@ -532,10 +551,10 @@ export default function PaymentsPage() {
             </DialogBody>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setPayingInvoice(null)}>
-                Cancel
+                {t('cancelButton')}
               </Button>
               <Button type="submit" loading={createPaymentMutation.isPending}>
-                Record Payment
+                {t('recordPaymentButton')}
               </Button>
             </DialogFooter>
           </form>
@@ -545,16 +564,16 @@ export default function PaymentsPage() {
       <ConfirmDialog
         open={!!deletingInvoice}
         onOpenChange={(open) => !open && setDeletingInvoice(null)}
-        title="Delete platform invoice"
-        description={`Are you sure you want to delete invoice "${deletingInvoice?.invoice_number}"? This can be restored later if needed.`}
-        confirmLabel="Delete"
+        title={t('deleteInvoiceTitle')}
+        description={t('deleteInvoiceDescription', { number: deletingInvoice?.invoice_number ?? '' })}
+        confirmLabel={t('deleteButton')}
         onConfirm={async () => {
           if (!deletingInvoice) return;
           try {
             await deleteInvoiceMutation.mutateAsync(deletingInvoice.id);
-            toast.success('Invoice deleted');
+            toast.success(t('invoiceDeletedToast'));
           } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+            toast.error(err instanceof ApiError ? err.message : t('genericError'));
           } finally {
             setDeletingInvoice(null);
           }
