@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   ScrollText,
   PlusCircle,
@@ -34,65 +35,106 @@ import { useAuditLogsQuery } from '@/lib/queries/audit-logs';
 import type { AuditLog, AuditAction } from '@/lib/api/audit-logs';
 import { ApiError } from '@/lib/api/client';
 import { cn } from '@/lib/utils';
+import { formatLocalizedDate, INTL_DATE_LOCALES } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 
 // ─── Action Config ──────────────────────────────────────────────────────────
 // Mirrors backend/foundation/models/audit_log.py::AUDIT_ACTION_CHOICES —
 // every value the API can actually return, nothing invented.
 
-const ACTION_CONFIG: Record<AuditAction, { icon: React.ReactNode; variant: 'success' | 'danger' | 'warning' | 'purple' | 'info' | 'secondary' | 'default'; label: string }> = {
-  create: { icon: <PlusCircle className="h-3.5 w-3.5" />, variant: 'success', label: 'Create' },
-  update: { icon: <Pencil className="h-3.5 w-3.5" />, variant: 'info', label: 'Update' },
-  delete: { icon: <Trash2 className="h-3.5 w-3.5" />, variant: 'danger', label: 'Delete' },
-  login: { icon: <LogIn className="h-3.5 w-3.5" />, variant: 'purple', label: 'Login' },
-  logout: { icon: <LogOut className="h-3.5 w-3.5" />, variant: 'secondary', label: 'Logout' },
-  export: { icon: <Download className="h-3.5 w-3.5" />, variant: 'warning', label: 'Export' },
-  import: { icon: <Upload className="h-3.5 w-3.5" />, variant: 'warning', label: 'Import' },
-  read: { icon: <Eye className="h-3.5 w-3.5" />, variant: 'default', label: 'Read' },
+const ACTION_ICON_VARIANT: Record<AuditAction, { icon: React.ReactNode; variant: 'success' | 'danger' | 'warning' | 'purple' | 'info' | 'secondary' | 'default' }> = {
+  create: { icon: <PlusCircle className="h-3.5 w-3.5" />, variant: 'success' },
+  update: { icon: <Pencil className="h-3.5 w-3.5" />, variant: 'info' },
+  delete: { icon: <Trash2 className="h-3.5 w-3.5" />, variant: 'danger' },
+  login: { icon: <LogIn className="h-3.5 w-3.5" />, variant: 'purple' },
+  logout: { icon: <LogOut className="h-3.5 w-3.5" />, variant: 'secondary' },
+  export: { icon: <Download className="h-3.5 w-3.5" />, variant: 'warning' },
+  import: { icon: <Upload className="h-3.5 w-3.5" />, variant: 'warning' },
+  read: { icon: <Eye className="h-3.5 w-3.5" />, variant: 'default' },
+};
+
+// Every entity_type currently written by @audited()/audit_log() call sites
+// across the backend — see grep of `entity_type=` in views.py files.
+const ENTITY_TYPES = [
+  'organization', 'branch', 'user', 'invoice', 'payment', 'notification',
+  'assignment', 'submission', 'lesson', 'group', 'student_profile',
+  'course', 'session', 'attendance', 'teacher_profile',
+] as const;
+
+const ENTITY_KEY_MAP: Record<(typeof ENTITY_TYPES)[number], string> = {
+  organization: 'entityOrganization',
+  branch: 'entityBranch',
+  user: 'entityUser',
+  invoice: 'entityInvoice',
+  payment: 'entityPayment',
+  notification: 'entityNotification',
+  assignment: 'entityAssignment',
+  submission: 'entitySubmission',
+  lesson: 'entityLesson',
+  group: 'entityGroup',
+  student_profile: 'entityStudentProfile',
+  course: 'entityCourse',
+  session: 'entitySession',
+  attendance: 'entityAttendance',
+  teacher_profile: 'entityTeacherProfile',
+};
+
+const ACTION_KEY_MAP: Record<AuditAction, string> = {
+  create: 'actionCreate',
+  update: 'actionUpdate',
+  delete: 'actionDelete',
+  login: 'actionLogin',
+  logout: 'actionLogout',
+  export: 'actionExport',
+  import: 'actionImport',
+  read: 'actionRead',
 };
 
 function ActionBadge({ action }: { action: AuditAction }) {
-  const cfg = ACTION_CONFIG[action] ?? { icon: <Info className="h-3.5 w-3.5" />, variant: 'default' as const, label: action };
+  const t = useTranslations('SuperAdminAuditLogs');
+  const iv = ACTION_ICON_VARIANT[action] ?? { icon: <Info className="h-3.5 w-3.5" />, variant: 'default' as const };
+  const label = ACTION_KEY_MAP[action] ? t(ACTION_KEY_MAP[action]) : action;
   return (
     <span className="inline-flex">
-      <Badge label={cfg.label} variant={cfg.variant} />
+      <Badge label={label} variant={iv.variant} />
     </span>
   );
 }
 
-function formatEntityType(entityType: string) {
+function formatEntityType(entityType: string, t: ReturnType<typeof useTranslations>) {
+  const key = ENTITY_KEY_MAP[entityType as (typeof ENTITY_TYPES)[number]];
+  if (key) return t(key);
   return entityType
     .split('_')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
 }
 
-// Every entity_type currently written by @audited()/audit_log() call sites
-// across the backend — see grep of `entity_type=` in views.py files.
-const ENTITY_TYPE_OPTIONS = [
-  { value: '', label: 'All Entities' },
-  ...[
-    'organization', 'branch', 'user', 'invoice', 'payment', 'notification',
-    'assignment', 'submission', 'lesson', 'group', 'student_profile',
-    'course', 'session', 'attendance', 'teacher_profile',
-  ].map((v) => ({ value: v, label: formatEntityType(v) })),
-];
-
-const ACTION_OPTIONS = [
-  { value: '', label: 'All Actions' },
-  ...(Object.keys(ACTION_CONFIG) as AuditAction[]).map((a) => ({ value: a, label: ACTION_CONFIG[a].label })),
-];
-
-function formatDateTime(iso: string) {
+function formatDateTime(iso: string, locale: Locale) {
   const d = new Date(iso);
   return {
-    date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    time: d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    date: formatLocalizedDate(d, locale, { month: 'short', day: 'numeric', year: 'numeric' }),
+    time: d.toLocaleTimeString(INTL_DATE_LOCALES[locale], { hour: '2-digit', minute: '2-digit' }),
   };
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function AuditLogsPage() {
+  const t = useTranslations('SuperAdminAuditLogs');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
+  const ENTITY_TYPE_OPTIONS = [
+    { value: '', label: t('allEntitiesPlaceholder') },
+    ...ENTITY_TYPES.map((v) => ({ value: v, label: t(ENTITY_KEY_MAP[v]) })),
+  ];
+
+  const ACTION_OPTIONS = [
+    { value: '', label: t('allActionsPlaceholder') },
+    ...(Object.keys(ACTION_KEY_MAP) as AuditAction[]).map((a) => ({ value: a, label: t(ACTION_KEY_MAP[a]) })),
+  ];
+
   const [organizationId, setOrganizationId] = useState('');
   const [action, setAction] = useState<AuditAction | ''>('');
   const [entityType, setEntityType] = useState('');
@@ -109,7 +151,7 @@ export default function AuditLogsPage() {
     dateTo: dateTo || undefined,
   });
 
-  const centerOptions = [{ value: '', label: 'All Centers' }, ...(centers ?? []).map((c) => ({ value: c.id, label: c.name }))];
+  const centerOptions = [{ value: '', label: t('allCentersPlaceholder') }, ...(centers ?? []).map((c) => ({ value: c.id, label: c.name }))];
 
   const list = logs ?? [];
   const totalLogs = list.length;
@@ -123,9 +165,9 @@ export default function AuditLogsPage() {
     () => [
       {
         key: 'created_at',
-        label: 'Date & Time',
+        label: t('columnDateTime'),
         render: (_, row) => {
-          const { date, time } = formatDateTime(row.created_at);
+          const { date, time } = formatDateTime(row.created_at, locale);
           return (
             <div className="whitespace-nowrap">
               <p className="text-sm text-slate-800 font-medium">{date}</p>
@@ -136,79 +178,79 @@ export default function AuditLogsPage() {
       },
       {
         key: 'action',
-        label: 'Action',
+        label: t('columnAction'),
         render: (_, row) => <ActionBadge action={row.action} />,
       },
       {
         key: 'entity_type',
-        label: 'Entity',
+        label: t('columnEntity'),
         render: (_, row) => (
           <div>
-            <p className="text-sm font-medium text-slate-800">{formatEntityType(row.entity_type)}</p>
+            <p className="text-sm font-medium text-slate-800">{formatEntityType(row.entity_type, t)}</p>
             {row.entity_id && <p className="text-xs text-slate-400 mt-0.5 font-mono">{row.entity_id.slice(0, 8)}…</p>}
           </div>
         ),
       },
       {
         key: 'user_name',
-        label: 'Performed By',
+        label: t('columnPerformedBy'),
         render: (_, row) => (
           <div>
-            <p className="text-sm text-slate-800">{row.user_name ?? 'System'}</p>
+            <p className="text-sm text-slate-800">{row.user_name ?? t('systemLabel')}</p>
             <p className="text-xs text-slate-400 mt-0.5">{row.user_login_id ?? '—'}</p>
           </div>
         ),
       },
       {
         key: 'organization_name',
-        label: 'Center',
+        label: t('columnCenter'),
         render: (_, row) => <span className="text-sm text-slate-600 whitespace-nowrap">{row.organization_name ?? '—'}</span>,
       },
       {
         key: 'ip_address',
-        label: 'IP Address',
+        label: t('columnIpAddress'),
         render: (_, row) => <span className="text-xs text-slate-400 font-mono">{row.ip_address ?? '—'}</span>,
       },
       {
         key: 'id',
-        label: 'Details',
+        label: t('columnDetails'),
         headerClassName: 'text-right',
         className: 'text-right',
         render: (_, row) => (
           <button
             onClick={() => setViewingLog(row)}
             className="text-slate-400 hover:text-slate-600 inline-flex items-center"
-            title="View details"
+            title={t('viewDetailsTitle')}
           >
             <Eye className="h-4 w-4" />
           </button>
         ),
       },
     ],
-    []
+    [t, locale]
   );
 
   return (
     <div className="space-y-6">
       {/* ── Page Header ──────────────────────────────────────────────────── */}
       <PageHeader
-        title="Audit Logs"
-        subtitle="Immutable record of authentication, payment, role-change and deletion events across the platform"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
       />
 
       {/* ── Stats Row ────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Events" value={totalLogs} icon={<ScrollText className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
-        <StatCard label="Created" value={createCount} icon={<PlusCircle className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
-        <StatCard label="Updated" value={updateCount} icon={<Pencil className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
-        <StatCard label="Deleted" value={deleteCount} icon={<Trash2 className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
+        <StatCard label={t('statTotalEvents')} value={totalLogs} icon={<ScrollText className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label={t('statCreated')} value={createCount} icon={<PlusCircle className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label={t('statUpdated')} value={updateCount} icon={<Pencil className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
+        <StatCard label={t('statDeleted')} value={deleteCount} icon={<Trash2 className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
       </div>
 
       {/* ── Table Card ───────────────────────────────────────────────────── */}
       <Card
         noPadding
-        title="Event Log"
-        subtitle={`${totalLogs} events`}
+        title={t('eventLogTitle')}
+        subtitle={t('eventsCountLabel', { count: totalLogs })}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
             <Select value={organizationId} onChange={(e) => setOrganizationId(e.target.value)} options={centerOptions} />
@@ -237,7 +279,7 @@ export default function AuditLogsPage() {
                 }}
                 className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
               >
-                <X className="h-3 w-3" /> Clear
+                <X className="h-3 w-3" /> {t('clearButton')}
               </button>
             )}
           </div>
@@ -246,15 +288,15 @@ export default function AuditLogsPage() {
         {isError ? (
           <div className="flex items-center gap-2 px-6 py-8 text-sm text-red-500">
             <AlertCircle className="h-4 w-4" />
-            {error instanceof ApiError ? error.message : 'Failed to load audit logs.'}
+            {error instanceof ApiError ? error.message : t('loadErrorFallback')}
           </div>
         ) : isLoading ? (
           <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-slate-400">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading audit logs…
+            {t('loadingAuditLogs')}
           </div>
         ) : (
-          <DataTable<AuditLog> columns={columns} data={list} keyField="id" emptyMessage="No audit logs match your filters." />
+          <DataTable<AuditLog> columns={columns} data={list} keyField="id" emptyMessage={t('noAuditLogsFound')} />
         )}
       </Card>
 
@@ -264,34 +306,40 @@ export default function AuditLogsPage() {
           {viewingLog && (
             <>
               <DialogHeader>
-                <DialogTitle>Event Details</DialogTitle>
+                <DialogTitle>{t('eventDetailsTitle')}</DialogTitle>
               </DialogHeader>
               <DialogBody className="space-y-3">
                 <div className="flex items-center gap-2">
                   <ActionBadge action={viewingLog.action} />
-                  <span className="text-sm font-medium text-slate-800">{formatEntityType(viewingLog.entity_type)}</span>
+                  <span className="text-sm font-medium text-slate-800">{formatEntityType(viewingLog.entity_type, t)}</span>
                 </div>
-                <DetailRow label="Performed By" value={viewingLog.user_name ?? 'System'} />
-                <DetailRow label="Login ID" value={viewingLog.user_login_id ?? '—'} />
-                <DetailRow label="Center" value={viewingLog.organization_name ?? '—'} />
-                <DetailRow label="Entity ID" value={viewingLog.entity_id ?? '—'} mono />
-                <DetailRow label="IP Address" value={viewingLog.ip_address ?? '—'} mono />
-                <DetailRow label="Timestamp" value={new Date(viewingLog.created_at).toLocaleString('en-US')} />
+                <DetailRow label={t('detailPerformedBy')} value={viewingLog.user_name ?? t('systemLabel')} />
+                <DetailRow label={t('detailLoginId')} value={viewingLog.user_login_id ?? '—'} />
+                <DetailRow label={t('detailCenter')} value={viewingLog.organization_name ?? '—'} />
+                <DetailRow label={t('detailEntityId')} value={viewingLog.entity_id ?? '—'} mono />
+                <DetailRow label={t('detailIpAddress')} value={viewingLog.ip_address ?? '—'} mono />
+                <DetailRow
+                  label={t('detailTimestamp')}
+                  value={(() => {
+                    const { date, time } = formatDateTime(viewingLog.created_at, locale);
+                    return `${date} ${time}`;
+                  })()}
+                />
                 {viewingLog.old_values && (
                   <div>
-                    <p className="text-xs text-slate-400 mb-1">Old Values</p>
+                    <p className="text-xs text-slate-400 mb-1">{t('oldValuesLabel')}</p>
                     <pre className="text-xs bg-slate-50 rounded-lg p-2 overflow-x-auto text-slate-600">{JSON.stringify(viewingLog.old_values, null, 2)}</pre>
                   </div>
                 )}
                 {viewingLog.new_values && (
                   <div>
-                    <p className="text-xs text-slate-400 mb-1">New Values</p>
+                    <p className="text-xs text-slate-400 mb-1">{t('newValuesLabel')}</p>
                     <pre className="text-xs bg-slate-50 rounded-lg p-2 overflow-x-auto text-slate-600">{JSON.stringify(viewingLog.new_values, null, 2)}</pre>
                   </div>
                 )}
                 {viewingLog.metadata && Object.keys(viewingLog.metadata).length > 0 && (
                   <div>
-                    <p className="text-xs text-slate-400 mb-1">Metadata</p>
+                    <p className="text-xs text-slate-400 mb-1">{t('metadataLabel')}</p>
                     <pre className="text-xs bg-slate-50 rounded-lg p-2 overflow-x-auto text-slate-600">{JSON.stringify(viewingLog.metadata, null, 2)}</pre>
                   </div>
                 )}
