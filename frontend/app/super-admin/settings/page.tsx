@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   Settings,
   Globe,
@@ -24,21 +25,23 @@ import type { GeneralSettings, SecuritySettings } from '@/lib/api/settings';
 import { toast } from '@/lib/store/toast-store';
 import { ApiError } from '@/lib/api/client';
 import { cn } from '@/lib/utils';
+import { formatLocalizedDate, INTL_DATE_LOCALES } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE } from '@/i18n/locales';
 
 // ─── Settings Sections ────────────────────────────────────────────────────────
 
-const SECTIONS = [
-  { id: 'general',   label: 'General',        icon: Settings,      desc: 'Platform name, logo & branding' },
-  { id: 'theme',     label: 'Theme',           icon: Palette,       desc: 'Colors, appearance & layout' },
-  { id: 'languages', label: 'Languages',       icon: Globe,         desc: 'Supported languages & locale' },
-  { id: 'email',     label: 'Email Settings',  icon: Mail,          desc: 'SMTP & email templates' },
-  { id: 'sms',       label: 'SMS Settings',    icon: MessageSquare, desc: 'SMS provider & templates' },
-  { id: 'backup',    label: 'Backup',          icon: Database,      desc: 'Automated backups & restore' },
-  { id: 'security',  label: 'Security',        icon: Shield,        desc: 'Auth, 2FA & session settings' },
-  { id: 'api',       label: 'API Keys',        icon: Key,           desc: 'Integration keys & webhooks' },
+const SECTION_META = [
+  { id: 'general',   icon: Settings },
+  { id: 'theme',     icon: Palette },
+  { id: 'languages', icon: Globe },
+  { id: 'email',     icon: Mail },
+  { id: 'sms',       icon: MessageSquare },
+  { id: 'backup',    icon: Database },
+  { id: 'security',  icon: Shield },
+  { id: 'api',       icon: Key },
 ] as const;
 
-type SectionId = typeof SECTIONS[number]['id'];
+type SectionId = typeof SECTION_META[number]['id'];
 
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
 
@@ -78,18 +81,20 @@ function FieldRow({ label, hint, children }: { label: string; hint?: string; chi
 }
 
 function SettingsLoadingState() {
+  const t = useTranslations('SuperAdminSettings');
   return (
     <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-400">
       <Loader2 className="h-4 w-4 animate-spin" />
-      Loading…
+      {t('loadingEllipsis')}
     </div>
   );
 }
 
 function SettingsLoadError({ error }: { error: unknown }) {
+  const t = useTranslations('SuperAdminSettings');
   return (
     <p className="py-8 text-sm text-red-500">
-      {error instanceof ApiError ? error.message : 'Failed to load settings.'}
+      {error instanceof ApiError ? error.message : t('loadErrorFallback')}
     </p>
   );
 }
@@ -97,6 +102,7 @@ function SettingsLoadError({ error }: { error: unknown }) {
 // ─── Section Panels ───────────────────────────────────────────────────────────
 
 function GeneralPanel({ general, onChange }: { general: GeneralSettings; onChange: (patch: Partial<GeneralSettings>) => void }) {
+  const t = useTranslations('SuperAdminSettings');
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
 
@@ -106,7 +112,7 @@ function GeneralPanel({ general, onChange }: { general: GeneralSettings; onChang
     const reader = new FileReader();
     reader.onload = () => {
       onChange({ [field]: reader.result as string });
-      toast.success(field === 'logoUrl' ? 'Logo uploaded' : 'Favicon uploaded');
+      toast.success(field === 'logoUrl' ? t('logoUploadedToast') : t('faviconUploadedToast'));
     };
     reader.readAsDataURL(file);
     e.target.value = '';
@@ -114,45 +120,45 @@ function GeneralPanel({ general, onChange }: { general: GeneralSettings; onChang
 
   return (
     <div className="space-y-0">
-      <FieldRow label="Platform Name" hint="Displayed across the entire application">
+      <FieldRow label={t('fieldPlatformName')} hint={t('platformNameHint')}>
         <Input
           value={general.platformName}
           onChange={(e) => onChange({ platformName: e.target.value })}
           className="w-64"
         />
       </FieldRow>
-      <FieldRow label="Tagline" hint="Short description shown on the login page">
+      <FieldRow label={t('fieldTagline')} hint={t('taglineHint')}>
         <Input
           value={general.tagline}
           onChange={(e) => onChange({ tagline: e.target.value })}
           className="w-64"
         />
       </FieldRow>
-      <FieldRow label="Logo" hint="Recommended size: 256×64px, PNG or SVG">
+      <FieldRow label={t('fieldLogo')} hint={t('logoHint')}>
         <div className="flex items-center gap-3">
           {general.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={general.logoUrl} alt="Logo" className="h-9 w-28 object-contain rounded-lg border border-slate-200" />
+            <img src={general.logoUrl} alt={t('fieldLogo')} className="h-9 w-28 object-contain rounded-lg border border-slate-200" />
           ) : (
             <div className="h-9 w-28 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-400">
-              No file
+              {t('noFileLabel')}
             </div>
           )}
-          <Button variant="outline" size="sm" onClick={() => logoInputRef.current?.click()}>Upload</Button>
+          <Button variant="outline" size="sm" onClick={() => logoInputRef.current?.click()}>{t('uploadButton')}</Button>
           <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload('logoUrl')} />
         </div>
       </FieldRow>
-      <FieldRow label="Favicon" hint="16×16 or 32×32 ICO file">
+      <FieldRow label={t('fieldFavicon')} hint={t('faviconHint')}>
         <div className="flex items-center gap-3">
           {general.faviconUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={general.faviconUrl} alt="Favicon" className="h-8 w-8 object-contain rounded border border-slate-200" />
+            <img src={general.faviconUrl} alt={t('fieldFavicon')} className="h-8 w-8 object-contain rounded border border-slate-200" />
           )}
-          <Button variant="outline" size="sm" onClick={() => faviconInputRef.current?.click()}>Upload</Button>
+          <Button variant="outline" size="sm" onClick={() => faviconInputRef.current?.click()}>{t('uploadButton')}</Button>
           <input ref={faviconInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload('faviconUrl')} />
         </div>
       </FieldRow>
-      <FieldRow label="Support Email" hint="Contact email shown to users">
+      <FieldRow label={t('fieldSupportEmail')} hint={t('supportEmailHint')}>
         <Input
           type="email"
           value={general.supportEmail}
@@ -165,18 +171,19 @@ function GeneralPanel({ general, onChange }: { general: GeneralSettings; onChang
 }
 
 function ThemePanel() {
+  const t = useTranslations('SuperAdminSettings');
   const theme = useSASettingsStore((s) => s.settings.theme);
   const updateTheme = useSASettingsStore((s) => s.updateTheme);
 
   return (
     <div className="space-y-0">
-      <FieldRow label="Dark Mode" hint="Enable dark theme for all users">
+      <FieldRow label={t('fieldDarkMode')} hint={t('darkModeHint')}>
         <Toggle checked={theme.darkMode} onChange={(v) => updateTheme({ darkMode: v })} />
       </FieldRow>
-      <FieldRow label="Compact Sidebar" hint="Collapse sidebar by default">
+      <FieldRow label={t('fieldCompactSidebar')} hint={t('compactSidebarHint')}>
         <Toggle checked={theme.compactSidebar} onChange={(v) => updateTheme({ compactSidebar: v })} />
       </FieldRow>
-      <FieldRow label="Primary Color" hint="Used for buttons, links and accents">
+      <FieldRow label={t('fieldPrimaryColor')} hint={t('primaryColorHint')}>
         <div className="flex items-center gap-2">
           <input
             type="color"
@@ -191,15 +198,15 @@ function ThemePanel() {
           />
         </div>
       </FieldRow>
-      <FieldRow label="Font Family" hint="Typography used across the platform">
+      <FieldRow label={t('fieldFontFamily')} hint={t('fontFamilyHint')}>
         <Select
           className="w-48"
           value={theme.fontFamily}
           options={[
-            { value: 'inter', label: 'Inter (Default)' },
-            { value: 'roboto', label: 'Roboto' },
-            { value: 'outfit', label: 'Outfit' },
-            { value: 'system', label: 'System Default' },
+            { value: 'inter', label: t('fontInter') },
+            { value: 'roboto', label: t('fontRoboto') },
+            { value: 'outfit', label: t('fontOutfit') },
+            { value: 'system', label: t('fontSystem') },
           ]}
           onChange={(e) => updateTheme({ fontFamily: e.target.value })}
         />
@@ -209,22 +216,23 @@ function ThemePanel() {
 }
 
 function LanguagesPanel() {
+  const t = useTranslations('SuperAdminSettings');
   const languages = useSASettingsStore((s) => s.settings.languages);
   const toggleLanguage = useSASettingsStore((s) => s.toggleLanguage);
 
   return (
     <div className="space-y-0">
       {languages.map((lang) => (
-        <FieldRow key={lang.code} label={`${lang.flag} ${lang.label}`} hint={lang.default ? 'Default language' : undefined}>
+        <FieldRow key={lang.code} label={`${lang.flag} ${lang.label}`} hint={lang.default ? t('defaultLanguageHint') : undefined}>
           <div className="flex items-center gap-3">
             {lang.default && (
-              <span className="text-xs text-indigo-600 font-medium bg-indigo-50 px-2 py-0.5 rounded-md">Default</span>
+              <span className="text-xs text-indigo-600 font-medium bg-indigo-50 px-2 py-0.5 rounded-md">{t('defaultBadge')}</span>
             )}
             <Toggle
               checked={lang.enabled}
               onChange={() => {
                 if (lang.default) {
-                  toast.error('The default language cannot be disabled');
+                  toast.error(t('defaultLanguageCannotDisable'));
                   return;
                 }
                 toggleLanguage(lang.code);
@@ -238,15 +246,16 @@ function LanguagesPanel() {
 }
 
 function EmailPanel() {
+  const t = useTranslations('SuperAdminSettings');
   const email = useSASettingsStore((s) => s.settings.email);
   const updateEmail = useSASettingsStore((s) => s.updateEmail);
 
   return (
     <div className="space-y-0">
-      <FieldRow label="SMTP Host" hint="Your email server host">
+      <FieldRow label={t('fieldSmtpHost')} hint={t('smtpHostHint')}>
         <Input value={email.smtpHost} onChange={(e) => updateEmail({ smtpHost: e.target.value })} className="w-64" />
       </FieldRow>
-      <FieldRow label="SMTP Port" hint="">
+      <FieldRow label={t('fieldSmtpPort')} hint="">
         <Input
           type="number"
           value={email.smtpPort}
@@ -254,10 +263,10 @@ function EmailPanel() {
           className="w-32"
         />
       </FieldRow>
-      <FieldRow label="Username" hint="">
+      <FieldRow label={t('fieldUsername')} hint="">
         <Input value={email.username} onChange={(e) => updateEmail({ username: e.target.value })} className="w-64" />
       </FieldRow>
-      <FieldRow label="Password" hint="">
+      <FieldRow label={t('fieldPassword')} hint="">
         <Input
           type="password"
           value={email.password}
@@ -265,10 +274,10 @@ function EmailPanel() {
           className="w-64"
         />
       </FieldRow>
-      <FieldRow label="From Name" hint="Sender name shown in inbox">
+      <FieldRow label={t('fieldFromName')} hint={t('fromNameHint')}>
         <Input value={email.fromName} onChange={(e) => updateEmail({ fromName: e.target.value })} className="w-64" />
       </FieldRow>
-      <FieldRow label="Enable TLS" hint="Secure connection">
+      <FieldRow label={t('fieldEnableTls')} hint={t('enableTlsHint')}>
         <Toggle checked={email.tlsEnabled} onChange={(v) => updateEmail({ tlsEnabled: v })} />
       </FieldRow>
     </div>
@@ -276,32 +285,33 @@ function EmailPanel() {
 }
 
 function SMSPanel() {
+  const t = useTranslations('SuperAdminSettings');
   const sms = useSASettingsStore((s) => s.settings.sms);
   const updateSms = useSASettingsStore((s) => s.updateSms);
 
   return (
     <div className="space-y-0">
-      <FieldRow label="SMS Provider" hint="">
+      <FieldRow label={t('fieldSmsProvider')} hint="">
         <Select
           className="w-48"
           value={sms.provider}
           options={[
-            { value: 'twilio', label: 'Twilio' },
-            { value: 'nexmo', label: 'Nexmo / Vonage' },
-            { value: 'aws-sns', label: 'AWS SNS' },
-            { value: 'custom', label: 'Custom' },
+            { value: 'twilio', label: t('providerTwilio') },
+            { value: 'nexmo', label: t('providerNexmo') },
+            { value: 'aws-sns', label: t('providerAwsSns') },
+            { value: 'custom', label: t('providerCustom') },
           ]}
           onChange={(e) => updateSms({ provider: e.target.value })}
         />
       </FieldRow>
-      <FieldRow label="Account SID" hint="">
+      <FieldRow label={t('fieldAccountSid')} hint="">
         <Input
           value={sms.accountSid}
           onChange={(e) => updateSms({ accountSid: e.target.value })}
           className="w-64 font-mono text-xs"
         />
       </FieldRow>
-      <FieldRow label="Auth Token" hint="">
+      <FieldRow label={t('fieldAuthToken')} hint="">
         <Input
           type="password"
           value={sms.authToken}
@@ -309,10 +319,10 @@ function SMSPanel() {
           className="w-64"
         />
       </FieldRow>
-      <FieldRow label="From Number" hint="Your Twilio phone number">
+      <FieldRow label={t('fieldFromNumber')} hint={t('fromNumberHint')}>
         <Input value={sms.fromNumber} onChange={(e) => updateSms({ fromNumber: e.target.value })} className="w-64" />
       </FieldRow>
-      <FieldRow label="Enable SMS" hint="Send SMS notifications to users">
+      <FieldRow label={t('fieldEnableSms')} hint={t('enableSmsHint')}>
         <Toggle checked={sms.enabled} onChange={(v) => updateSms({ enabled: v })} />
       </FieldRow>
     </div>
@@ -320,57 +330,64 @@ function SMSPanel() {
 }
 
 function BackupPanel() {
+  const t = useTranslations('SuperAdminSettings');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const backup = useSASettingsStore((s) => s.settings.backup);
   const updateBackup = useSASettingsStore((s) => s.updateBackup);
   const runBackup = useSASettingsStore((s) => s.runBackup);
 
+  const lastBackupDate = new Date(backup.lastBackupAt);
+  const lastBackupLabel =
+    formatLocalizedDate(lastBackupDate, locale, { month: 'short', day: 'numeric', year: 'numeric' }) +
+    ' ' +
+    lastBackupDate.toLocaleTimeString(INTL_DATE_LOCALES[locale], { hour: '2-digit', minute: '2-digit' });
+
   return (
     <div className="space-y-0">
-      <FieldRow label="Auto Backup" hint="Automatically backup data on a schedule">
+      <FieldRow label={t('fieldAutoBackup')} hint={t('autoBackupHint')}>
         <Toggle checked={backup.autoBackup} onChange={(v) => updateBackup({ autoBackup: v })} />
       </FieldRow>
-      <FieldRow label="Backup Frequency" hint="">
+      <FieldRow label={t('fieldBackupFrequency')} hint="">
         <Select
           className="w-48"
           value={backup.frequency}
           options={[
-            { value: 'hourly', label: 'Every Hour' },
-            { value: 'daily', label: 'Daily' },
-            { value: 'weekly', label: 'Weekly' },
+            { value: 'hourly', label: t('frequencyHourly') },
+            { value: 'daily', label: t('frequencyDaily') },
+            { value: 'weekly', label: t('frequencyWeekly') },
           ]}
           onChange={(e) => updateBackup({ frequency: e.target.value })}
         />
       </FieldRow>
-      <FieldRow label="Backup Retention" hint="How long to keep backups">
+      <FieldRow label={t('fieldBackupRetention')} hint={t('backupRetentionHint')}>
         <Select
           className="w-48"
           value={backup.retention}
           options={[
-            { value: '7d', label: '7 Days' },
-            { value: '30d', label: '30 Days' },
-            { value: '90d', label: '90 Days' },
+            { value: '7d', label: t('retention7d') },
+            { value: '30d', label: t('retention30d') },
+            { value: '90d', label: t('retention90d') },
           ]}
           onChange={(e) => updateBackup({ retention: e.target.value })}
         />
       </FieldRow>
-      <FieldRow label="Last Backup" hint="">
+      <FieldRow label={t('fieldLastBackup')} hint="">
         <span className="text-sm text-emerald-600 font-medium">
-          {new Date(backup.lastBackupAt).toLocaleString('en-US', {
-            month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
-          })} ✓
+          {lastBackupLabel} ✓
         </span>
       </FieldRow>
-      <FieldRow label="Manual Backup" hint="Trigger an immediate backup now">
+      <FieldRow label={t('fieldManualBackup')} hint={t('manualBackupHint')}>
         <Button
           variant="outline"
           size="sm"
           onClick={() => {
             runBackup();
-            toast.success('Backup completed');
+            toast.success(t('backupCompletedToast'));
           }}
         >
           <Database className="h-3.5 w-3.5" />
-          Run Backup
+          {t('runBackupButton')}
         </Button>
       </FieldRow>
     </div>
@@ -378,28 +395,29 @@ function BackupPanel() {
 }
 
 function SecurityPanel({ security, onChange }: { security: SecuritySettings; onChange: (patch: Partial<SecuritySettings>) => void }) {
+  const t = useTranslations('SuperAdminSettings');
   return (
     <div className="space-y-0">
-      <FieldRow label="Two-Factor Authentication" hint="Require 2FA for all admins — stored, not yet enforced (a real TOTP flow is a future project)">
+      <FieldRow label={t('fieldTwoFactor')} hint={t('twoFactorHint')}>
         <Toggle checked={security.twoFactor} onChange={(v) => onChange({ twoFactor: v })} />
       </FieldRow>
-      <FieldRow label="Session Timeout" hint="Stored, not yet enforced (JWT lifetime is currently a fixed server setting)">
+      <FieldRow label={t('fieldSessionTimeout')} hint={t('sessionTimeoutHint')}>
         <Select
           className="w-48"
           value={String(security.sessionTimeoutMinutes)}
           options={[
-            { value: '15', label: '15 minutes' },
-            { value: '30', label: '30 minutes' },
-            { value: '60', label: '1 hour' },
-            { value: '480', label: '8 hours' },
+            { value: '15', label: t('timeout15') },
+            { value: '30', label: t('timeout30') },
+            { value: '60', label: t('timeout60') },
+            { value: '480', label: t('timeout480') },
           ]}
           onChange={(e) => onChange({ sessionTimeoutMinutes: Number(e.target.value) })}
         />
       </FieldRow>
-      <FieldRow label="IP Allowlist" hint="Restrict admin access to specific IPs — stored, not yet enforced">
+      <FieldRow label={t('fieldIpAllowlist')} hint={t('ipAllowlistHint')}>
         <Toggle checked={security.ipAllowlist} onChange={(v) => onChange({ ipAllowlist: v })} />
       </FieldRow>
-      <FieldRow label="Max Login Attempts" hint="Lock a login out for 30 minutes after N failed attempts — enforced">
+      <FieldRow label={t('fieldMaxLoginAttempts')} hint={t('maxLoginAttemptsHint')}>
         <Input
           type="number"
           min={0}
@@ -408,14 +426,14 @@ function SecurityPanel({ security, onChange }: { security: SecuritySettings; onC
           className="w-24"
         />
       </FieldRow>
-      <FieldRow label="Password Policy" hint="Minimum requirements for new/changed passwords — enforced">
+      <FieldRow label={t('fieldPasswordPolicy')} hint={t('passwordPolicyHint')}>
         <Select
           className="w-48"
           value={security.passwordPolicy}
           options={[
-            { value: 'basic', label: 'Basic (8 chars)' },
-            { value: 'medium', label: 'Medium (8+ mixed)' },
-            { value: 'strong', label: 'Strong (12+ special)' },
+            { value: 'basic', label: t('policyBasic') },
+            { value: 'medium', label: t('policyMedium') },
+            { value: 'strong', label: t('policyStrong') },
           ]}
           onChange={(e) => onChange({ passwordPolicy: e.target.value as SecuritySettings['passwordPolicy'] })}
         />
@@ -425,13 +443,14 @@ function SecurityPanel({ security, onChange }: { security: SecuritySettings; onC
 }
 
 function APIKeysPanel() {
+  const t = useTranslations('SuperAdminSettings');
   const apiKeys = useSASettingsStore((s) => s.settings.apiKeys);
   const rotateApiKey = useSASettingsStore((s) => s.rotateApiKey);
   const generateApiKey = useSASettingsStore((s) => s.generateApiKey);
 
   const handleCopy = (key: string) => {
     navigator.clipboard.writeText(key);
-    toast.success('API key copied to clipboard');
+    toast.success(t('apiKeyCopiedToast'));
   };
 
   return (
@@ -441,19 +460,19 @@ function APIKeysPanel() {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-slate-800">{k.name}</p>
             <p className="text-xs font-mono text-slate-400 mt-1 truncate">{k.key}</p>
-            <p className="text-xs text-slate-400 mt-1">Created {k.createdAt} · Last used {k.lastUsed}</p>
+            <p className="text-xs text-slate-400 mt-1">{t('createdUsedLabel', { created: k.createdAt, lastUsed: k.lastUsed })}</p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Button variant="ghost" size="sm" onClick={() => handleCopy(k.key)}>Copy</Button>
+            <Button variant="ghost" size="sm" onClick={() => handleCopy(k.key)}>{t('copyButton')}</Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
                 rotateApiKey(k.id);
-                toast.success('API key rotated');
+                toast.success(t('apiKeyRotatedToast'));
               }}
             >
-              Rotate
+              {t('rotateButton')}
             </Button>
           </div>
         </div>
@@ -464,11 +483,11 @@ function APIKeysPanel() {
           size="sm"
           onClick={() => {
             generateApiKey();
-            toast.success('New API key generated');
+            toast.success(t('newApiKeyGeneratedToast'));
           }}
         >
           <Key className="h-3.5 w-3.5" />
-          Generate New Key
+          {t('generateNewKeyButton')}
         </Button>
       </div>
     </div>
@@ -492,6 +511,19 @@ const MOCK_PANEL_MAP: Partial<Record<SectionId, React.ReactNode>> = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SystemSettingsPage() {
+  const t = useTranslations('SuperAdminSettings');
+
+  const SECTIONS = [
+    { id: 'general', label: t('sectionGeneralLabel'), icon: SECTION_META[0].icon, desc: t('sectionGeneralDesc') },
+    { id: 'theme', label: t('sectionThemeLabel'), icon: SECTION_META[1].icon, desc: t('sectionThemeDesc') },
+    { id: 'languages', label: t('sectionLanguagesLabel'), icon: SECTION_META[2].icon, desc: t('sectionLanguagesDesc') },
+    { id: 'email', label: t('sectionEmailLabel'), icon: SECTION_META[3].icon, desc: t('sectionEmailDesc') },
+    { id: 'sms', label: t('sectionSmsLabel'), icon: SECTION_META[4].icon, desc: t('sectionSmsDesc') },
+    { id: 'backup', label: t('sectionBackupLabel'), icon: SECTION_META[5].icon, desc: t('sectionBackupDesc') },
+    { id: 'security', label: t('sectionSecurityLabel'), icon: SECTION_META[6].icon, desc: t('sectionSecurityDesc') },
+    { id: 'api', label: t('sectionApiLabel'), icon: SECTION_META[7].icon, desc: t('sectionApiDesc') },
+  ] as const;
+
   const [activeSection, setActiveSection] = useState<SectionId>('general');
   const active = SECTIONS.find((s) => s.id === activeSection)!;
   const ActiveIcon = active.icon;
@@ -524,7 +556,7 @@ export default function SystemSettingsPage() {
     if (!isWiredSection) {
       // Mock panels already applied their edits live — this is just a
       // confirmation toast, same as before.
-      toast.success('Settings saved');
+      toast.success(t('settingsSavedToast'));
       return;
     }
     const formToSave = activeSection === 'general' ? generalForm : securityForm;
@@ -532,7 +564,7 @@ export default function SystemSettingsPage() {
       // Settings haven't loaded yet (or failed to) — nothing to save, and
       // the button is disabled in this state anyway; this is just a
       // backstop against a stray click racing the initial load.
-      toast.error('Settings are still loading — try again in a moment.');
+      toast.error(t('savingStillLoadingError'));
       return;
     }
     try {
@@ -541,9 +573,9 @@ export default function SystemSettingsPage() {
       } else {
         await updateMutation.mutateAsync({ security: formToSave as SecuritySettings });
       }
-      toast.success('Settings saved');
+      toast.success(t('settingsSavedToast'));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      toast.error(err instanceof ApiError ? err.message : t('genericError'));
     }
   }
 
@@ -564,8 +596,8 @@ export default function SystemSettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="System Settings"
-        subtitle="Configure platform-wide settings and integrations"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <Button
             onClick={handleSave}
@@ -577,7 +609,7 @@ export default function SystemSettingsPage() {
             }
           >
             <Save className="h-4 w-4" />
-            Save Changes
+            {t('saveChangesButton')}
           </Button>
         }
       />
