@@ -2094,5 +2094,31 @@
     "csvHeaderBranches": "Filiallar",
     "csvHeaderPlan": "Reja",
     "csvHeaderEstRevenue": "Taxminiy daromad"
+  },
+  "SuperAdminNotifications": {
+    "pageTitle": "Bildirishnomalar",
+    "unreadCountLabel": "{count, plural, one {# o'qilmagan bildirishnoma} other {# o'qilmagan bildirishnoma}}",
+    "markAllReadButton": "Barchasini o'qilgan deb belgilash",
+    "categorySystemAlerts": "Tizim ogohlantirishlari",
+    "categoryPayments": "To'lovlar",
+    "categoryBranches": "Filiallar",
+    "categorySubscriptions": "Obunalar",
+    "categorySystem": "Tizim",
+    "categoryPayment": "To'lov",
+    "categoryBranch": "Filial",
+    "categorySubscription": "Obuna",
+    "allNotificationsTitle": "Barcha bildirishnomalar",
+    "filterAll": "Barchasi",
+    "filterUnread": "O'qilmagan",
+    "filterRead": "O'qilgan",
+    "allCategoriesPlaceholder": "Barcha kategoriyalar",
+    "clearButton": "Tozalash",
+    "notificationsCountLabel": "{count, plural, one {# bildirishnoma} other {# bildirishnoma}}",
+    "noNotifications": "Bildirishnomalar yo'q",
+    "markAsReadTitle": "O'qilgan deb belgilash",
+    "markReadButton": "O'qilgan deb belgilash",
+    "minutesAgo": "{count} daqiqa oldin",
+    "hoursAgo": "{count} soat oldin",
+    "daysAgo": "{count} kun oldin"
   }
 }

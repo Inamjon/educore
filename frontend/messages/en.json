@@ -2094,5 +2094,31 @@
     "csvHeaderBranches": "Branches",
     "csvHeaderPlan": "Plan",
     "csvHeaderEstRevenue": "Est. Revenue"
+  },
+  "SuperAdminNotifications": {
+    "pageTitle": "Notifications",
+    "unreadCountLabel": "{count, plural, one {# unread notification} other {# unread notifications}}",
+    "markAllReadButton": "Mark All Read",
+    "categorySystemAlerts": "System Alerts",
+    "categoryPayments": "Payments",
+    "categoryBranches": "Branches",
+    "categorySubscriptions": "Subscriptions",
+    "categorySystem": "System",
+    "categoryPayment": "Payment",
+    "categoryBranch": "Branch",
+    "categorySubscription": "Subscription",
+    "allNotificationsTitle": "All Notifications",
+    "filterAll": "All",
+    "filterUnread": "Unread",
+    "filterRead": "Read",
+    "allCategoriesPlaceholder": "All Categories",
+    "clearButton": "Clear",
+    "notificationsCountLabel": "{count, plural, one {# notification} other {# notifications}}",
+    "noNotifications": "No notifications",
+    "markAsReadTitle": "Mark as read",
+    "markReadButton": "Mark read",
+    "minutesAgo": "{count}m ago",
+    "hoursAgo": "{count}h ago",
+    "daysAgo": "{count}d ago"
   }
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Bell,
   CheckCircle2,
@@ -28,15 +29,15 @@ import { cn } from '@/lib/utils';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatRelativeTime(iso: string) {
+function formatRelativeTime(iso: string, t: ReturnType<typeof useTranslations>) {
   const now = new Date();
   const then = new Date(iso);
   const diffMs = now.getTime() - then.getTime();
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 60) return t('minutesAgo', { count: diffMin });
   const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  return `${Math.floor(diffH / 24)}d ago`;
+  if (diffH < 24) return t('hoursAgo', { count: diffH });
+  return t('daysAgo', { count: Math.floor(diffH / 24) });
 }
 
 // ─── Type Icon & Style ────────────────────────────────────────────────────────
@@ -62,18 +63,19 @@ function categoryIcon(category: NotificationCategory) {
   return map[category];
 }
 
-function categoryLabel(category: NotificationCategory) {
+function categoryLabel(category: NotificationCategory, t: ReturnType<typeof useTranslations>) {
   return {
-    system: 'System',
-    payment: 'Payment',
-    branch: 'Branch',
-    subscription: 'Subscription',
+    system: t('categorySystem'),
+    payment: t('categoryPayment'),
+    branch: t('categoryBranch'),
+    subscription: t('categorySubscription'),
   }[category];
 }
 
 // ─── Notification Row ─────────────────────────────────────────────────────────
 
 function NotificationRow({ notif, onMarkRead }: { notif: SANotification; onMarkRead: (id: string) => void }) {
+  const t = useTranslations('SuperAdminNotifications');
   const cfg = typeConfig(notif.type);
   const { Icon, iconClass, bgClass, borderClass } = cfg;
 
@@ -104,9 +106,9 @@ function NotificationRow({ notif, onMarkRead }: { notif: SANotification; onMarkR
         <div className="flex items-center gap-3 mt-2">
           <span className="inline-flex items-center gap-1 text-xs text-slate-400">
             {categoryIcon(notif.category)}
-            {categoryLabel(notif.category)}
+            {categoryLabel(notif.category, t)}
           </span>
-          <span className="text-xs text-slate-400">{formatRelativeTime(notif.createdAt)}</span>
+          <span className="text-xs text-slate-400">{formatRelativeTime(notif.createdAt, t)}</span>
         </div>
       </div>
 
@@ -115,9 +117,9 @@ function NotificationRow({ notif, onMarkRead }: { notif: SANotification; onMarkR
         <button
           onClick={() => onMarkRead(notif.id)}
           className="flex-shrink-0 text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1 rounded-lg hover:bg-indigo-50 transition-colors whitespace-nowrap"
-          title="Mark as read"
+          title={t('markAsReadTitle')}
         >
-          Mark read
+          {t('markReadButton')}
         </button>
       )}
     </div>
@@ -127,6 +129,7 @@ function NotificationRow({ notif, onMarkRead }: { notif: SANotification; onMarkR
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NotificationsPage() {
+  const t = useTranslations('SuperAdminNotifications');
   const notifications = useSANotificationsStore((s) => s.items);
   const [filterCategory, setFilterCategory] = useState('');
   const [filterRead, setFilterRead] = useState('');
@@ -156,13 +159,13 @@ export default function NotificationsPage() {
     <div className="space-y-6">
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
       <PageHeader
-        title="Notifications"
-        subtitle={`${unread} unread notification${unread !== 1 ? 's' : ''}`}
+        title={t('pageTitle')}
+        subtitle={t('unreadCountLabel', { count: unread })}
         actions={
           unread > 0 ? (
             <Button variant="outline" onClick={handleMarkAllRead}>
               <CheckCheck className="h-4 w-4" />
-              Mark All Read
+              {t('markAllReadButton')}
             </Button>
           ) : null
         }
@@ -172,10 +175,10 @@ export default function NotificationsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {(
           [
-            { cat: 'system', label: 'System Alerts', Icon: ShieldAlert, color: 'text-violet-600', bg: 'bg-violet-50' },
-            { cat: 'payment', label: 'Payments', Icon: CreditCard, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-            { cat: 'branch', label: 'Branches', Icon: GitBranch, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { cat: 'subscription', label: 'Subscriptions', Icon: Bell, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { cat: 'system', label: t('categorySystemAlerts'), Icon: ShieldAlert, color: 'text-violet-600', bg: 'bg-violet-50' },
+            { cat: 'payment', label: t('categoryPayments'), Icon: CreditCard, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+            { cat: 'branch', label: t('categoryBranches'), Icon: GitBranch, color: 'text-blue-600', bg: 'bg-blue-50' },
+            { cat: 'subscription', label: t('categorySubscriptions'), Icon: Bell, color: 'text-emerald-600', bg: 'bg-emerald-50' },
           ] as const
         ).map(({ cat, label, Icon, color, bg }) => {
           const count = notifications.filter((n) => n.category === cat).length;
@@ -211,26 +214,26 @@ export default function NotificationsPage() {
         {/* Filters */}
         <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-50">
           <Bell className="h-4 w-4 text-slate-400" />
-          <span className="text-sm font-medium text-slate-700">All Notifications</span>
+          <span className="text-sm font-medium text-slate-700">{t('allNotificationsTitle')}</span>
           <div className="flex items-center gap-2 ml-auto">
             <Select
               value={filterRead}
               onChange={(e) => setFilterRead(e.target.value)}
               options={[
-                { value: '', label: 'All' },
-                { value: 'unread', label: 'Unread' },
-                { value: 'read', label: 'Read' },
+                { value: '', label: t('filterAll') },
+                { value: 'unread', label: t('filterUnread') },
+                { value: 'read', label: t('filterRead') },
               ]}
             />
             <Select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
               options={[
-                { value: '', label: 'All Categories' },
-                { value: 'system', label: 'System' },
-                { value: 'payment', label: 'Payment' },
-                { value: 'branch', label: 'Branch' },
-                { value: 'subscription', label: 'Subscription' },
+                { value: '', label: t('allCategoriesPlaceholder') },
+                { value: 'system', label: t('categorySystem') },
+                { value: 'payment', label: t('categoryPayment') },
+                { value: 'branch', label: t('categoryBranch') },
+                { value: 'subscription', label: t('categorySubscription') },
               ]}
             />
             {(filterCategory || filterRead) && (
@@ -238,17 +241,17 @@ export default function NotificationsPage() {
                 onClick={() => { setFilterCategory(''); setFilterRead(''); }}
                 className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
               >
-                <X className="h-3 w-3" /> Clear
+                <X className="h-3 w-3" /> {t('clearButton')}
               </button>
             )}
           </div>
-          <span className="text-xs text-slate-400">{filtered.length} notifications</span>
+          <span className="text-xs text-slate-400">{t('notificationsCountLabel', { count: filtered.length })}</span>
         </div>
 
         {filtered.length === 0 ? (
           <div className="py-16 text-center">
             <Bell className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-            <p className="text-slate-400 text-sm">No notifications</p>
+            <p className="text-slate-400 text-sm">{t('noNotifications')}</p>
           </div>
         ) : (
           <div>
