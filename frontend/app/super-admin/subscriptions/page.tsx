@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   CheckCircle2,
   GitBranch,
@@ -43,11 +44,6 @@ const defaultForm = {
   features: '',
 };
 
-const billingOptions = [
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'annual', label: 'Annual' },
-];
-
 const PLAN_COLORS = ['#6366f1', '#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#ec4899'];
 
 // A slug is a stable id independent of display-name edits — see
@@ -58,6 +54,12 @@ function slugify(name: string) {
 }
 
 export default function SubscriptionsPage() {
+  const t = useTranslations('SuperAdminSubscriptions');
+  const billingOptions = [
+    { value: 'monthly', label: t('billingMonthly') },
+    { value: 'annual', label: t('billingAnnual') },
+  ];
+
   const { data: plansData, isLoading, isError, error } = useSubscriptionPlansQuery();
   const plans = plansData ?? [];
   const createMutation = useCreateSubscriptionPlanMutation();
@@ -112,16 +114,16 @@ export default function SubscriptionsPage() {
     try {
       if (editingId) {
         await updateMutation.mutateAsync({ id: editingId, input: payload });
-        toast.success('Plan updated');
+        toast.success(t('planUpdatedToast'));
       } else {
         await createMutation.mutateAsync({ ...payload, slug: slugify(form.name) });
-        toast.success('Plan created');
+        toast.success(t('planCreatedToast'));
       }
       setShowForm(false);
       setEditingId(null);
       setForm(defaultForm);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      toast.error(err instanceof ApiError ? err.message : t('genericError'));
     }
   };
 
@@ -129,8 +131,8 @@ export default function SubscriptionsPage() {
     <div className="space-y-6">
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
       <PageHeader
-        title="Subscription Plans"
-        subtitle="Manage platform subscription tiers and pricing"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <Button
             variant="primary"
@@ -146,18 +148,18 @@ export default function SubscriptionsPage() {
             }}
           >
             <Plus className="h-4 w-4" />
-            Create Plan
+            {t('createPlanButton')}
           </Button>
         }
       />
 
       {/* ── Create Plan Form (toggle) ─────────────────────────────────────────── */}
       {showForm && (
-        <Card title={editingId ? 'Edit Subscription Plan' : 'New Subscription Plan'} actions={
+        <Card title={editingId ? t('formTitleEdit') : t('formTitleCreate')} actions={
           <button
             onClick={handleCancel}
             className="text-slate-400 hover:text-slate-600 transition-colors"
-            aria-label="Close form"
+            aria-label={t('closeFormAriaLabel')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -166,10 +168,10 @@ export default function SubscriptionsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Name */}
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-600">Plan Name</label>
+                <label className="text-xs font-medium text-slate-600">{t('fieldPlanName')}</label>
                 <input
                   required
-                  placeholder="e.g. Professional"
+                  placeholder={t('planNamePlaceholder')}
                   value={form.name}
                   onChange={(e) => handleField('name', e.target.value)}
                   className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
@@ -178,12 +180,12 @@ export default function SubscriptionsPage() {
 
               {/* Price */}
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-600">Price (USD)</label>
+                <label className="text-xs font-medium text-slate-600">{t('fieldPrice')}</label>
                 <input
                   required
                   type="number"
                   min={0}
-                  placeholder="e.g. 149"
+                  placeholder={t('pricePlaceholder')}
                   value={form.price}
                   onChange={(e) => handleField('price', e.target.value)}
                   className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
@@ -192,7 +194,7 @@ export default function SubscriptionsPage() {
 
               {/* Billing Cycle */}
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-600">Billing Cycle</label>
+                <label className="text-xs font-medium text-slate-600">{t('fieldBillingCycle')}</label>
                 <Select
                   value={form.billingCycle}
                   onChange={(e) => handleField('billingCycle', e.target.value)}
@@ -203,12 +205,12 @@ export default function SubscriptionsPage() {
 
               {/* Max Branches */}
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-600">Max Branches</label>
+                <label className="text-xs font-medium text-slate-600">{t('fieldMaxBranches')}</label>
                 <input
                   required
                   type="number"
                   min={1}
-                  placeholder="e.g. 5"
+                  placeholder={t('maxBranchesPlaceholder')}
                   value={form.maxBranches}
                   onChange={(e) => handleField('maxBranches', e.target.value)}
                   className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
@@ -217,12 +219,12 @@ export default function SubscriptionsPage() {
 
               {/* Max Students */}
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-600">Max Students</label>
+                <label className="text-xs font-medium text-slate-600">{t('fieldMaxStudents')}</label>
                 <input
                   required
                   type="number"
                   min={1}
-                  placeholder="e.g. 1000"
+                  placeholder={t('maxStudentsPlaceholder')}
                   value={form.maxStudents}
                   onChange={(e) => handleField('maxStudents', e.target.value)}
                   className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
@@ -231,12 +233,12 @@ export default function SubscriptionsPage() {
 
               {/* Max Teachers */}
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-600">Max Teachers</label>
+                <label className="text-xs font-medium text-slate-600">{t('fieldMaxTeachers')}</label>
                 <input
                   required
                   type="number"
                   min={1}
-                  placeholder="e.g. 50"
+                  placeholder={t('maxTeachersPlaceholder')}
                   value={form.maxTeachers}
                   onChange={(e) => handleField('maxTeachers', e.target.value)}
                   className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
@@ -247,11 +249,11 @@ export default function SubscriptionsPage() {
             {/* Features */}
             <div className="space-y-1">
               <label className="text-xs font-medium text-slate-600">
-                Features <span className="text-slate-400 font-normal">(one per line)</span>
+                {t('fieldFeatures')} <span className="text-slate-400 font-normal">{t('featuresHint')}</span>
               </label>
               <textarea
                 rows={4}
-                placeholder={"e.g.\nAdvanced analytics\nAPI access\nPriority support"}
+                placeholder={t('featuresPlaceholder')}
                 value={form.features}
                 onChange={(e) => handleField('features', e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none"
@@ -261,11 +263,11 @@ export default function SubscriptionsPage() {
             {/* Actions */}
             <div className="flex items-center justify-end gap-3 pt-1">
               <Button type="button" variant="outline" onClick={handleCancel}>
-                Cancel
+                {t('cancelButton')}
               </Button>
               <Button type="submit" variant="primary" loading={createMutation.isPending || updateMutation.isPending}>
                 <Plus className="h-4 w-4" />
-                {editingId ? 'Save Changes' : 'Create Plan'}
+                {editingId ? t('saveChangesButton') : t('createPlanButton')}
               </Button>
             </div>
           </form>
@@ -275,12 +277,12 @@ export default function SubscriptionsPage() {
       {isError ? (
         <div className="flex items-center gap-2 px-2 py-8 text-sm text-red-500">
           <AlertCircle className="h-4 w-4" />
-          {error instanceof ApiError ? error.message : 'Failed to load subscription plans.'}
+          {error instanceof ApiError ? error.message : t('loadErrorFallback')}
         </div>
       ) : isLoading ? (
         <div className="flex items-center justify-center gap-2 px-2 py-12 text-sm text-slate-400">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Loading plans…
+          {t('loadingPlans')}
         </div>
       ) : (
         <>
@@ -298,7 +300,7 @@ export default function SubscriptionsPage() {
           </div>
 
           {/* ── Plan Distribution ─────────────────────────────────────────────── */}
-          <Card title="Plan Distribution" subtitle="Active subscriptions per plan">
+          <Card title={t('planDistributionTitle')} subtitle={t('planDistributionSubtitle')}>
             <div className="space-y-4">
               {plans.map((plan, i) => {
                 const pct = totalActive > 0 ? (plan.active_count / totalActive) * 100 : 0;
@@ -311,7 +313,7 @@ export default function SubscriptionsPage() {
                         <span className="font-medium text-slate-700">{plan.name}</span>
                       </div>
                       <div className="flex items-center gap-3 text-slate-500 text-xs">
-                        <span>{plan.active_count} active</span>
+                        <span>{t('activeCountLabel', { count: plan.active_count })}</span>
                         <span className="font-semibold text-slate-700">{pct.toFixed(1)}%</span>
                       </div>
                     </div>
@@ -332,16 +334,16 @@ export default function SubscriptionsPage() {
       <ConfirmDialog
         open={!!deletingPlan}
         onOpenChange={(open) => !open && setDeletingPlan(null)}
-        title="Retire subscription plan"
-        description={`Are you sure you want to retire "${deletingPlan?.name}"? Centers already on it keep their assignment; it just won't be offered to new ones. This can be restored later if needed.`}
-        confirmLabel="Retire"
+        title={t('retirePlanTitle')}
+        description={t('retirePlanDescription', { name: deletingPlan?.name ?? '' })}
+        confirmLabel={t('retireButton')}
         onConfirm={async () => {
           if (!deletingPlan) return;
           try {
             await deleteMutation.mutateAsync(deletingPlan.id);
-            toast.success('Plan retired');
+            toast.success(t('planRetiredToast'));
           } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+            toast.error(err instanceof ApiError ? err.message : t('genericError'));
           } finally {
             setDeletingPlan(null);
           }
@@ -358,6 +360,7 @@ function PlanCard({ plan, color, onEdit, onDelete }: {
   onEdit: (plan: SubscriptionPlan) => void;
   onDelete: (plan: SubscriptionPlan) => void;
 }) {
+  const t = useTranslations('SuperAdminSubscriptions');
   const router = useRouter();
   const isUnlimited = (n: number) => n >= 999;
 
@@ -380,17 +383,17 @@ function PlanCard({ plan, color, onEdit, onDelete }: {
                 {/* "Custom" (contact sales) is a per-plan choice, not just
                     "whatever's priced at 0" — a genuinely free tier at $0
                     should say so, not look unpriced. */}
-                {plan.slug === 'custom' ? 'Custom' : Number(plan.price) === 0 ? 'Free' : formatCurrency(Number(plan.price))}
+                {plan.slug === 'custom' ? t('customPriceLabel') : Number(plan.price) === 0 ? t('freePriceLabel') : formatCurrency(Number(plan.price))}
               </span>
               {Number(plan.price) > 0 && (
-                <Badge label={`/${plan.billing_cycle === 'monthly' ? 'month' : 'year'}`} variant="secondary" />
+                <Badge label={plan.billing_cycle === 'monthly' ? t('perMonth') : t('perYear')} variant="secondary" />
               )}
             </div>
           </div>
           {/* Active count badge */}
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium px-2.5 py-1 flex-shrink-0">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            {plan.active_count} active
+            {t('activeCountLabel', { count: plan.active_count })}
           </span>
         </div>
 
@@ -408,15 +411,15 @@ function PlanCard({ plan, color, onEdit, onDelete }: {
         <div className="flex items-center gap-4 pt-2 border-t border-slate-50">
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <GitBranch className="h-3.5 w-3.5 text-slate-400" />
-            <span>{isUnlimited(plan.max_branches) ? '∞' : plan.max_branches} branches</span>
+            <span>{isUnlimited(plan.max_branches) ? '∞' : plan.max_branches} {t('branchesUnit')}</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <Users className="h-3.5 w-3.5 text-slate-400" />
-            <span>{isUnlimited(plan.max_students) ? '∞' : plan.max_students.toLocaleString()} students</span>
+            <span>{isUnlimited(plan.max_students) ? '∞' : plan.max_students.toLocaleString()} {t('studentsUnit')}</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <GraduationCap className="h-3.5 w-3.5 text-slate-400" />
-            <span>{isUnlimited(plan.max_teachers) ? '∞' : plan.max_teachers} teachers</span>
+            <span>{isUnlimited(plan.max_teachers) ? '∞' : plan.max_teachers} {t('teachersUnit')}</span>
           </div>
         </div>
 
@@ -424,13 +427,13 @@ function PlanCard({ plan, color, onEdit, onDelete }: {
         <div className="flex items-center gap-2 pt-1">
           <Button variant="outline" size="sm" className="flex-1 justify-center" onClick={() => onEdit(plan)}>
             <Pencil className="h-3.5 w-3.5" />
-            Edit Plan
+            {t('editPlanButton')}
           </Button>
           <Button variant="ghost" size="sm" className="flex-1 justify-center" onClick={handleViewCenters}>
             <Building2 className="h-3.5 w-3.5" />
-            View Centers
+            {t('viewCentersButton')}
           </Button>
-          <Button variant="ghost" size="icon" title="Retire plan" onClick={() => onDelete(plan)}>
+          <Button variant="ghost" size="icon" title={t('retirePlanIconTitle')} onClick={() => onDelete(plan)}>
             <Trash2 className="h-3.5 w-3.5 text-slate-400" />
           </Button>
         </div>
