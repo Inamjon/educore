@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   UserCircle,
   KeyRound,
@@ -27,6 +28,8 @@ import { useSessionsQuery, useRevokeSessionMutation } from '@/lib/queries/auth';
 import { useAuditLogsQuery } from '@/lib/queries/audit-logs';
 import { ApiError } from '@/lib/api/client';
 import { toast } from '@/lib/store/toast-store';
+import { formatLocalizedDate, INTL_DATE_LOCALES } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 
 // ─── Info Row ─────────────────────────────────────────────────────────────────
 
@@ -44,17 +47,38 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
   );
 }
 
-function formatDate(iso: string | null) {
+function formatDate(iso: string | null, locale: Locale) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
+  const d = new Date(iso);
+  const date = formatLocalizedDate(d, locale, { month: 'short', day: 'numeric', year: 'numeric' });
+  const time = d.toLocaleTimeString(INTL_DATE_LOCALES[locale], { hour: '2-digit', minute: '2-digit' });
+  return `${date} ${time}`;
 }
+
+// Small local map into the shared SuperAdminAuditLogs namespace's action/
+// entity keys — reuses those translations (Recent Actions here shows the
+// same action/entity vocabulary as the Audit Logs page) instead of
+// duplicating ~23 translated strings under a second namespace.
+const ACTION_KEY_MAP: Record<string, string> = {
+  create: 'actionCreate', update: 'actionUpdate', delete: 'actionDelete',
+  login: 'actionLogin', logout: 'actionLogout', export: 'actionExport',
+  import: 'actionImport', read: 'actionRead',
+};
+const ENTITY_KEY_MAP: Record<string, string> = {
+  organization: 'entityOrganization', branch: 'entityBranch', user: 'entityUser',
+  invoice: 'entityInvoice', payment: 'entityPayment', notification: 'entityNotification',
+  assignment: 'entityAssignment', submission: 'entitySubmission', lesson: 'entityLesson',
+  group: 'entityGroup', student_profile: 'entityStudentProfile', course: 'entityCourse',
+  session: 'entitySession', attendance: 'entityAttendance', teacher_profile: 'entityTeacherProfile',
+};
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
+  const t = useTranslations('SuperAdminProfile');
+  const tAudit = useTranslations('SuperAdminAuditLogs');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const authUser = useAuthStore((s) => s.user);
   const cachedProfile = useSAProfileStore((s) => s.profile);
   const syncCache = useSAProfileStore((s) => s.update);
@@ -121,32 +145,32 @@ export default function ProfilePage() {
     const lastName = rest.join(' ') || firstName;
     try {
       await updateSelfMutation.mutateAsync({ userId: user.id, input: { firstName, lastName, phone } });
-      toast.success('Profile updated');
+      toast.success(t('profileUpdatedToast'));
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to update profile.');
+      toast.error(err instanceof ApiError ? err.message : t('profileUpdateFailedToast'));
     }
   }
 
   async function handleUpdatePassword() {
     if (!user) return;
     if (!currentPw || !newPw || !confirmPw) {
-      toast.error('Fill in all password fields');
+      toast.error(t('fillAllPasswordFields'));
       return;
     }
     if (newPw !== confirmPw) {
-      toast.error('New password and confirmation do not match');
+      toast.error(t('passwordMismatch'));
       return;
     }
     try {
       await changePasswordMutation.mutateAsync({ userId: user.id, currentPassword: currentPw, newPassword: newPw });
-      toast.success('Password updated');
+      toast.success(t('passwordUpdatedToast'));
       setCurrentPw('');
       setNewPw('');
       setConfirmPw('');
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to update password.');
+      toast.error(err instanceof ApiError ? err.message : t('passwordUpdateFailedToast'));
     }
   }
 
@@ -162,9 +186,9 @@ export default function ProfilePage() {
     reader.onload = async () => {
       try {
         await updateSelfMutation.mutateAsync({ userId: user.id, input: { avatarUrl: reader.result as string } });
-        toast.success('Avatar updated');
+        toast.success(t('avatarUpdatedToast'));
       } catch (err) {
-        toast.error(err instanceof ApiError ? err.message : 'Failed to update avatar.');
+        toast.error(err instanceof ApiError ? err.message : t('avatarUpdateFailedToast'));
       }
     };
     reader.readAsDataURL(file);
@@ -173,9 +197,9 @@ export default function ProfilePage() {
   async function handleRevokeSession(id: string) {
     try {
       await revokeMutation.mutateAsync(id);
-      toast.success('Session revoked');
+      toast.success(t('sessionRevokedToast'));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to revoke session.');
+      toast.error(err instanceof ApiError ? err.message : t('sessionRevokeFailedToast'));
     }
   }
 
@@ -183,7 +207,7 @@ export default function ProfilePage() {
     return (
       <div className="flex items-center justify-center gap-2 py-24 text-sm text-slate-400">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Loading profile…
+        {t('loadingProfile')}
       </div>
     );
   }
@@ -192,8 +216,8 @@ export default function ProfilePage() {
     <div className="space-y-6">
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
       <PageHeader
-        title="Profile"
-        subtitle="Manage your Super Admin account and security settings"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -234,34 +258,37 @@ export default function ProfilePage() {
                 <p className="text-sm text-slate-400 mt-0.5">{user.roles[0]?.name ?? '—'}</p>
                 <span className="inline-flex items-center gap-1.5 mt-2 rounded-full bg-violet-100 text-violet-700 text-xs font-semibold px-3 py-1">
                   <Shield className="h-3 w-3" />
-                  Super Administrator
+                  {t('roleBadge')}
                 </span>
               </div>
             </div>
 
             <div className="mt-6 space-y-0">
-              <InfoRow icon={KeyRound} label="Login ID"   value={user.login_id} />
-              <InfoRow icon={Phone}   label="Phone"      value={user.phone} />
-              <InfoRow icon={Clock}   label="Last Login" value={formatDate(user.last_login)} />
-              <InfoRow icon={UserCircle} label="Member Since" value={new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} />
+              <InfoRow icon={KeyRound} label={t('infoLoginId')} value={user.login_id} />
+              <InfoRow icon={Phone}   label={t('infoPhone')}      value={user.phone} />
+              <InfoRow icon={Clock}   label={t('infoLastLogin')} value={formatDate(user.last_login, locale)} />
+              <InfoRow icon={UserCircle} label={t('infoMemberSince')} value={formatLocalizedDate(new Date(user.created_at), locale, { month: 'long', year: 'numeric' })} />
             </div>
           </Card>
 
           {/* Recent Activity */}
-          <Card title="My Recent Actions" subtitle="Last 6 actions performed">
+          <Card title={t('recentActionsTitle')} subtitle={t('recentActionsSubtitle')}>
             <div className="space-y-3">
               {(myLogs ?? []).length === 0 && (
-                <p className="text-xs text-slate-400 text-center py-4">No recent actions recorded.</p>
+                <p className="text-xs text-slate-400 text-center py-4">{t('noRecentActions')}</p>
               )}
               {(myLogs ?? []).map((log) => (
                 <div key={log.id} className="flex items-start gap-3">
                   <div className="mt-1 h-2 w-2 rounded-full bg-indigo-400 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-slate-700 capitalize">{log.action} {log.entity_type.replace(/_/g, ' ')}</p>
+                    <p className="text-xs font-medium text-slate-700">
+                      {ACTION_KEY_MAP[log.action] ? tAudit(ACTION_KEY_MAP[log.action]) : log.action}{' '}
+                      {ENTITY_KEY_MAP[log.entity_type] ? tAudit(ENTITY_KEY_MAP[log.entity_type]) : log.entity_type.replace(/_/g, ' ')}
+                    </p>
                     <p className="text-xs text-slate-400 truncate">{log.ip_address ?? '—'}</p>
                   </div>
                   <span className="text-[10px] text-slate-400 flex-shrink-0 mt-0.5">
-                    {new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {formatLocalizedDate(new Date(log.created_at), locale, { month: 'short', day: 'numeric' })}
                   </span>
                 </div>
               ))}
@@ -272,18 +299,18 @@ export default function ProfilePage() {
         {/* ── Right: Edit Forms ─────────────────────────────────────────────── */}
         <div className="lg:col-span-2 space-y-6">
           {/* Personal Information */}
-          <Card title="Personal Information" subtitle="Update your account details">
+          <Card title={t('personalInfoTitle')} subtitle={t('personalInfoSubtitle')}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-600">Full Name</label>
+                <label className="text-xs font-medium text-slate-600">{t('fieldFullName')}</label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Your full name"
+                  placeholder={t('fullNamePlaceholder')}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-600">Login ID</label>
+                <label className="text-xs font-medium text-slate-600">{t('fieldLoginId')}</label>
                 <Input
                   value={user.login_id}
                   disabled
@@ -291,15 +318,15 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-600">Phone Number</label>
+                <label className="text-xs font-medium text-slate-600">{t('fieldPhoneNumber')}</label>
                 <Input
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 555-000-0000"
+                  placeholder={t('phoneNumberPlaceholder')}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-600">Role</label>
+                <label className="text-xs font-medium text-slate-600">{t('fieldRole')}</label>
                 <Input
                   value={user.roles[0]?.name ?? '—'}
                   disabled
@@ -312,21 +339,21 @@ export default function ProfilePage() {
               {saved && (
                 <span className="flex items-center gap-1.5 text-sm text-emerald-600">
                   <CheckCircle2 className="h-4 w-4" />
-                  Saved!
+                  {t('savedLabel')}
                 </span>
               )}
               <Button onClick={handleSave} loading={updateSelfMutation.isPending}>
                 <Save className="h-4 w-4" />
-                Save Changes
+                {t('saveChangesButton')}
               </Button>
             </div>
           </Card>
 
           {/* Change Password */}
-          <Card title="Change Password" subtitle="Use a strong, unique password">
+          <Card title={t('changePasswordTitle')} subtitle={t('changePasswordSubtitle')}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
               <div className="sm:col-span-2 space-y-1.5">
-                <label className="text-xs font-medium text-slate-600">Current Password</label>
+                <label className="text-xs font-medium text-slate-600">{t('fieldCurrentPassword')}</label>
                 <div className="relative">
                   <Input
                     type={showCurrentPw ? 'text' : 'password'}
@@ -345,7 +372,7 @@ export default function ProfilePage() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-600">New Password</label>
+                <label className="text-xs font-medium text-slate-600">{t('fieldNewPassword')}</label>
                 <div className="relative">
                   <Input
                     type={showNewPw ? 'text' : 'password'}
@@ -364,7 +391,7 @@ export default function ProfilePage() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-600">Confirm New Password</label>
+                <label className="text-xs font-medium text-slate-600">{t('fieldConfirmNewPassword')}</label>
                 <Input
                   type="password"
                   value={confirmPw}
@@ -377,18 +404,18 @@ export default function ProfilePage() {
             <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-slate-100">
               <Button variant="secondary" onClick={handleUpdatePassword} loading={changePasswordMutation.isPending}>
                 <Key className="h-4 w-4" />
-                Update Password
+                {t('updatePasswordButton')}
               </Button>
             </div>
           </Card>
 
           {/* Active Sessions */}
-          <Card title="Active Sessions" subtitle="Devices currently logged in to your account">
+          <Card title={t('activeSessionsTitle')} subtitle={t('activeSessionsSubtitle')}>
             <div className="space-y-3">
               {sessionsLoading && (
                 <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-400">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading sessions…
+                  {t('loadingSessions')}
                 </div>
               )}
               {(sessions ?? []).map((session) => (
@@ -400,12 +427,12 @@ export default function ProfilePage() {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium text-slate-800">{session.device_name}</p>
                       {session.current && (
-                        <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Current</span>
+                        <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{t('currentBadge')}</span>
                       )}
                     </div>
                     <p className="text-xs text-slate-400 mt-0.5">
                       {session.ip_address ?? '—'}
-                      {session.location ? ` · ${session.location}` : ''} · {formatDate(session.last_activity_at)}
+                      {session.location ? ` · ${session.location}` : ''} · {formatDate(session.last_activity_at, locale)}
                     </p>
                   </div>
                   {!session.current && (
@@ -416,7 +443,7 @@ export default function ProfilePage() {
                       onClick={() => handleRevokeSession(session.id)}
                       loading={revokeMutation.isPending && revokeMutation.variables === session.id}
                     >
-                      Revoke
+                      {t('revokeButton')}
                     </Button>
                   )}
                 </div>
