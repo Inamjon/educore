@@ -16,3 +16,18 @@ export const teacherProfileSchema = z.object({
 });
 
 export type TeacherProfileFormValues = z.infer<typeof teacherProfileSchema>;
+
+// Backs the "Adjust Salary" dialog (teacher-salary-dialog.tsx). Submitting
+// this creates a NEW TeacherSalary row rather than editing the existing
+// active one — matches the backend model's history-of-changes design (see
+// teacher/models/teacher_salary.py's docstring) and TeacherSalaryViewSet's
+// perform_create, which deactivates the previous active row automatically.
+export const teacherSalarySchema = z.object({
+  salaryType: z.enum(["fixed", "hourly", "per_lesson", "per_student", "percentage"]),
+  amount: z.coerce.number().min(0, "Amount must be a positive number"),
+  percentageValue: z.coerce.number().min(0).max(100).optional(),
+  effectiveFrom: z.string().trim().min(1, "Effective date is required"),
+  notes: z.string().trim().optional(),
+});
+
+export type TeacherSalaryFormValues = z.infer<typeof teacherSalarySchema>;
