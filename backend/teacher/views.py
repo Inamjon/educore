@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied
 
@@ -27,6 +28,18 @@ TEACHER_PERMISSION_MAP = {
     "update": ("teachers", "update"),
     "partial_update": ("teachers", "update"),
     "destroy": ("teachers", "delete"),
+}
+
+# Separate from TEACHER_PERMISSION_MAP — see foundation/permissions_catalog.py's
+# "teacher_salary" docstring note for why compensation data can't reuse the
+# module-wide `teachers` grant a teacher already holds for their own profile.
+TEACHER_SALARY_PERMISSION_MAP = {
+    "list": ("teacher_salary", "view"),
+    "retrieve": ("teacher_salary", "view"),
+    "create": ("teacher_salary", "create"),
+    "update": ("teacher_salary", "update"),
+    "partial_update": ("teacher_salary", "update"),
+    "destroy": ("teacher_salary", "delete"),
 }
 
 
@@ -66,7 +79,58 @@ class TeacherSalaryViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
     permission_classes = [HasModulePermission]
     filterset_class = TeacherSalaryFilter
     entity_type = "teacher_salary"
-    permission_map = TEACHER_PERMISSION_MAP
+    permission_map = TEACHER_SALARY_PERMISSION_MAP
+
+    def get_queryset(self):
+        """teacher_salary:view is module-wide for center_admin (sees every
+        teacher's pay) but object-scoped for teacher — a teacher holds no
+        create/update/delete grant on this module at all (see
+        foundation/permissions_catalog.py), so narrowing view access here is
+        the only enforcement point that matters. Mirrors the "own record
+        only" pattern finance/payment_gateways use for the student role.
+        """
+        queryset = super().get_queryset()
+        teacher_profile = getattr(self.request.user, "teacher_profile", None)
+        if teacher_profile is not None:
+            return queryset.filter(teacher_profile=teacher_profile)
+        return queryset
+
+    def _deactivate_other_active_rows(self, instance):
+        """TeacherSalary.__doc__: 'Only one row should be is_active per
+        teacher at a time... the API layer is responsible for deactivating
+        the previous row when activating a new one' — there's no DB-level
+        partial unique index enforcing it, so this is that responsibility.
+        Runs inside the same transaction as the save that (re)activated
+        `instance`, after it committed its own row, so the exclude(pk=...)
+        can't ever deactivate the row we just meant to keep active.
+        """
+        if not instance.is_active:
+            return
+        TeacherSalary.objects.filter(teacher_profile=instance.teacher_profile, is_active=True).exclude(
+            pk=instance.pk
+        ).update(is_active=False)
+
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            instance = serializer.save()
+            self._deactivate_other_active_rows(instance)
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            instance = serializer.save()
+            self._deactivate_other_active_rows(instance)
+
+    @audited(action="create", entity_type="teacher_salary")
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
+    @audited(action="update", entity_type="teacher_salary")
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    @audited(action="delete", entity_type="teacher_salary")
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
 
 
 class TeacherAvailabilityViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
