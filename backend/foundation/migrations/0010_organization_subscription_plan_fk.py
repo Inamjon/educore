@@ -3,14 +3,28 @@ from django.db import migrations, models
 
 
 def migrate_string_to_fk(apps, schema_editor):
+    """BUG FIXED HERE (2026-08-12): this used to read/write through the
+    RLS-enforced `default` connection with no org context applied.
+    foundation.organizations' RLS policy requires `app.current_org_id` to
+    match the row (or is_platform_user()), so with neither set,
+    `Organization.objects.all()` silently returned ZERO rows — no
+    pre-existing org's subscription_plan_old value was ever actually read
+    or migrated to the new FK, despite `manage.py migrate` reporting
+    success. Same root cause as
+    teacher/migrations/0006_seed_teacher_salary_permission.py's docstring;
+    fixed the same way — read and write through the auth_bypass_rls alias,
+    which has BYPASSRLS and needs no per-row context at all.
+    """
     Organization = apps.get_model("foundation", "Organization")
     SubscriptionPlan = apps.get_model("billing", "SubscriptionPlan")
-    plan_id_by_slug = {plan.slug: plan.id for plan in SubscriptionPlan.objects.all()}
+    plan_id_by_slug = {
+        plan.slug: plan.id for plan in SubscriptionPlan.objects.using("auth_bypass_rls").all()
+    }
 
-    for org in Organization.objects.all().iterator():
+    for org in Organization.objects.using("auth_bypass_rls").all().iterator():
         plan_id = plan_id_by_slug.get(org.subscription_plan_old)
         if plan_id is not None:
-            Organization.objects.filter(pk=org.pk).update(subscription_plan_id=plan_id)
+            Organization.objects.using("auth_bypass_rls").filter(pk=org.pk).update(subscription_plan_id=plan_id)
 
 
 def migrate_fk_to_string(apps, schema_editor):
@@ -18,15 +32,17 @@ def migrate_fk_to_string(apps, schema_editor):
     Anything with no matching plan (shouldn't happen going forward, but a
     plan could theoretically have been hard-deleted by then) falls back to
     "free" rather than leaving the old CharField NULL, since that column
-    doesn't allow null.
+    doesn't allow null. Same auth_bypass_rls fix as the forward function.
     """
     Organization = apps.get_model("foundation", "Organization")
     SubscriptionPlan = apps.get_model("billing", "SubscriptionPlan")
-    slug_by_plan_id = {plan.id: plan.slug for plan in SubscriptionPlan.objects.all()}
+    slug_by_plan_id = {
+        plan.id: plan.slug for plan in SubscriptionPlan.objects.using("auth_bypass_rls").all()
+    }
 
-    for org in Organization.objects.all().iterator():
+    for org in Organization.objects.using("auth_bypass_rls").all().iterator():
         slug = slug_by_plan_id.get(org.subscription_plan_id, "free")
-        Organization.objects.filter(pk=org.pk).update(subscription_plan_old=slug)
+        Organization.objects.using("auth_bypass_rls").filter(pk=org.pk).update(subscription_plan_old=slug)
 
 
 class Migration(migrations.Migration):
