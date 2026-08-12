@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ChevronLeft, KeyRound, Phone, Briefcase, DollarSign, Pencil, Trash2 } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import { Card } from "@/components/ui/card";
@@ -13,6 +14,7 @@ import { useTeacherSalariesQuery, useTeacherSpecializationsQuery } from "@/lib/q
 import type { TeacherProfile } from "@/lib/api/teachers";
 import { formatLocalizedDate } from "@/i18n/date-locale";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
+import { TeacherSalaryDialog } from "./teacher-salary-dialog";
 
 interface TeacherDetailPanelProps {
   teacher: TeacherProfile;
@@ -40,6 +42,7 @@ export function TeacherDetailPanel({ teacher, onBack, onEdit, onDelete }: Teache
   const { data: specializations } = useTeacherSpecializationsQuery(teacher.id);
   const { data: salaries } = useTeacherSalariesQuery(teacher.id);
   const activeSalary = salaries?.find((s) => s.is_active) ?? salaries?.[0];
+  const [salaryDialogOpen, setSalaryDialogOpen] = useState(false);
 
   return (
     <Card noPadding>
@@ -82,13 +85,25 @@ export function TeacherDetailPanel({ teacher, onBack, onEdit, onDelete }: Teache
               value={EMPLOYMENT_LABELS[teacher.employment_type] ?? teacher.employment_type}
             />
             <InfoRow icon={<KeyRound className="h-4 w-4" />} label={t("hiredLabel")} value={formatLocalizedDate(new Date(teacher.hire_date + "T00:00:00"), locale, { month: "short", day: "numeric", year: "numeric" })} />
-            {activeSalary && (
-              <InfoRow
-                icon={<DollarSign className="h-4 w-4" />}
-                label={t("salaryLabel")}
-                value={`${formatCurrency(Number(activeSalary.amount))} / ${activeSalary.salary_type.replace("_", " ")}`}
-              />
-            )}
+            <div className="flex items-start gap-2">
+              <span className="text-slate-400 mt-0.5">
+                <DollarSign className="h-4 w-4" />
+              </span>
+              <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs text-slate-400 block">{t("salaryLabel")}</span>
+                  <span className="text-sm text-slate-700 font-medium">
+                    {activeSalary
+                      ? `${formatCurrency(Number(activeSalary.amount))} / ${activeSalary.salary_type.replace("_", " ")}`
+                      : t("noSalarySet")}
+                  </span>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setSalaryDialogOpen(true)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                  {activeSalary ? t("adjustSalaryButton") : t("setSalaryButton")}
+                </Button>
+              </div>
+            </div>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {(specializations ?? []).map((s) => (
@@ -117,6 +132,8 @@ export function TeacherDetailPanel({ teacher, onBack, onEdit, onDelete }: Teache
           )}
         </div>
       </div>
+
+      <TeacherSalaryDialog open={salaryDialogOpen} onOpenChange={setSalaryDialogOpen} teacher={teacher} />
     </Card>
   );
 }

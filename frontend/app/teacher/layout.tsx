@@ -18,6 +18,7 @@ import {
   Bell,
   UserCircle,
   Settings,
+  DollarSign,
   ChevronLeft,
   Zap,
   Search,
@@ -70,6 +71,7 @@ const NAV_GROUPS = [
     groupKey: "navGroupAccount",
     items: [
       { href: "/teacher/profile", labelKey: "navProfile", icon: UserCircle },
+      { href: "/teacher/salary", labelKey: "navSalary", icon: DollarSign },
       { href: "/teacher/settings", labelKey: "navSettings", icon: Settings },
     ],
   },
@@ -91,6 +93,7 @@ const PAGE_TITLE_KEYS: Record<string, string> = {
   "/teacher/resources": "navResources",
   "/teacher/notifications": "navNotifications",
   "/teacher/profile": "navProfile",
+  "/teacher/salary": "navSalary",
   "/teacher/settings": "navSettings",
 };
 
