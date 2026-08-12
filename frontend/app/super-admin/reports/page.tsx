@@ -198,7 +198,7 @@ export default function ReportsPage() {
               <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}
-                formatter={(v: number) => [v.toLocaleString(), t('tooltipStudents')]}
+                formatter={(v) => [Number(v ?? 0).toLocaleString(), t('tooltipStudents')]}
               />
               <Line
                 type="monotone"
@@ -227,7 +227,7 @@ export default function ReportsPage() {
               <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}
-                formatter={(v: number) => [formatCurrency(v), t('tooltipRevenue')]}
+                formatter={(v) => [formatCurrency(Number(v ?? 0)), t('tooltipRevenue')]}
               />
               <Area
                 type="monotone"
@@ -249,7 +249,7 @@ export default function ReportsPage() {
               <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}
-                formatter={(v: number) => [v, t('tooltipBranches')]}
+                formatter={(v) => [Number(v ?? 0), t('tooltipBranches')]}
               />
               <Bar dataKey="branches" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
             </BarChart>

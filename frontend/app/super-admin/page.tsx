@@ -291,10 +291,10 @@ export default function SuperAdminDashboardPage() {
                 />
                 <Tooltip
                   {...tooltipStyle}
-                  formatter={(value: unknown, name: string) =>
+                  formatter={(value, name) =>
                     name === 'revenue'
-                      ? [`$${Number(value).toLocaleString()}`, t('revenueLegend')]
-                      : [value, t('subscriptionsLegend')]
+                      ? [`$${Number(value ?? 0).toLocaleString()}`, t('revenueLegend')]
+                      : [String(value ?? ''), t('subscriptionsLegend')]
                   }
                 />
                 <Area
@@ -415,7 +415,7 @@ export default function SuperAdminDashboardPage() {
               />
               <Tooltip
                 {...tooltipStyle}
-                formatter={(value: unknown) => [value, t('branchesLegend')]}
+                formatter={(value) => [String(value ?? ''), t('branchesLegend')]}
               />
               <Bar dataKey="branches" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Branches" />
             </BarChart>
