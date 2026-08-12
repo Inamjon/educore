@@ -131,9 +131,9 @@ export default function ResourcesPage() {
 
   const SUBJECT_OPTIONS = [
     { value: '', label: t('allSubjectsOption') },
-    { value: 'Algebra', label: 'Algebra' },
-    { value: 'Calculus', label: 'Calculus' },
-    { value: 'Mathematics', label: 'Mathematics' },
+    { value: 'Algebra', label: t('subjectAlgebra') },
+    { value: 'Calculus', label: t('subjectCalculus') },
+    { value: 'Mathematics', label: t('subjectMathematics') },
   ];
 
   const FILE_TYPE_OPTIONS = [

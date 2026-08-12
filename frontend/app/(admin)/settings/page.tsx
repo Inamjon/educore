@@ -310,16 +310,16 @@ export default function SettingsPage() {
                     value={regionSettings.timezone}
                     onChange={(e) => setRegionSettings({ ...regionSettings, timezone: e.target.value })}
                   >
-                    <option value="America/New_York">Eastern Time (ET)</option>
-                    <option value="America/Chicago">Central Time (CT)</option>
-                    <option value="America/Denver">Mountain Time (MT)</option>
-                    <option value="America/Los_Angeles">Pacific Time (PT)</option>
-                    <option value="Europe/London">London (GMT)</option>
-                    <option value="Europe/Paris">Paris (CET)</option>
-                    <option value="Asia/Tashkent">Tashkent (UZT)</option>
-                    <option value="Asia/Dubai">Dubai (GST)</option>
-                    <option value="Asia/Karachi">Karachi (PKT)</option>
-                    <option value="Asia/Tokyo">Tokyo (JST)</option>
+                    <option value="America/New_York">{t('timezoneEasternET')}</option>
+                    <option value="America/Chicago">{t('timezoneCentralCT')}</option>
+                    <option value="America/Denver">{t('timezoneMountainMT')}</option>
+                    <option value="America/Los_Angeles">{t('timezonePacificPT')}</option>
+                    <option value="Europe/London">{t('timezoneLondonGMT')}</option>
+                    <option value="Europe/Paris">{t('timezoneParisCET')}</option>
+                    <option value="Asia/Tashkent">{t('timezoneTashkentUZT')}</option>
+                    <option value="Asia/Dubai">{t('timezoneDubaiGST')}</option>
+                    <option value="Asia/Karachi">{t('timezoneKarachiPKT')}</option>
+                    <option value="Asia/Tokyo">{t('timezoneTokyoJST')}</option>
                   </select>
                 </div>
 
