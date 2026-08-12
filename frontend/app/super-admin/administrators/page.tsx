@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   ShieldCheck,
   Users,
@@ -38,6 +39,8 @@ import {
 } from '@/lib/queries/administrators';
 import type { Administrator, AdminStatus } from '@/lib/api/administrators';
 import { ApiError } from '@/lib/api/client';
+import { formatLocalizedDate } from '@/i18n/date-locale';
+import { isLocale, DEFAULT_LOCALE } from '@/i18n/locales';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,21 +66,31 @@ const emptyForm: AdminFormData = {
   status: 'active',
 };
 
-const STATUS_OPTIONS: { value: AdminStatus; label: string }[] = [
-  { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
-  { value: 'suspended', label: 'Suspended' },
-  { value: 'pending', label: 'Pending' },
-];
-
-function formatDate(iso: string | null) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdministratorsPage() {
+  const t = useTranslations('SuperAdminAdministrators');
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
+  const STATUS_OPTIONS: { value: AdminStatus; label: string }[] = [
+    { value: 'active', label: t('statusActive') },
+    { value: 'inactive', label: t('statusInactive') },
+    { value: 'suspended', label: t('statusSuspended') },
+    { value: 'pending', label: t('statusPending') },
+  ];
+  const STATUS_LABELS: Record<AdminStatus, string> = {
+    active: t('statusActive'),
+    inactive: t('statusInactive'),
+    suspended: t('statusSuspended'),
+    pending: t('statusPending'),
+  };
+
+  function formatDate(iso: string | null) {
+    if (!iso) return '—';
+    return formatLocalizedDate(new Date(iso), locale, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
   const [showForm, setShowForm] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<Administrator | null>(null);
   const [deletingAdmin, setDeletingAdmin] = useState<Administrator | null>(null);
@@ -151,25 +164,25 @@ export default function AdministratorsPage() {
   async function handleSuspendToggle(admin: Administrator) {
     try {
       await suspendMutation.mutateAsync(admin.id);
-      toast.success(admin.status === 'suspended' ? 'Administrator reactivated' : 'Administrator suspended');
+      toast.success(admin.status === 'suspended' ? t('administratorReactivatedToast') : t('administratorSuspendedToast'));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      toast.error(err instanceof ApiError ? err.message : t('genericError'));
     }
   }
 
   async function handleSubmit() {
     if (!form.firstName.trim() || !form.lastName.trim() || !form.organization) {
-      toast.error('Name and center are required');
+      toast.error(t('nameCenterRequired'));
       return;
     }
     if (!editingAdmin || form.password) {
       if (!form.password || form.password !== form.confirmPassword) {
-        toast.error('Passwords must match and cannot be empty');
+        toast.error(t('passwordsMustMatch'));
         return;
       }
     }
     if (!editingAdmin && !centerAdminRole) {
-      toast.error('This center has no Center Admin role provisioned yet.');
+      toast.error(t('noCenterAdminRole'));
       return;
     }
 
@@ -186,7 +199,7 @@ export default function AdministratorsPage() {
             password: form.password || undefined,
           },
         });
-        toast.success('Administrator updated');
+        toast.success(t('administratorUpdatedToast'));
       } else {
         await createMutation.mutateAsync({
           organization: form.organization,
@@ -197,11 +210,11 @@ export default function AdministratorsPage() {
           password: form.password,
           roleId: centerAdminRole!.id,
         });
-        toast.success('Administrator created');
+        toast.success(t('administratorCreatedToast'));
       }
       handleCancel();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      toast.error(err instanceof ApiError ? err.message : t('genericError'));
     } finally {
       setSaving(false);
     }
@@ -212,7 +225,7 @@ export default function AdministratorsPage() {
   const columns: Column<Administrator>[] = [
     {
       key: 'full_name',
-      label: 'Admin',
+      label: t('columnAdmin'),
       render: (_, row) => (
         <div className="flex items-center gap-3">
           <Avatar name={row.full_name} size="sm" />
@@ -220,24 +233,24 @@ export default function AdministratorsPage() {
         </div>
       ),
     },
-    { key: 'login_id', label: 'Login ID', render: (_, row) => <span className="text-slate-600 text-xs">{row.login_id}</span> },
-    { key: 'phone', label: 'Phone', render: (_, row) => <span className="text-slate-600 text-xs whitespace-nowrap">{row.phone}</span> },
-    { key: 'organization_name', label: 'Center', render: (_, row) => <span className="text-slate-700 text-sm">{row.organization_name}</span> },
-    { key: 'branch_name', label: 'Branch', render: (_, row) => <span className="text-slate-600 text-sm">{row.branch_name ?? '—'}</span> },
-    { key: 'status', label: 'Status', render: (_, row) => <Badge label={row.status} variant={row.status === 'active' ? 'success' : row.status === 'suspended' ? 'danger' : 'secondary'} /> },
-    { key: 'last_login', label: 'Last Login', render: (_, row) => <span className="text-slate-500 text-xs whitespace-nowrap">{formatDate(row.last_login)}</span> },
+    { key: 'login_id', label: t('columnLoginId'), render: (_, row) => <span className="text-slate-600 text-xs">{row.login_id}</span> },
+    { key: 'phone', label: t('columnPhone'), render: (_, row) => <span className="text-slate-600 text-xs whitespace-nowrap">{row.phone}</span> },
+    { key: 'organization_name', label: t('columnCenter'), render: (_, row) => <span className="text-slate-700 text-sm">{row.organization_name}</span> },
+    { key: 'branch_name', label: t('columnBranch'), render: (_, row) => <span className="text-slate-600 text-sm">{row.branch_name ?? '—'}</span> },
+    { key: 'status', label: t('columnStatus'), render: (_, row) => <Badge label={STATUS_LABELS[row.status] ?? row.status} variant={row.status === 'active' ? 'success' : row.status === 'suspended' ? 'danger' : 'secondary'} /> },
+    { key: 'last_login', label: t('columnLastLogin'), render: (_, row) => <span className="text-slate-500 text-xs whitespace-nowrap">{formatDate(row.last_login)}</span> },
     {
       key: 'id',
-      label: 'Actions',
+      label: t('columnActions'),
       render: (_, row) => (
         <div className="flex items-center gap-1">
-          <button onClick={() => handleEdit(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" title="Edit">
+          <button onClick={() => handleEdit(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" title={t('editTitle')}>
             <Pencil className="h-4 w-4" />
           </button>
-          <button onClick={() => handleSuspendToggle(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors" title={row.status === 'suspended' ? 'Reactivate' : 'Suspend'}>
+          <button onClick={() => handleSuspendToggle(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors" title={row.status === 'suspended' ? t('reactivateTitle') : t('suspendTitle')}>
             <Ban className="h-4 w-4" />
           </button>
-          <button onClick={() => setDeletingAdmin(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
+          <button onClick={() => setDeletingAdmin(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title={t('deleteTitle')}>
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
@@ -249,8 +262,8 @@ export default function AdministratorsPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="Administrators"
-        subtitle="Manage center administrator accounts across the platform"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         actions={
           <Button
             onClick={() => {
@@ -263,24 +276,24 @@ export default function AdministratorsPage() {
             }}
           >
             <Plus className="h-4 w-4" />
-            Add Administrator
+            {t('addAdminButton')}
           </Button>
         }
       />
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Admins" value={total} icon={<ShieldCheck className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
-        <StatCard label="Active" value={active} icon={<Users className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
-        <StatCard label="Inactive / Suspended" value={inactiveSuspended} icon={<UserX className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
-        <StatCard label="Assigned to a Branch" value={withBranch} icon={<BarChart3 className="h-5 w-5 text-violet-600" />} iconBg="bg-violet-50" />
+        <StatCard label={t('statTotalAdmins')} value={total} icon={<ShieldCheck className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label={t('statActive')} value={active} icon={<Users className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label={t('statInactiveSuspended')} value={inactiveSuspended} icon={<UserX className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
+        <StatCard label={t('statAssignedToBranch')} value={withBranch} icon={<BarChart3 className="h-5 w-5 text-violet-600" />} iconBg="bg-violet-50" />
       </div>
 
       {/* Add/Edit Administrator Form */}
       {showForm && (
         <Card>
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-base font-semibold text-slate-900">{editingAdmin ? 'Edit Administrator' : 'Add New Administrator'}</h3>
+            <h3 className="text-base font-semibold text-slate-900">{editingAdmin ? t('formTitleEdit') : t('formTitleCreate')}</h3>
             <button onClick={handleCancel} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
               <X className="h-4 w-4" />
             </button>
@@ -288,29 +301,29 @@ export default function AdministratorsPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">First Name</label>
-              <Input placeholder="Jane" value={form.firstName} onChange={(e) => handleFormChange('firstName', e.target.value)} />
+              <label className="text-xs font-medium text-slate-600">{t('fieldFirstName')}</label>
+              <Input placeholder={t('firstNamePlaceholder')} value={form.firstName} onChange={(e) => handleFormChange('firstName', e.target.value)} />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Last Name</label>
-              <Input placeholder="Doe" value={form.lastName} onChange={(e) => handleFormChange('lastName', e.target.value)} />
+              <label className="text-xs font-medium text-slate-600">{t('fieldLastName')}</label>
+              <Input placeholder={t('lastNamePlaceholder')} value={form.lastName} onChange={(e) => handleFormChange('lastName', e.target.value)} />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Phone</label>
-              <Input placeholder="+1 555-000-0000" value={form.phone} onChange={(e) => handleFormChange('phone', e.target.value)} />
+              <label className="text-xs font-medium text-slate-600">{t('fieldPhone')}</label>
+              <Input placeholder={t('phonePlaceholder')} value={form.phone} onChange={(e) => handleFormChange('phone', e.target.value)} />
             </div>
 
             {editingAdmin && (
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-600">Login ID</label>
+                <label className="text-xs font-medium text-slate-600">{t('fieldLoginId')}</label>
                 <Input value={editingAdmin.login_id} disabled />
               </div>
             )}
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Password{editingAdmin && ' (leave blank to keep current)'}</label>
+              <label className="text-xs font-medium text-slate-600">{t('fieldPassword')}{editingAdmin && t('passwordLeaveBlankHint')}</label>
               <div className="relative">
                 <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={form.password} onChange={(e) => handleFormChange('password', e.target.value)} className="pr-10" />
                 <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -320,7 +333,7 @@ export default function AdministratorsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Confirm Password</label>
+              <label className="text-xs font-medium text-slate-600">{t('fieldConfirmPassword')}</label>
               <div className="relative">
                 <Input type={showConfirm ? 'text' : 'password'} placeholder="••••••••" value={form.confirmPassword} onChange={(e) => handleFormChange('confirmPassword', e.target.value)} className="pr-10" />
                 <button type="button" onClick={() => setShowConfirm((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -330,11 +343,11 @@ export default function AdministratorsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Assign Center</label>
+              <label className="text-xs font-medium text-slate-600">{t('fieldAssignCenter')}</label>
               <Select
                 className="w-full"
                 value={form.organization}
-                placeholder="Select center"
+                placeholder={t('selectCenterPlaceholder')}
                 options={centerOptions}
                 disabled={!!editingAdmin}
                 onChange={(e) => {
@@ -345,27 +358,27 @@ export default function AdministratorsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Assign Branch (optional)</label>
-              <Select className="w-full" value={form.branch} placeholder="Select branch" options={branchOptions} onChange={(e) => handleFormChange('branch', e.target.value)} />
+              <label className="text-xs font-medium text-slate-600">{t('fieldAssignBranch')}</label>
+              <Select className="w-full" value={form.branch} placeholder={t('selectBranchPlaceholder')} options={branchOptions} onChange={(e) => handleFormChange('branch', e.target.value)} />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Role</label>
+              <label className="text-xs font-medium text-slate-600">{t('fieldRole')}</label>
               {/* Read-only: the org's auto-provisioned Center Admin role is
                   the only administrator-type role this platform has — no
                   custom per-user permission overrides exist (RBAC here is
                   role-based, not a per-admin checkbox grid). */}
-              <Input value="Center Admin" disabled />
+              <Input value={t('roleCenterAdmin')} disabled />
             </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-slate-100">
             <Button variant="secondary" onClick={handleCancel} disabled={saving}>
-              Cancel
+              {t('cancelButton')}
             </Button>
             <Button onClick={handleSubmit} loading={saving}>
               <Plus className="h-4 w-4" />
-              {editingAdmin ? 'Save Changes' : 'Add Administrator'}
+              {editingAdmin ? t('saveChangesButton') : t('addAdminButton')}
             </Button>
           </div>
         </Card>
@@ -375,9 +388,9 @@ export default function AdministratorsPage() {
       <Card noPadding>
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-b border-slate-50">
-          <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search administrators..." />
-          <Select value={filterCenter} placeholder="All Centers" options={centerOptions} onChange={(e) => setFilterCenter(e.target.value)} />
-          <Select value={filterStatus} placeholder="All Statuses" options={STATUS_OPTIONS} onChange={(e) => setFilterStatus(e.target.value as AdminStatus | '')} />
+          <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('searchPlaceholder')} />
+          <Select value={filterCenter} placeholder={t('allCentersPlaceholder')} options={centerOptions} onChange={(e) => setFilterCenter(e.target.value)} />
+          <Select value={filterStatus} placeholder={t('allStatusesPlaceholder')} options={STATUS_OPTIONS} onChange={(e) => setFilterStatus(e.target.value as AdminStatus | '')} />
           {(search || filterCenter || filterStatus) && (
             <button
               onClick={() => {
@@ -387,40 +400,40 @@ export default function AdministratorsPage() {
               }}
               className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
             >
-              <X className="h-3 w-3" /> Clear
+              <X className="h-3 w-3" /> {t('clearButton')}
             </button>
           )}
-          <span className="ml-auto text-xs text-slate-400">{filtered.length} administrators</span>
+          <span className="ml-auto text-xs text-slate-400">{t('administratorsCountLabel', { count: filtered.length })}</span>
         </div>
 
         {isError ? (
           <div className="flex items-center gap-2 px-6 py-8 text-sm text-red-500">
             <AlertCircle className="h-4 w-4" />
-            {error instanceof ApiError ? error.message : 'Failed to load administrators.'}
+            {error instanceof ApiError ? error.message : t('loadErrorFallback')}
           </div>
         ) : isLoading ? (
           <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-slate-400">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading administrators…
+            {t('loadingAdministrators')}
           </div>
         ) : (
-          <DataTable<Administrator> columns={columns} data={filtered} keyField="id" emptyMessage="No administrators found" />
+          <DataTable<Administrator> columns={columns} data={filtered} keyField="id" emptyMessage={t('noAdministratorsFound')} />
         )}
       </Card>
 
       <ConfirmDialog
         open={!!deletingAdmin}
         onOpenChange={(open) => !open && setDeletingAdmin(null)}
-        title="Delete administrator"
-        description={`Are you sure you want to delete "${deletingAdmin?.full_name}"? This can be restored later if needed.`}
-        confirmLabel="Delete"
+        title={t('deleteDialogTitle')}
+        description={t('deleteDialogDescription', { name: deletingAdmin?.full_name ?? '' })}
+        confirmLabel={t('deleteConfirmLabel')}
         onConfirm={async () => {
           if (!deletingAdmin) return;
           try {
             await deleteMutation.mutateAsync(deletingAdmin.id);
-            toast.success('Administrator deleted');
+            toast.success(t('administratorDeletedToast'));
           } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+            toast.error(err instanceof ApiError ? err.message : t('genericError'));
           } finally {
             setDeletingAdmin(null);
           }
