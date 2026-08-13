@@ -161,7 +161,7 @@ export default function GroupsPage() {
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t("statTotalGroups")} value={list.length} icon={<Users2 className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
         <StatCard label={t("statTotalEnrolled")} value={totalEnrolled} icon={<Users className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
         <StatCard label={t("statTotalCapacity")} value={totalCapacity} icon={<BookOpen className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />

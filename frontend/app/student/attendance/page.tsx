@@ -69,7 +69,7 @@ export default function StudentAttendancePage() {
       <PageHeader title={t('pageTitle')} subtitle={t('pageSubtitle')} />
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label={t('statAttendanceRate')}
           value={`${STUDENT_STATS.attendanceRate}%`}

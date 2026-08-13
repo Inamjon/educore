@@ -153,7 +153,7 @@ export default function CoursesPage() {
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t("statTotalCourses")} value={stats.total} icon={<BookOpen className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
         <StatCard label={t("statTotalStudents")} value={stats.students} icon={<Users className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
         <StatCard label={t("statTotalLessons")} value={stats.lessons} icon={<Clock className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />

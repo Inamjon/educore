@@ -137,7 +137,7 @@ export default function NotificationsPage() {
       />
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {(["info", "success", "warning", "error"] as NotificationType[]).map((type) => {
           const count = notifications.filter((n) => n.type === type).length;
           const colors = {

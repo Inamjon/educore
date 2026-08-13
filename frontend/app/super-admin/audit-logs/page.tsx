@@ -239,7 +239,7 @@ export default function AuditLogsPage() {
       />
 
       {/* ── Stats Row ────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t('statTotalEvents')} value={totalLogs} icon={<ScrollText className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
         <StatCard label={t('statCreated')} value={createCount} icon={<PlusCircle className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
         <StatCard label={t('statUpdated')} value={updateCount} icon={<Pencil className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />

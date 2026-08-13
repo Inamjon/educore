@@ -314,7 +314,7 @@ export default function CentersPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t('statTotalCenters')} value={total} icon={<Building2 className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
         <StatCard label={t('statActive')} value={active} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
         <StatCard label={t('statTrial')} value={trial} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />

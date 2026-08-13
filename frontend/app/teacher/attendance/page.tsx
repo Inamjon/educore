@@ -178,7 +178,7 @@ export default function TeacherAttendancePage() {
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t('statPresent')} value={sessionSummary.present} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
         <StatCard label={t('statAbsent')} value={sessionSummary.absent} icon={<XCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
         <StatCard label={t('statLate')} value={sessionSummary.late} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
