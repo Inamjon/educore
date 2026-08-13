@@ -85,6 +85,7 @@
     "timezoneEasternET": "Восточное время (ET)"
   },
   "StudentNav": {
+    "openMenuAriaLabel": "Открыть меню",
     "navGroupMain": "Главное",
     "navGroupLearning": "Обучение",
     "navGroupProgress": "Прогресс",
@@ -375,6 +376,7 @@
     "methodPayme": "Payme"
   },
   "TeacherNav": {
+    "openMenuAriaLabel": "Открыть меню",
     "navGroupMain": "Главное",
     "navGroupTeaching": "Преподавание",
     "navGroupAcademics": "Учебный процесс",
@@ -1544,6 +1546,7 @@
     "loadingLabel": "Загрузка…"
   },
   "SuperAdminNav": {
+    "openMenuAriaLabel": "Открыть меню",
     "navGroupOverview": "Обзор",
     "navGroupManagement": "Управление",
     "navGroupBusiness": "Бизнес",

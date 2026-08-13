@@ -25,24 +25,24 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex items-start gap-4",
+        "bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 flex items-start gap-3 sm:gap-4 min-w-0",
         className
       )}
     >
-      <div className={cn("p-3 rounded-xl flex-shrink-0", iconBg)}>
+      <div className={cn("p-2.5 sm:p-3 rounded-xl flex-shrink-0", iconBg)}>
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-slate-500 font-medium">{label}</p>
-        <p className="text-2xl font-bold text-slate-900 mt-0.5">
+        <p className="text-sm text-slate-500 font-medium truncate">{label}</p>
+        <p className="text-2xl font-bold text-slate-900 mt-0.5 truncate">
           {typeof value === "number" ? value.toLocaleString() : value}
         </p>
         {change !== undefined && (
-          <div className="flex items-center gap-1 mt-1.5">
+          <div className="flex items-center gap-1 mt-1.5 flex-wrap">
             {isPositive ? (
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+              <TrendingUp className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
             ) : (
-              <TrendingDown className="h-3.5 w-3.5 text-red-500" />
+              <TrendingDown className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
             )}
             <span
               className={cn(

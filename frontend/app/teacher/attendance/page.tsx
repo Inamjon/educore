@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { Avatar } from '@/components/ui/avatar';
-import { Select } from '@/components/ui/input';
+import { Input, Select } from '@/components/ui/input';
 import { toast } from '@/lib/store/toast-store';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useMyTeacherProfileQuery } from '@/lib/queries/teachers';
@@ -168,17 +168,17 @@ export default function TeacherAttendancePage() {
               onChange={(e) => setActiveGroupId(e.target.value)}
               className="w-40"
             />
-            <input
+            <Input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="h-9 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              className="w-40"
             />
           </div>
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t('statPresent')} value={sessionSummary.present} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
         <StatCard label={t('statAbsent')} value={sessionSummary.absent} icon={<XCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
         <StatCard label={t('statLate')} value={sessionSummary.late} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
