@@ -230,6 +230,7 @@
     "statLateExcused": "Kechikkan / Sababli",
     "weeklyRateTitle": "Haftalik davomat darajasi",
     "last6WeeksSubtitle": "So'nggi 6 hafta",
+    "weekLabel": "{number}-hafta",
     "tooltipAttendanceLabel": "Davomat",
     "breakdownTitle": "Tafsilot",
     "allTimeRecordSubtitle": "Barcha vaqt bo'yicha yozuv",
@@ -242,7 +243,10 @@
     "colDate": "Sana",
     "colCourse": "Kurs",
     "colStatus": "Holat",
-    "colNote": "Izoh"
+    "colNote": "Izoh",
+    "loadingAttendance": "Davomat yuklanmoqda…",
+    "loadErrorFallback": "Davomatni yuklab bo'lmadi.",
+    "noAttendanceRecordsYet": "Hali davomat yozuvlari yo'q."
   },
   "StudentExams": {
     "pageTitle": "Imtihonlar",
