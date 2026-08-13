@@ -1542,6 +1542,7 @@
     "loadingLabel": "Загрузка…"
   },
   "SuperAdminNav": {
+    "openMenuAriaLabel": "Открыть меню",
     "navGroupOverview": "Обзор",
     "navGroupManagement": "Управление",
     "navGroupBusiness": "Бизнес",

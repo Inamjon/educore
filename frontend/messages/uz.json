@@ -1542,6 +1542,7 @@
     "loadingLabel": "Yuklanmoqda…"
   },
   "SuperAdminNav": {
+    "openMenuAriaLabel": "Menyuni ochish",
     "navGroupOverview": "Umumiy",
     "navGroupManagement": "Boshqaruv",
     "navGroupBusiness": "Biznes",

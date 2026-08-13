@@ -1542,6 +1542,7 @@
     "loadingLabel": "Loading…"
   },
   "SuperAdminNav": {
+    "openMenuAriaLabel": "Open menu",
     "navGroupOverview": "Overview",
     "navGroupManagement": "Management",
     "navGroupBusiness": "Business",
