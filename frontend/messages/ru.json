@@ -230,6 +230,7 @@
     "statLateExcused": "Опоздания / Уважительные",
     "weeklyRateTitle": "Недельная посещаемость",
     "last6WeeksSubtitle": "Последние 6 недель",
+    "weekLabel": "Нед. {number}",
     "tooltipAttendanceLabel": "Посещаемость",
     "breakdownTitle": "Разбивка",
     "allTimeRecordSubtitle": "За всё время",
@@ -242,7 +243,10 @@
     "colDate": "Дата",
     "colCourse": "Курс",
     "colStatus": "Статус",
-    "colNote": "Примечание"
+    "colNote": "Примечание",
+    "loadingAttendance": "Загрузка посещаемости…",
+    "loadErrorFallback": "Не удалось загрузить посещаемость.",
+    "noAttendanceRecordsYet": "Записей о посещаемости пока нет."
   },
   "StudentExams": {
     "pageTitle": "Экзамены",

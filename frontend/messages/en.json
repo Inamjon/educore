@@ -230,6 +230,7 @@
     "statLateExcused": "Late / Excused",
     "weeklyRateTitle": "Weekly Attendance Rate",
     "last6WeeksSubtitle": "Last 6 weeks",
+    "weekLabel": "Wk {number}",
     "tooltipAttendanceLabel": "Attendance",
     "breakdownTitle": "Breakdown",
     "allTimeRecordSubtitle": "All-time record",
@@ -242,7 +243,10 @@
     "colDate": "Date",
     "colCourse": "Course",
     "colStatus": "Status",
-    "colNote": "Note"
+    "colNote": "Note",
+    "loadingAttendance": "Loading attendance…",
+    "loadErrorFallback": "Failed to load attendance.",
+    "noAttendanceRecordsYet": "No attendance records yet."
   },
   "StudentExams": {
     "pageTitle": "Exams",
