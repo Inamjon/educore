@@ -85,6 +85,7 @@
     "timezoneEasternET": "Eastern Time (ET)"
   },
   "StudentNav": {
+    "openMenuAriaLabel": "Open menu",
     "navGroupMain": "Main",
     "navGroupLearning": "Learning",
     "navGroupProgress": "Progress",
@@ -371,6 +372,7 @@
     "methodPayme": "Payme"
   },
   "TeacherNav": {
+    "openMenuAriaLabel": "Open menu",
     "navGroupMain": "Main",
     "navGroupTeaching": "Teaching",
     "navGroupAcademics": "Academics",

@@ -22,6 +22,7 @@ import {
   Search,
   ChevronDown,
   LogOut,
+  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { STUDENT_PROFILE } from "@/lib/student-data";
@@ -101,38 +102,48 @@ const PAGE_TITLE_KEYS: Record<string, string> = {
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  mobileOpen: boolean;
+  onMobileClose: () => void;
 }
 
-function StudentSidebar({ collapsed, onToggle }: SidebarProps) {
+function StudentSidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const t = useTranslations("StudentNav");
 
   return (
-    <aside
-      className={cn(
-        "fixed left-0 top-0 h-full bg-white border-r border-slate-100 z-30 flex flex-col transition-all duration-300",
-        collapsed ? "w-16" : "w-[260px]"
+    <>
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/40 z-30 lg:hidden"
+          onClick={onMobileClose}
+          aria-hidden="true"
+        />
       )}
-    >
+      <aside
+        className={cn(
+          "fixed left-0 top-0 h-full w-[260px] bg-white border-r border-slate-100 z-40 flex flex-col transition-all duration-300",
+          "lg:z-30",
+          collapsed ? "lg:w-16" : "lg:w-[260px]",
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+      >
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-slate-100 gap-3 flex-shrink-0">
         <div className="flex-shrink-0 h-9 w-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
           <Zap className="h-5 w-5 text-white" />
         </div>
-        {!collapsed && (
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-lg font-bold text-slate-900 tracking-tight">
-              EduCore
-            </span>
-            <span className="text-[11px] font-semibold bg-indigo-100 text-indigo-700 rounded-md px-1.5 py-0.5 leading-none flex-shrink-0">
-              Student
-            </span>
-          </div>
-        )}
+        <div className={cn("flex items-center gap-2 min-w-0", collapsed && "lg:hidden")}>
+          <span className="text-lg font-bold text-slate-900 tracking-tight">
+            EduCore
+          </span>
+          <span className="text-[11px] font-semibold bg-indigo-100 text-indigo-700 rounded-md px-1.5 py-0.5 leading-none flex-shrink-0">
+            Student
+          </span>
+        </div>
         <button
           onClick={onToggle}
           className={cn(
-            "ml-auto flex-shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors",
+            "ml-auto flex-shrink-0 h-7 w-7 rounded-lg hidden lg:flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors",
             collapsed && "rotate-180"
           )}
           aria-label={collapsed ? t("expandSidebar") : t("collapseSidebar")}
@@ -145,11 +156,14 @@ function StudentSidebar({ collapsed, onToggle }: SidebarProps) {
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
         {NAV_GROUPS.map((group) => (
           <div key={group.groupKey}>
-            {!collapsed && (
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 px-2">
-                {t(group.groupKey)}
-              </p>
-            )}
+            <p
+              className={cn(
+                "text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 px-2",
+                collapsed && "lg:hidden"
+              )}
+            >
+              {t(group.groupKey)}
+            </p>
             <ul className="space-y-0.5">
               {group.items.map(({ href, labelKey, icon: Icon }) => {
                 const isActive =
@@ -161,13 +175,14 @@ function StudentSidebar({ collapsed, onToggle }: SidebarProps) {
                   <li key={href}>
                     <Link
                       href={href}
+                      onClick={onMobileClose}
                       title={collapsed ? label : undefined}
                       className={cn(
                         "flex items-center gap-3 h-9 rounded-xl px-2.5 text-sm font-medium transition-all group",
                         isActive
                           ? "bg-indigo-50 text-indigo-700"
                           : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
-                        collapsed && "justify-center"
+                        collapsed && "lg:justify-center"
                       )}
                     >
                       <Icon
@@ -178,9 +193,9 @@ function StudentSidebar({ collapsed, onToggle }: SidebarProps) {
                             : "text-slate-400 group-hover:text-slate-700"
                         )}
                       />
-                      {!collapsed && <span className="truncate">{label}</span>}
-                      {isActive && !collapsed && (
-                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-indigo-500 flex-shrink-0" />
+                      <span className={cn("truncate", collapsed && "lg:hidden")}>{label}</span>
+                      {isActive && (
+                        <span className={cn("ml-auto h-1.5 w-1.5 rounded-full bg-indigo-500 flex-shrink-0", collapsed && "lg:hidden")} />
                       )}
                     </Link>
                   </li>
@@ -190,7 +205,8 @@ function StudentSidebar({ collapsed, onToggle }: SidebarProps) {
           </div>
         ))}
       </nav>
-    </aside>
+      </aside>
+    </>
   );
 }
 
@@ -198,9 +214,10 @@ function StudentSidebar({ collapsed, onToggle }: SidebarProps) {
 
 interface HeaderProps {
   sidebarCollapsed: boolean;
+  onMenuClick: () => void;
 }
 
-function StudentHeader({ sidebarCollapsed }: HeaderProps) {
+function StudentHeader({ sidebarCollapsed, onMenuClick }: HeaderProps) {
   const pathname = usePathname();
   const locale = useLocale();
   const t = useTranslations("StudentNav");
@@ -228,16 +245,24 @@ function StudentHeader({ sidebarCollapsed }: HeaderProps) {
   return (
     <header
       className={cn(
-        "fixed top-0 right-0 h-16 bg-white border-b border-slate-100 z-20 flex items-center gap-4 px-6 transition-all duration-300",
-        sidebarCollapsed ? "left-16" : "left-[260px]"
+        "fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-100 z-20 flex items-center gap-4 px-4 sm:px-6 transition-all duration-300",
+        sidebarCollapsed ? "lg:left-16" : "lg:left-[260px]"
       )}
     >
+      <button
+        onClick={onMenuClick}
+        aria-label={t("openMenuAriaLabel")}
+        className="lg:hidden h-9 w-9 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-500 transition-colors flex-shrink-0"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
       {/* Page title */}
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900 leading-none">
+      <div className="min-w-0">
+        <h2 className="text-lg font-semibold text-slate-900 leading-none truncate">
           {title}
         </h2>
-        <p className="text-xs text-slate-400 mt-0.5">
+        <p className="text-xs text-slate-400 mt-0.5 hidden sm:block">
           {formatLocalizedDate(new Date(), isLocale(locale) ? locale : DEFAULT_LOCALE, {
             weekday: "long",
             year: "numeric",
@@ -346,21 +371,24 @@ export default function StudentLayout({
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-50">
       <StudentSidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
+        mobileOpen={mobileOpen}
+        onMobileClose={() => setMobileOpen(false)}
       />
-      <StudentHeader sidebarCollapsed={collapsed} />
+      <StudentHeader sidebarCollapsed={collapsed} onMenuClick={() => setMobileOpen((o) => !o)} />
       <main
         className={cn(
           "pt-16 min-h-screen transition-all duration-300",
-          collapsed ? "pl-16" : "pl-[260px]"
+          collapsed ? "lg:pl-16" : "lg:pl-[260px]"
         )}
       >
-        <div className="p-6 max-w-[1400px]">{children}</div>
+        <div className="p-4 sm:p-6 max-w-[1400px]">{children}</div>
       </main>
     </div>
   );
