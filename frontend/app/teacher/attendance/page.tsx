@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { Avatar } from '@/components/ui/avatar';
-import { Select } from '@/components/ui/input';
+import { Input, Select } from '@/components/ui/input';
 import { toast } from '@/lib/store/toast-store';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useMyTeacherProfileQuery } from '@/lib/queries/teachers';
@@ -168,11 +168,11 @@ export default function TeacherAttendancePage() {
               onChange={(e) => setActiveGroupId(e.target.value)}
               className="w-40"
             />
-            <input
+            <Input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="h-9 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              className="w-40"
             />
           </div>
         }

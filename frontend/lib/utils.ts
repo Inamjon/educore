@@ -19,12 +19,25 @@ const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 /** `new Date("2026-08-15")` parses a bare date-only string as UTC midnight,
  * per spec — formatting that in any timezone behind UTC silently shifts it
  * back a day (a due_date of "2026-08-15" rendering as "Aug 14"). Parses it
- * as a local calendar date instead. Mirrors the schedule pages' own
- * toLocalIso() encoder; this is the matching decoder. A full ISO timestamp
- * (has a "T") is a real point in time and is left to `new Date()` as-is. */
-function parseLocalDate(dateOnly: string): Date {
+ * as a local calendar date instead. Pairs with `toLocalIsoDate()` below
+ * (the encoder); exported since `components/ui/calendar.tsx` needs the
+ * same round-trip and every page-local `toLocalIso()` this mirrors was a
+ * separate copy-pasted duplicate rather than a shared one. A full ISO
+ * timestamp (has a "T") is a real point in time and is left to `new
+ * Date()` as-is. */
+export function parseLocalDate(dateOnly: string): Date {
   const [year, month, day] = dateOnly.split("-").map(Number);
   return new Date(year, month - 1, day);
+}
+
+/** Inverse of `parseLocalDate()` — "YYYY-MM-DD" in the *local* calendar,
+ * not `.toISOString()`'s UTC one (which has the same day-shift problem in
+ * reverse). */
+export function toLocalIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function formatDate(date: string | Date) {

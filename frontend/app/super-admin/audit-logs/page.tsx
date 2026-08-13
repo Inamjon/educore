@@ -21,7 +21,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui/stat-card';
-import { Select } from '@/components/ui/input';
+import { Input, Select } from '@/components/ui/input';
 import { DataTable, Column } from '@/components/ui/data-table';
 import {
   Dialog,
@@ -256,18 +256,8 @@ export default function AuditLogsPage() {
             <Select value={organizationId} onChange={(e) => setOrganizationId(e.target.value)} options={centerOptions} />
             <Select value={action} onChange={(e) => setAction(e.target.value as AuditAction | '')} options={ACTION_OPTIONS} />
             <Select value={entityType} onChange={(e) => setEntityType(e.target.value)} options={ENTITY_TYPE_OPTIONS} />
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="h-9 rounded-lg border border-slate-200 px-3 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-            />
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="h-9 rounded-lg border border-slate-200 px-3 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-            />
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
             {hasFilters && (
               <button
                 onClick={() => {

@@ -1,6 +1,12 @@
+import { useState } from "react";
+import * as PopoverPrimitive from "@radix-ui/react-popover";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { Check, ChevronDown, Search } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Calendar as CalendarIcon, Check, ChevronDown, Search } from "lucide-react";
+import { useLocale } from "next-intl";
+import { cn, parseLocalDate } from "@/lib/utils";
+import { formatLocalizedDate } from "@/i18n/date-locale";
+import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
+import { Calendar } from "./calendar";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   icon?: React.ReactNode;
@@ -31,6 +37,27 @@ export function Input({ icon, error, className, type, onChange, onFocus, ...prop
   // — callers' existing `Number(e.target.value)` onChange handlers keep
   // working unmodified since e.target.value is cleaned before they see it.
   const isNumeric = type === "number";
+  const isDate = type === "date";
+
+  // Same "component itself decides the browser default isn't good enough"
+  // move as the numeric branch above, for the same reason: `type="date"`'s
+  // calendar popup is entirely OS/browser-rendered and impossible to
+  // restyle with CSS, so it always looks foreign next to the app's own
+  // <Select> dropdown (see components/ui/calendar.tsx). Swapped for a
+  // Popover-driven <Calendar>, transparent to callers — `value`/`onChange`
+  // keep the exact "YYYY-MM-DD" string contract a real date input has.
+  if (isDate) {
+    return (
+      <DateField
+        value={typeof props.value === "string" ? props.value : ""}
+        onChange={(e) => onChange?.(e as unknown as React.ChangeEvent<HTMLInputElement>)}
+        placeholder={props.placeholder}
+        disabled={props.disabled}
+        error={error}
+        className={className}
+      />
+    );
+  }
 
   return (
     <div className="relative">
@@ -63,6 +90,62 @@ export function Input({ icon, error, className, type, onChange, onFocus, ...prop
         )}
         {...props}
       />
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+    </div>
+  );
+}
+
+interface DateFieldProps {
+  value: string;
+  onChange?: (e: { target: { value: string } }) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  error?: string;
+  className?: string;
+}
+
+function DateField({ value, onChange, placeholder, disabled, error, className }: DateFieldProps) {
+  const [open, setOpen] = useState(false);
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+  const displayValue = value
+    ? formatLocalizedDate(parseLocalDate(value), locale, { month: "short", day: "numeric", year: "numeric" })
+    : "";
+
+  return (
+    <div className="relative">
+      <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+        <PopoverPrimitive.Trigger asChild>
+          <button
+            type="button"
+            disabled={disabled}
+            className={cn(
+              "h-9 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all disabled:cursor-not-allowed disabled:opacity-50",
+              value ? "text-slate-900" : "text-slate-400",
+              error && "border-red-300 focus:ring-red-500",
+              className
+            )}
+          >
+            <span className="truncate">{displayValue || placeholder || ""}</span>
+            <CalendarIcon className="h-4 w-4 text-slate-400 flex-shrink-0" />
+          </button>
+        </PopoverPrimitive.Trigger>
+        <PopoverPrimitive.Portal>
+          <PopoverPrimitive.Content
+            align="start"
+            sideOffset={4}
+            className="z-50 rounded-xl border border-slate-100 bg-white shadow-lg"
+          >
+            <Calendar
+              selected={value || undefined}
+              onSelect={(iso) => {
+                onChange?.({ target: { value: iso } });
+                setOpen(false);
+              }}
+            />
+          </PopoverPrimitive.Content>
+        </PopoverPrimitive.Portal>
+      </PopoverPrimitive.Root>
       {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
     </div>
   );
