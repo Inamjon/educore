@@ -98,13 +98,28 @@ class ExamResultViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
         if teacher_profile is not None and group.teacher_id != teacher_profile.id:
             raise PermissionDenied("You can only enter results for exams you teach.")
 
+    def _check_owns_result(self, student_profile):
+        """Defense in depth: no role is granted exams:create/update today
+        (DEFAULT_ROLE_PERMISSIONS gives student view-only), but that grant
+        is admin-editable — the moment any org's student role picks one up,
+        this stops a student from writing a result onto any student_profile
+        in the org, same as SubmissionViewSet.perform_create's equivalent
+        check for homework.
+        """
+        caller_student_profile = getattr(self.request.user, "student_profile", None)
+        if caller_student_profile is not None and student_profile.id != caller_student_profile.id:
+            raise PermissionDenied("You can only manage your own exam result.")
+
     def perform_create(self, serializer):
         self._check_owns_group(serializer.validated_data["exam"].group)
+        self._check_owns_result(serializer.validated_data["student_profile"])
         serializer.save()
 
     def perform_update(self, serializer):
         exam = serializer.validated_data.get("exam", serializer.instance.exam)
+        student_profile = serializer.validated_data.get("student_profile", serializer.instance.student_profile)
         self._check_owns_group(exam.group)
+        self._check_owns_result(student_profile)
         serializer.save()
 
     @audited(action="create", entity_type="exam_result")

@@ -16,6 +16,24 @@ class ExamSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_by", "created_at", "updated_at"]
 
+    def validate(self, attrs):
+        """Without this, a double-booked (group, date, start_time) slot hits
+        the raw DB UniqueConstraint as an unhandled IntegrityError — not a
+        DRF APIException, so common/exceptions.py's envelope handler can't
+        turn it into a normal 400 and it falls through to a generic 500
+        instead, violating CLAUDE.md's "meaningful error messages" rule.
+        """
+        group = attrs.get("group") or getattr(self.instance, "group", None)
+        date = attrs.get("date") or getattr(self.instance, "date", None)
+        start_time = attrs.get("start_time") or getattr(self.instance, "start_time", None)
+        if group is not None and date is not None and start_time is not None:
+            clash = Exam.objects.filter(group=group, date=date, start_time=start_time)
+            if self.instance is not None:
+                clash = clash.exclude(pk=self.instance.pk)
+            if clash.exists():
+                raise serializers.ValidationError("An exam is already scheduled for this group at this date and time.")
+        return attrs
+
     def create(self, validated_data):
         request = self.context.get("request")
         if request is not None and request.user.is_authenticated:
@@ -41,22 +59,33 @@ class ExamResultSerializer(serializers.ModelSerializer):
         if exam is not None and score is not None and score > exam.max_score:
             raise serializers.ValidationError({"score": f"Score cannot exceed the exam's max score ({exam.max_score})."})
 
-        if self.instance is None:
-            student_profile = attrs.get("student_profile")
-            if exam is not None and student_profile is not None:
-                if ExamResult.objects.filter(exam=exam, student_profile=student_profile).exists():
-                    raise serializers.ValidationError("A result already exists for this student on this exam.")
-                # _check_owns_group (ExamResultViewSet) only verifies the
-                # teacher teaches the exam's group — it says nothing about
-                # whether this particular student is actually enrolled in
-                # it. Without this, any student_profile in the org could be
-                # attached to the exam's roster by id.
-                if not GroupMember.objects.filter(
-                    group=exam.group, student_profile=student_profile, status="active"
-                ).exists():
-                    raise serializers.ValidationError(
-                        {"student_profile": "This student is not an active member of the exam's group."}
-                    )
+        student_profile = attrs.get("student_profile") or getattr(self.instance, "student_profile", None)
+        # Only re-check identity (duplicate slot + roster membership) on
+        # create, or on an update that actually touches exam/student_profile
+        # — a plain score-only PATCH (the normal grading flow) shouldn't
+        # re-run these on every edit, and in particular shouldn't start
+        # rejecting a legitimate score correction just because the student
+        # has since left the group (status no longer "active").
+        identity_changing = self.instance is None or "exam" in attrs or "student_profile" in attrs
+        if identity_changing and exam is not None and student_profile is not None:
+            # Checked on update too (excluding self), not just create — a
+            # PATCH that reassigns `exam`/`student_profile` onto an existing
+            # pairing must hit this same friendly error, not the raw DB
+            # UniqueConstraint as an unhandled IntegrityError.
+            clash = ExamResult.objects.filter(exam=exam, student_profile=student_profile)
+            if self.instance is not None:
+                clash = clash.exclude(pk=self.instance.pk)
+            if clash.exists():
+                raise serializers.ValidationError("A result already exists for this student on this exam.")
+            # _check_owns_group (ExamResultViewSet) only verifies the
+            # teacher teaches the exam's group — it says nothing about
+            # whether this particular student is actually enrolled in it.
+            # Without this, any student_profile in the org could be
+            # attached to the exam's roster by id.
+            if not GroupMember.objects.filter(group=exam.group, student_profile=student_profile, status="active").exists():
+                raise serializers.ValidationError(
+                    {"student_profile": "This student is not an active member of the exam's group."}
+                )
 
         return attrs
 
