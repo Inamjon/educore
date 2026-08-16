@@ -264,7 +264,8 @@
     "upcomingExamsSection": "Предстоящие экзамены",
     "noUpcomingExamsScheduled": "Предстоящих экзаменов не запланировано.",
     "completedExamsSection": "Завершённые экзамены",
-    "noCompletedExamsYet": "Завершённых экзаменов пока нет."
+    "noCompletedExamsYet": "Завершённых экзаменов пока нет.",
+    "resultsNotYetEntered": "Результаты ещё не внесены"
   },
   "StudentMessages": {
     "pageTitle": "Сообщения",
@@ -686,9 +687,12 @@
     "maxPtsLabel": "Максимум {points} баллов",
     "editButton": "Изменить",
     "cancelButton": "Отменить",
+    "markCompletedButton": "Отметить завершённым",
     "examUpdatedToast": "Экзамен обновлён",
     "examScheduledToast": "Экзамен запланирован",
     "examCancelledToast": "Экзамен отменён",
+    "examMarkedCompletedToast": "Экзамен отмечен как завершённый",
+    "resultsPartiallySavedToast": "Сохранено {failed} из {total} результатов — повторите оставшиеся",
     "resultsNotYetEntered": "Результаты ещё не внесены",
     "closeResultsButton": "Скрыть результаты",
     "viewResultsButton": "Посмотреть результаты",

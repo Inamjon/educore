@@ -26,6 +26,8 @@ import {
   DialogBody,
 } from '@/components/ui/dialog';
 import { STUDENT_PROFILE, STUDENT_STATS, STUDENT_COURSES, STUDENT_PAYMENT } from '@/lib/student-data';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { useExamsQuery } from '@/lib/queries/exams';
 import { toast } from '@/lib/store/toast-store';
 import { cn, formatCurrency } from '@/lib/utils';
 import { formatLocalizedDate } from '@/i18n/date-locale';
@@ -148,6 +150,13 @@ export default function StudentProfilePage() {
   const payment = STUDENT_PAYMENT;
   const [payDialogOpen, setPayDialogOpen] = useState(false);
 
+  // Only real-data piece on this still-mock page — Exams is wired to the
+  // real API, so this one derived stat is computed from it directly rather
+  // than kept on the STUDENT_STATS mock object (see lib/student-data.ts).
+  const organizationId = useAuthStore((s) => s.user?.organizationId) ?? '';
+  const { data: exams = [] } = useExamsQuery({ organizationId });
+  const upcomingExamsCount = exams.filter((e) => e.status === 'scheduled').length;
+
   const paymentStatusConfig = {
     paid: { label: t('statusPaid'), variant: 'success' as const },
     overdue: { label: t('statusOverdue'), variant: 'danger' as const },
@@ -248,7 +257,7 @@ export default function StudentProfilePage() {
               <StatRow icon={Layers} label={t('enrolledCourses')} value={STUDENT_STATS.enrolledCourses} iconClass="bg-indigo-50 text-indigo-600" />
               <StatRow icon={ClipboardCheck} label={t('attendanceRate')} value={`${STUDENT_STATS.attendanceRate}%`} iconClass="bg-emerald-50 text-emerald-600" />
               <StatRow icon={GraduationCap} label={t('averageGrade')} value={`${STUDENT_STATS.avgGrade}%`} iconClass="bg-blue-50 text-blue-600" />
-              <StatRow icon={BookOpen} label={t('upcomingExams')} value={STUDENT_STATS.upcomingExams} iconClass="bg-amber-50 text-amber-600" />
+              <StatRow icon={BookOpen} label={t('upcomingExams')} value={upcomingExamsCount} iconClass="bg-amber-50 text-amber-600" />
             </div>
           </Card>
 

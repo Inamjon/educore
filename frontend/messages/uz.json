@@ -264,7 +264,8 @@
     "upcomingExamsSection": "Yaqinlashib kelayotgan imtihonlar",
     "noUpcomingExamsScheduled": "Yaqinlashib kelayotgan imtihonlar rejalashtirilmagan.",
     "completedExamsSection": "Yakunlangan imtihonlar",
-    "noCompletedExamsYet": "Hozircha yakunlangan imtihonlar yo'q."
+    "noCompletedExamsYet": "Hozircha yakunlangan imtihonlar yo'q.",
+    "resultsNotYetEntered": "Natijalar hali kiritilmagan"
   },
   "StudentMessages": {
     "pageTitle": "Xabarlar",
@@ -686,9 +687,12 @@
     "maxPtsLabel": "Maksimal {points} ball",
     "editButton": "Tahrirlash",
     "cancelButton": "Bekor qilish",
+    "markCompletedButton": "Yakunlangan deb belgilash",
     "examUpdatedToast": "Imtihon yangilandi",
     "examScheduledToast": "Imtihon rejalashtirildi",
     "examCancelledToast": "Imtihon bekor qilindi",
+    "examMarkedCompletedToast": "Imtihon yakunlangan deb belgilandi",
+    "resultsPartiallySavedToast": "{total} tadan {failed} tasi saqlanmadi — qolganlarini qayta urinib ko'ring",
     "resultsNotYetEntered": "Natijalar hali kiritilmagan",
     "closeResultsButton": "Natijalarni yopish",
     "viewResultsButton": "Natijalarni ko'rish",

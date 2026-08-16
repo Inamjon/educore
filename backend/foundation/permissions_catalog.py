@@ -11,9 +11,17 @@ migration that loads it — as new apps/ViewSets are added.
 `notifications`, `schedule`, `assignments`, and `submissions` were added
 2026-08-07. `audit_logs` was added the same day, for the read-only
 Super-Admin/Admin Audit Logs surface — see `foundation/views.py::AuditLogViewSet`.
-`exams` is deliberately still not here — out of scope for that pass,
-possibly getting dropped from the product entirely; don't add it without
-checking first.
+
+`exams` was added 2026-08-16 — one module (not split like assignments/
+submissions) since both `Exam` scheduling and `ExamResult` score entry are
+teacher/center_admin-only writes; there's no "student authors their own row"
+case the way `Submission` has, so a module-wide grant can't overreach the
+way the assignments/submissions split was needed for. `teacher` gets create/
+update but not delete (cancel an exam via a status update instead, same
+convention as `schedule`/`assignments`); `student` gets view only. See
+`exams/views.py` for the read-scoping split — `Exam` reads are unrestricted
+within the org (schedule metadata), `ExamResult` reads are row-scoped (a
+grade, same sensitivity as `submissions`).
 
 `payment_gateways` was added 2026-08-08, for the Admin Settings "Payment
 Gateways" surface (a center's own Payme/Click merchant credentials) — see
@@ -140,6 +148,10 @@ PERMISSIONS_CATALOG: list[tuple[str, str, str]] = [
     ("teacher_salary", "create", "Create teacher salary records"),
     ("teacher_salary", "update", "Update teacher salary records"),
     ("teacher_salary", "delete", "Delete teacher salary records"),
+    ("exams", "view", "View exams and results"),
+    ("exams", "create", "Schedule exams and enter results"),
+    ("exams", "update", "Update exams and results"),
+    ("exams", "delete", "Delete exams and results"),
 ]
 
 # Default permission grants for the three org-scoped roles every
@@ -227,6 +239,10 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("teacher_salary", "create"),
         ("teacher_salary", "update"),
         ("teacher_salary", "delete"),
+        ("exams", "view"),
+        ("exams", "create"),
+        ("exams", "update"),
+        ("exams", "delete"),
     ],
     "teacher": [
         ("students", "view"),
@@ -265,6 +281,11 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         # only the student who owns a submission does that.
         ("submissions", "view"),
         ("submissions", "update"),
+        # No "exams:delete" — same convention as attendance/schedule: a
+        # teacher cancels an exam via a status update, not a delete.
+        ("exams", "view"),
+        ("exams", "create"),
+        ("exams", "update"),
         ("roles", "view"),
     ],
     "student": [
@@ -294,6 +315,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("submissions", "view"),
         ("submissions", "create"),
         ("submissions", "update"),
+        ("exams", "view"),
         ("roles", "view"),
     ],
 }
