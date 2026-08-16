@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
@@ -63,6 +63,15 @@ function scoreBarColor(avg: number, max: number) {
   return 'bg-red-500';
 }
 
+// A score input is "entered" based on the string being non-empty, not on
+// the parsed number being > 0 — Number('') is 0, which is indistinguishable
+// from a real score of 0 if truthiness/`> 0` is used to mean "has a value".
+// Every score-presence check in this file goes through this helper so a
+// genuine 0 is never treated as blank.
+function hasEnteredValue(raw: string | undefined): boolean {
+  return raw !== undefined && raw.trim() !== '';
+}
+
 // ─── Form ──────────────────────────────────────────────────────────────────────
 
 interface FormValues {
@@ -96,23 +105,36 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
   const t = useTranslations('TeacherExams');
   const tc = useTranslations('Common');
   const organizationId = useAuthStore((s) => s.user?.organizationId) ?? '';
-  const { data: members = [] } = useGroupMembersQuery(exam.group);
-  const students = members.filter((m) => m.status === 'active');
-  const { data: examResults = [] } = useExamResultsQuery({ organizationId, exam: exam.id });
+  const { data: members = [], isSuccess: membersLoaded } = useGroupMembersQuery(exam.group);
+  const students = useMemo(() => members.filter((m) => m.status === 'active'), [members]);
+  const { data: examResults = [], isSuccess: resultsLoaded } = useExamResultsQuery({ organizationId, exam: exam.id });
+  const resultByStudent = useMemo(() => new Map(examResults.map((r) => [r.student_profile, r])), [examResults]);
   const saveResult = useSaveExamResultMutation();
 
-  const resultByStudent = new Map(examResults.map((r) => [r.student_profile, r]));
-  const [results, setResults] = useState<Record<string, string>>(() => {
+  const [results, setResults] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  // Both queries resolve async — a plain useState(() => ...) lazy
+  // initializer would only ever see the empty [] defaults from the very
+  // first render and never re-run once real data arrives (same stale-seed
+  // class of bug as project memory's zustand-persist-rehydration-timing
+  // note). Seed exactly once, gated on both queries actually having
+  // resolved, so a teacher reopening an already-graded exam sees the real
+  // saved scores instead of blank inputs.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current || !membersLoaded || !resultsLoaded) return;
     const init: Record<string, string> = {};
     students.forEach((s) => {
       const existing = resultByStudent.get(s.student_profile)?.score;
       init[s.student_profile] = existing != null ? String(existing) : '';
     });
-    return init;
-  });
-  const [saving, setSaving] = useState(false);
+    setResults(init);
+    seededRef.current = true;
+  }, [membersLoaded, resultsLoaded, students, resultByStudent]);
 
-  const scores = Object.values(results).map(Number).filter((v) => !isNaN(v) && v > 0);
+  const enteredEntries = Object.entries(results).filter(([, value]) => hasEnteredValue(value));
+  const scores = enteredEntries.map(([, value]) => Number(value)).filter((v) => !isNaN(v));
   const avg = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
   function handleScore(studentProfileId: string, value: string) {
@@ -122,11 +144,8 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
   async function handleSave() {
     setSaving(true);
     try {
-      const toSave = Object.entries(results).filter(([, value]) => {
-        const n = Number(value);
-        return !isNaN(n) && n > 0;
-      });
-      await Promise.all(
+      const toSave = enteredEntries.filter(([, value]) => !isNaN(Number(value)));
+      const outcomes = await Promise.allSettled(
         toSave.map(([studentProfileId, value]) =>
           saveResult.mutateAsync({
             organizationId,
@@ -137,9 +156,15 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
           })
         )
       );
-      toast.success(t('resultsSavedToast'));
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : tc('somethingWentWrong'));
+      const failed = outcomes.filter((o) => o.status === 'rejected');
+      if (failed.length === 0) {
+        toast.success(t('resultsSavedToast'));
+      } else if (failed.length < outcomes.length) {
+        toast.error(t('resultsPartiallySavedToast', { failed: failed.length, total: outcomes.length }));
+      } else {
+        const firstError = (failed[0] as PromiseRejectedResult).reason;
+        toast.error(firstError instanceof ApiError ? firstError.message : tc('somethingWentWrong'));
+      }
     } finally {
       setSaving(false);
     }
@@ -188,10 +213,11 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
               </tr>
             )}
             {students.map((member) => {
-              const scoreVal = Number(results[member.student_profile]);
-              const pct = exam.max_score > 0 ? (scoreVal / exam.max_score) * 100 : 0;
-              const letterGrade =
-                scoreVal === 0 ? '—' : pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F';
+              const raw = results[member.student_profile];
+              const entered = hasEnteredValue(raw);
+              const scoreVal = entered ? Number(raw) : NaN;
+              const pct = entered && exam.max_score > 0 ? (scoreVal / exam.max_score) * 100 : 0;
+              const letterGrade = !entered ? '—' : pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F';
 
               return (
                 <tr key={member.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
@@ -210,7 +236,7 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
                         type="number"
                         min={0}
                         max={exam.max_score}
-                        value={results[member.student_profile] ?? ''}
+                        value={raw ?? ''}
                         onChange={(e) => handleScore(member.student_profile, e.target.value)}
                         placeholder="—"
                         className="w-20 h-8 rounded-lg border border-slate-200 px-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -219,7 +245,7 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
                     </div>
                   </td>
                   <td className="py-3.5 px-4">
-                    <span className={`text-sm font-bold ${scoreVal === 0 ? 'text-slate-300' : pct >= 80 ? 'text-emerald-600' : pct >= 60 ? 'text-amber-600' : 'text-red-500'}`}>
+                    <span className={`text-sm font-bold ${!entered ? 'text-slate-300' : pct >= 80 ? 'text-emerald-600' : pct >= 60 ? 'text-amber-600' : 'text-red-500'}`}>
                       {letterGrade}
                     </span>
                   </td>
@@ -247,11 +273,13 @@ function UpcomingExamCard({
   totalStudents,
   onEdit,
   onCancel,
+  onComplete,
 }: {
   exam: Exam;
   totalStudents: number;
   onEdit: (exam: Exam) => void;
   onCancel: (exam: Exam) => void;
+  onComplete: (exam: Exam) => void;
 }) {
   const t = useTranslations('TeacherExams');
   const rawLocale = useLocale();
@@ -290,6 +318,10 @@ function UpcomingExamCard({
       </div>
 
       <div className="flex items-center gap-2 pt-1">
+        <Button variant="outline" size="sm" onClick={() => onComplete(exam)}>
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          {t('markCompletedButton')}
+        </Button>
         <Button variant="outline" size="sm" onClick={() => onEdit(exam)}>
           <Edit2 className="h-3.5 w-3.5" />
           {t('editButton')}
@@ -313,11 +345,13 @@ function UpcomingExamCard({
 function CompletedExamCard({
   exam,
   avgScore,
+  hasResults,
   onEnterResults,
   isActive,
 }: {
   exam: Exam;
   avgScore: number;
+  hasResults: boolean;
   onEnterResults: (exam: Exam) => void;
   isActive: boolean;
 }) {
@@ -327,7 +361,6 @@ function CompletedExamCard({
   const colorClass = groupColor(exam.group);
   const barColor = scoreBarColor(avgScore, exam.max_score);
   const pct = exam.max_score > 0 ? (avgScore / exam.max_score) * 100 : 0;
-  const hasResults = avgScore > 0;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col gap-3">
@@ -396,10 +429,11 @@ export default function ExamsPage() {
   // A teacher's own groups scope which exams belong to them — reads are
   // unrestricted org-wide at the API level (schedule metadata, see
   // backend/exams/views.py), so this is a client-side narrowing to "my
-  // exams" for the teacher's own management view.
-  const myGroupIds = useMemo(() => new Set(groups.map((g) => g.id)), [groups]);
-  const myExams = useMemo(() => exams.filter((e) => myGroupIds.has(e.group)), [exams, myGroupIds]);
-  const enrolledCountByGroup = useMemo(() => new Map(groups.map((g) => [g.id, g.enrolled_count])), [groups]);
+  // exams" for the teacher's own management view. One Map built from
+  // `groups` covers both lookups (membership + enrolled_count) instead of
+  // two separate passes over the same array.
+  const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups]);
+  const myExams = useMemo(() => exams.filter((e) => groupById.has(e.group)), [exams, groupById]);
 
   const avgScoreByExam = useMemo(() => {
     const map = new Map<string, number>();
@@ -422,7 +456,10 @@ export default function ExamsPage() {
   const upcomingCount = upcomingExams.length;
   const completedCount = completedExams.length;
   const avgScoreAcrossCompleted = (() => {
-    const withScores = completedExams.map((e) => avgScoreByExam.get(e.id) ?? 0).filter((v) => v > 0);
+    // .has(), not a truthy/`> 0` check on the value — a completed exam
+    // where every student genuinely scored 0 has a real average of 0 and
+    // must still count here, distinct from an exam nobody has graded yet.
+    const withScores = completedExams.filter((e) => avgScoreByExam.has(e.id)).map((e) => avgScoreByExam.get(e.id) as number);
     if (withScores.length === 0) return 0;
     return Math.round(withScores.reduce((a, b) => a + b, 0) / withScores.length);
   })();
@@ -490,6 +527,15 @@ export default function ExamsPage() {
     try {
       await updateMutation.mutateAsync({ id: exam.id, input: { status: 'cancelled' } });
       toast.success(t('examCancelledToast'));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : tc('somethingWentWrong'));
+    }
+  }
+
+  async function handleCompleteExam(exam: Exam) {
+    try {
+      await updateMutation.mutateAsync({ id: exam.id, input: { status: 'completed' } });
+      toast.success(t('examMarkedCompletedToast'));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : tc('somethingWentWrong'));
     }
@@ -599,9 +645,10 @@ export default function ExamsPage() {
               <UpcomingExamCard
                 key={exam.id}
                 exam={exam}
-                totalStudents={enrolledCountByGroup.get(exam.group) ?? 0}
+                totalStudents={groupById.get(exam.group)?.enrolled_count ?? 0}
                 onEdit={handleEdit}
                 onCancel={handleCancelExam}
+                onComplete={handleCompleteExam}
               />
             ))}
           </div>
@@ -621,7 +668,13 @@ export default function ExamsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {completedExams.map((exam) => (
               <div key={exam.id}>
-                <CompletedExamCard exam={exam} avgScore={avgScoreByExam.get(exam.id) ?? 0} onEnterResults={handleEnterResults} isActive={activeExam?.id === exam.id} />
+                <CompletedExamCard
+                  exam={exam}
+                  avgScore={avgScoreByExam.get(exam.id) ?? 0}
+                  hasResults={avgScoreByExam.has(exam.id)}
+                  onEnterResults={handleEnterResults}
+                  isActive={activeExam?.id === exam.id}
+                />
                 {activeExam?.id === exam.id && <ResultsPanel exam={exam} onClose={() => setActiveExam(null)} />}
               </div>
             ))}
