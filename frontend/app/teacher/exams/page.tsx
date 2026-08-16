@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
@@ -8,8 +8,18 @@ import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { Input, Select } from '@/components/ui/input';
 import { StatCard } from '@/components/ui/stat-card';
-import { TEACHER_GROUPS, TEACHER_STUDENTS } from '@/lib/teacher-data';
-import { useTeacherExamsStore, type Exam, type NewExam } from '@/lib/store/teacher-exams-store';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { useMyTeacherProfileQuery } from '@/lib/queries/teachers';
+import { useGroupsQuery, useGroupMembersQuery } from '@/lib/queries/groups';
+import {
+  useExamsQuery,
+  useCreateExamMutation,
+  useUpdateExamMutation,
+  useExamResultsQuery,
+  useSaveExamResultMutation,
+} from '@/lib/queries/exams';
+import type { Exam } from '@/lib/api/exams';
+import { ApiError } from '@/lib/api/client';
 import { toast } from '@/lib/store/toast-store';
 import { formatLocalizedDate } from '@/i18n/date-locale';
 import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
@@ -29,15 +39,18 @@ import {
   Trash2,
 } from 'lucide-react';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const GROUP_COLORS: Record<string, string> = {
-  g1: 'bg-indigo-100 text-indigo-700',
-  g2: 'bg-violet-100 text-violet-700',
-  g3: 'bg-cyan-100 text-cyan-700',
-};
-
 // ─── Helpers ───────────────────────────────────────────────────────────────────
+
+// Real group ids are UUIDs, not the small mock-era set this palette used to
+// key off directly — hash the id into a stable index instead, same pattern
+// as app/student/homework/page.tsx's cardColor().
+const GROUP_COLOR_PALETTE = ['#6366f1', '#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#ec4899'];
+
+function groupColor(groupId: string): string {
+  let hash = 0;
+  for (let i = 0; i < groupId.length; i++) hash = (hash + groupId.charCodeAt(i)) % GROUP_COLOR_PALETTE.length;
+  return GROUP_COLOR_PALETTE[hash];
+}
 
 function formatDate(dateStr: string, locale: Locale) {
   return formatLocalizedDate(new Date(dateStr + 'T00:00:00'), locale, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -81,32 +94,55 @@ interface ResultsPanelProps {
 
 function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
   const t = useTranslations('TeacherExams');
-  const savedResults = useTeacherExamsStore((s) => s.examResults[exam.id]);
-  const saveResults = useTeacherExamsStore((s) => s.saveResults);
-  const students = TEACHER_STUDENTS.filter((s) => s.groupId === exam.groupId);
+  const tc = useTranslations('Common');
+  const organizationId = useAuthStore((s) => s.user?.organizationId) ?? '';
+  const { data: members = [] } = useGroupMembersQuery(exam.group);
+  const students = members.filter((m) => m.status === 'active');
+  const { data: examResults = [] } = useExamResultsQuery({ organizationId, exam: exam.id });
+  const saveResult = useSaveExamResultMutation();
+
+  const resultByStudent = new Map(examResults.map((r) => [r.student_profile, r]));
   const [results, setResults] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
     students.forEach((s) => {
-      init[s.id] = savedResults?.[s.id] !== undefined ? String(savedResults[s.id]) : '';
+      const existing = resultByStudent.get(s.student_profile)?.score;
+      init[s.student_profile] = existing != null ? String(existing) : '';
     });
     return init;
   });
+  const [saving, setSaving] = useState(false);
 
   const scores = Object.values(results).map(Number).filter((v) => !isNaN(v) && v > 0);
   const avg = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
-  function handleScore(studentId: string, value: string) {
-    setResults((prev) => ({ ...prev, [studentId]: value }));
+  function handleScore(studentProfileId: string, value: string) {
+    setResults((prev) => ({ ...prev, [studentProfileId]: value }));
   }
 
-  function handleSave() {
-    const numericResults: Record<string, number> = {};
-    Object.entries(results).forEach(([studentId, value]) => {
-      const n = Number(value);
-      if (!isNaN(n) && n > 0) numericResults[studentId] = n;
-    });
-    saveResults(exam.id, numericResults);
-    toast.success(t('resultsSavedToast'));
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const toSave = Object.entries(results).filter(([, value]) => {
+        const n = Number(value);
+        return !isNaN(n) && n > 0;
+      });
+      await Promise.all(
+        toSave.map(([studentProfileId, value]) =>
+          saveResult.mutateAsync({
+            organizationId,
+            examId: exam.id,
+            studentProfileId,
+            existingResultId: resultByStudent.get(studentProfileId)?.id ?? null,
+            score: Number(value),
+          })
+        )
+      );
+      toast.success(t('resultsSavedToast'));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : tc('somethingWentWrong'));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -126,7 +162,7 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
             <div className="text-right">
               <p className="text-xs text-slate-400">{t('currentAverageLabel')}</p>
               <p className="text-lg font-bold text-indigo-600">
-                {avg}<span className="text-sm font-normal text-slate-400">/{exam.maxScore}</span>
+                {avg}<span className="text-sm font-normal text-slate-400">/{exam.max_score}</span>
               </p>
             </div>
           )}
@@ -151,20 +187,20 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
                 <td colSpan={3} className="text-center text-slate-400 text-sm py-12">{t('noStudentsInGroup')}</td>
               </tr>
             )}
-            {students.map((student) => {
-              const scoreVal = Number(results[student.id]);
-              const pct = exam.maxScore > 0 ? (scoreVal / exam.maxScore) * 100 : 0;
+            {students.map((member) => {
+              const scoreVal = Number(results[member.student_profile]);
+              const pct = exam.max_score > 0 ? (scoreVal / exam.max_score) * 100 : 0;
               const letterGrade =
                 scoreVal === 0 ? '—' : pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F';
 
               return (
-                <tr key={student.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+                <tr key={member.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
                   <td className="py-3.5 px-4">
                     <div className="flex items-center gap-3">
-                      <Avatar name={student.name} size="sm" />
+                      <Avatar name={member.student_name} size="sm" />
                       <div>
-                        <p className="text-sm font-medium text-slate-800">{student.name}</p>
-                        <p className="text-xs text-slate-400">{student.loginId}</p>
+                        <p className="text-sm font-medium text-slate-800">{member.student_name}</p>
+                        <p className="text-xs text-slate-400">{member.student_login_id}</p>
                       </div>
                     </div>
                   </td>
@@ -173,13 +209,13 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
                       <input
                         type="number"
                         min={0}
-                        max={exam.maxScore}
-                        value={results[student.id] ?? ''}
-                        onChange={(e) => handleScore(student.id, e.target.value)}
+                        max={exam.max_score}
+                        value={results[member.student_profile] ?? ''}
+                        onChange={(e) => handleScore(member.student_profile, e.target.value)}
                         placeholder="—"
                         className="w-20 h-8 rounded-lg border border-slate-200 px-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       />
-                      <span className="text-xs text-slate-400">/ {exam.maxScore}</span>
+                      <span className="text-xs text-slate-400">/ {exam.max_score}</span>
                     </div>
                   </td>
                   <td className="py-3.5 px-4">
@@ -196,7 +232,7 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
 
       <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
         <span className="text-xs text-slate-400">{t('studentsScored', { scored: scores.length, total: students.length })}</span>
-        <Button variant="primary" onClick={handleSave}>
+        <Button variant="primary" onClick={handleSave} loading={saving}>
           {t('saveResultsButton')}
         </Button>
       </div>
@@ -208,42 +244,49 @@ function ResultsPanel({ exam, onClose }: ResultsPanelProps) {
 
 function UpcomingExamCard({
   exam,
+  totalStudents,
   onEdit,
   onCancel,
 }: {
   exam: Exam;
+  totalStudents: number;
   onEdit: (exam: Exam) => void;
-  onCancel: (id: string) => void;
+  onCancel: (exam: Exam) => void;
 }) {
   const t = useTranslations('TeacherExams');
   const rawLocale = useLocale();
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
-  const colorClass = GROUP_COLORS[exam.groupId] ?? 'bg-slate-100 text-slate-700';
+  const colorClass = groupColor(exam.group);
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-indigo-500 p-5 flex flex-col gap-3">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col gap-3" style={{ borderLeft: `4px solid ${colorClass}` }}>
       <div className="flex items-start justify-between gap-2">
         <h4 className="font-bold text-slate-900 text-sm leading-tight flex-1">{exam.title}</h4>
-        <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full flex-shrink-0 ${colorClass}`}>{exam.groupName}</span>
+        <span
+          className="text-xs font-medium px-2.5 py-0.5 rounded-full flex-shrink-0"
+          style={{ backgroundColor: `${colorClass}18`, color: colorClass }}
+        >
+          {exam.group_name}
+        </span>
       </div>
 
       <div className="flex items-center gap-4 text-xs text-slate-500">
         <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5 text-slate-400" />{formatDate(exam.date, locale)}</span>
-        <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-slate-400" />{exam.startTime}</span>
+        <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-slate-400" />{exam.start_time.slice(0, 5)}</span>
       </div>
 
       <div className="flex items-center gap-4 text-xs text-slate-500">
-        <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-slate-400" />{exam.room}</span>
-        <span className="flex items-center gap-1.5"><Timer className="h-3.5 w-3.5 text-slate-400" />{t('durationMinutes', { count: exam.duration })}</span>
+        <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-slate-400" />{exam.room || '—'}</span>
+        <span className="flex items-center gap-1.5"><Timer className="h-3.5 w-3.5 text-slate-400" />{t('durationMinutes', { count: exam.duration_minutes })}</span>
       </div>
 
       <div className="flex items-center gap-1.5 text-xs text-slate-500">
         <Users className="h-3.5 w-3.5 text-slate-400" />
-        <span>{t('totalStudents', { count: exam.totalStudents })}</span>
+        <span>{t('totalStudents', { count: totalStudents })}</span>
         <span className="text-slate-300 mx-1">·</span>
-        <span>{t('questionsCount', { count: exam.questions })}</span>
+        <span>{t('questionsCount', { count: exam.question_count })}</span>
         <span className="text-slate-300 mx-1">·</span>
-        <span>{t('maxPtsLabel', { points: exam.maxScore })}</span>
+        <span>{t('maxPtsLabel', { points: exam.max_score })}</span>
       </div>
 
       <div className="flex items-center gap-2 pt-1">
@@ -255,7 +298,7 @@ function UpcomingExamCard({
           variant="ghost"
           size="sm"
           className="text-red-500 hover:bg-red-50 hover:text-red-600"
-          onClick={() => onCancel(exam.id)}
+          onClick={() => onCancel(exam)}
         >
           <Trash2 className="h-3.5 w-3.5" />
           {t('cancelButton')}
@@ -269,27 +312,33 @@ function UpcomingExamCard({
 
 function CompletedExamCard({
   exam,
+  avgScore,
   onEnterResults,
   isActive,
 }: {
   exam: Exam;
+  avgScore: number;
   onEnterResults: (exam: Exam) => void;
   isActive: boolean;
 }) {
   const t = useTranslations('TeacherExams');
   const rawLocale = useLocale();
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
-  const avgScore = exam.avgScore ?? 0;
-  const colorClass = GROUP_COLORS[exam.groupId] ?? 'bg-slate-100 text-slate-700';
-  const barColor = scoreBarColor(avgScore, exam.maxScore);
-  const pct = exam.maxScore > 0 ? (avgScore / exam.maxScore) * 100 : 0;
+  const colorClass = groupColor(exam.group);
+  const barColor = scoreBarColor(avgScore, exam.max_score);
+  const pct = exam.max_score > 0 ? (avgScore / exam.max_score) * 100 : 0;
   const hasResults = avgScore > 0;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
         <h4 className="font-bold text-slate-900 text-sm leading-tight flex-1">{exam.title}</h4>
-        <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full flex-shrink-0 ${colorClass}`}>{exam.groupName}</span>
+        <span
+          className="text-xs font-medium px-2.5 py-0.5 rounded-full flex-shrink-0"
+          style={{ backgroundColor: `${colorClass}18`, color: colorClass }}
+        >
+          {exam.group_name}
+        </span>
       </div>
 
       <div className="flex items-center gap-1.5 text-xs text-slate-500">
@@ -301,7 +350,7 @@ function CompletedExamCard({
         <>
           <div className="flex items-end gap-1">
             <span className="text-3xl font-bold text-slate-900">{avgScore}</span>
-            <span className="text-sm text-slate-400 mb-1">/ {exam.maxScore}</span>
+            <span className="text-sm text-slate-400 mb-1">/ {exam.max_score}</span>
             <span className="ml-auto text-xs text-slate-400 mb-1">{Math.round(pct)}%</span>
           </div>
           <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -329,87 +378,121 @@ function CompletedExamCard({
 
 export default function ExamsPage() {
   const t = useTranslations('TeacherExams');
-  const exams = useTeacherExamsStore((s) => s.exams);
-  const addExam = useTeacherExamsStore((s) => s.addExam);
-  const updateExam = useTeacherExamsStore((s) => s.updateExam);
-  const cancelExam = useTeacherExamsStore((s) => s.cancelExam);
+  const tc = useTranslations('Common');
+  const organizationId = useAuthStore((s) => s.user?.organizationId) ?? '';
+  const { data: myProfile } = useMyTeacherProfileQuery();
+  const { data: groups = [] } = useGroupsQuery({ organizationId, teacher: myProfile?.id });
+  const { data: exams = [] } = useExamsQuery({ organizationId });
+  const { data: allResults = [] } = useExamResultsQuery({ organizationId });
+  const createMutation = useCreateExamMutation();
+  const updateMutation = useUpdateExamMutation();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormValues>(EMPTY_FORM);
   const [activeExam, setActiveExam] = useState<Exam | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const activeExams = exams.filter((e) => !e.cancelled);
-  const upcomingExams = activeExams.filter((e) => e.status === 'upcoming');
-  const completedExams = activeExams.filter((e) => e.status === 'completed');
+  // A teacher's own groups scope which exams belong to them — reads are
+  // unrestricted org-wide at the API level (schedule metadata, see
+  // backend/exams/views.py), so this is a client-side narrowing to "my
+  // exams" for the teacher's own management view.
+  const myGroupIds = useMemo(() => new Set(groups.map((g) => g.id)), [groups]);
+  const myExams = useMemo(() => exams.filter((e) => myGroupIds.has(e.group)), [exams, myGroupIds]);
+  const enrolledCountByGroup = useMemo(() => new Map(groups.map((g) => [g.id, g.enrolled_count])), [groups]);
+
+  const avgScoreByExam = useMemo(() => {
+    const map = new Map<string, number>();
+    const byExam = new Map<string, number[]>();
+    allResults.forEach((r) => {
+      if (r.score == null) return;
+      const list = byExam.get(r.exam) ?? [];
+      list.push(r.score);
+      byExam.set(r.exam, list);
+    });
+    byExam.forEach((scores, examId) => {
+      map.set(examId, Math.round(scores.reduce((a, b) => a + b, 0) / scores.length));
+    });
+    return map;
+  }, [allResults]);
+
+  const upcomingExams = myExams.filter((e) => e.status === 'scheduled');
+  const completedExams = myExams.filter((e) => e.status === 'completed');
 
   const upcomingCount = upcomingExams.length;
   const completedCount = completedExams.length;
   const avgScoreAcrossCompleted = (() => {
-    const withScores = completedExams.filter((e) => typeof e.avgScore === 'number' && e.avgScore > 0);
+    const withScores = completedExams.map((e) => avgScoreByExam.get(e.id) ?? 0).filter((v) => v > 0);
     if (withScores.length === 0) return 0;
-    const sum = withScores.reduce((acc, e) => acc + (e.avgScore ?? 0), 0);
-    return Math.round(sum / withScores.length);
+    return Math.round(withScores.reduce((a, b) => a + b, 0) / withScores.length);
   })();
 
   function handleFormChange(field: keyof FormValues, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  function handleSubmitForm() {
-    const group = TEACHER_GROUPS.find((g) => g.id === form.groupId);
-    if (!group) return;
-
-    if (editingId) {
-      updateExam(editingId, {
-        title: form.title,
-        groupId: group.id,
-        groupName: group.name,
-        date: form.date,
-        startTime: form.startTime,
-        duration: Number(form.duration) || 90,
-        room: form.room,
-        maxScore: Number(form.maxScore) || 100,
-      });
-      toast.success(t('examUpdatedToast'));
-    } else {
-      const newExam: NewExam = {
-        title: form.title,
-        groupId: group.id,
-        groupName: group.name,
-        date: form.date,
-        startTime: form.startTime,
-        duration: Number(form.duration) || 90,
-        room: form.room,
-        maxScore: Number(form.maxScore) || 100,
-        totalStudents: group.studentCount,
-        questions: 0,
-      };
-      addExam(newExam);
-      toast.success(t('examScheduledToast'));
+  async function handleSubmitForm() {
+    if (!form.title || !form.groupId || !form.date || !form.startTime) return;
+    setSaving(true);
+    try {
+      if (editingId) {
+        await updateMutation.mutateAsync({
+          id: editingId,
+          input: {
+            title: form.title,
+            group: form.groupId,
+            date: form.date,
+            startTime: form.startTime,
+            durationMinutes: Number(form.duration) || 90,
+            room: form.room,
+            maxScore: Number(form.maxScore) || 100,
+          },
+        });
+        toast.success(t('examUpdatedToast'));
+      } else {
+        await createMutation.mutateAsync({
+          organizationId,
+          group: form.groupId,
+          title: form.title,
+          date: form.date,
+          startTime: form.startTime,
+          durationMinutes: Number(form.duration) || 90,
+          room: form.room,
+          maxScore: Number(form.maxScore) || 100,
+        });
+        toast.success(t('examScheduledToast'));
+      }
+      setShowCreateForm(false);
+      setEditingId(null);
+      setForm(EMPTY_FORM);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : tc('somethingWentWrong'));
+    } finally {
+      setSaving(false);
     }
-    setShowCreateForm(false);
-    setEditingId(null);
-    setForm(EMPTY_FORM);
   }
 
   function handleEdit(exam: Exam) {
     setEditingId(exam.id);
     setForm({
       title: exam.title,
-      groupId: exam.groupId,
+      groupId: exam.group,
       date: exam.date,
-      startTime: exam.startTime,
-      duration: String(exam.duration),
-      room: exam.room,
-      maxScore: String(exam.maxScore),
+      startTime: exam.start_time.slice(0, 5),
+      duration: String(exam.duration_minutes),
+      room: exam.room ?? '',
+      maxScore: String(exam.max_score),
     });
     setShowCreateForm(true);
   }
 
-  function handleCancelExam(id: string) {
-    cancelExam(id);
-    toast.success(t('examCancelledToast'));
+  async function handleCancelExam(exam: Exam) {
+    try {
+      await updateMutation.mutateAsync({ id: exam.id, input: { status: 'cancelled' } });
+      toast.success(t('examCancelledToast'));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : tc('somethingWentWrong'));
+    }
   }
 
   function handleEnterResults(exam: Exam) {
@@ -457,7 +540,7 @@ export default function ExamsPage() {
                 onChange={(e) => handleFormChange('groupId', e.target.value)}
                 placeholder={t('selectGroupPlaceholder')}
                 className="w-full"
-                options={TEACHER_GROUPS.map((g) => ({ value: g.id, label: g.name }))}
+                options={groups.map((g) => ({ value: g.id, label: g.name }))}
               />
             </div>
             <div>
@@ -493,7 +576,7 @@ export default function ExamsPage() {
             >
               {t('cancelButton')}
             </Button>
-            <Button variant="primary" onClick={handleSubmitForm} disabled={!form.title || !form.groupId || !form.date}>
+            <Button variant="primary" onClick={handleSubmitForm} disabled={!form.title || !form.groupId || !form.date || !form.startTime} loading={saving}>
               <Calendar className="h-4 w-4" />
               {editingId ? t('saveChangesButton') : t('scheduleExamButton')}
             </Button>
@@ -513,7 +596,13 @@ export default function ExamsPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {upcomingExams.map((exam) => (
-              <UpcomingExamCard key={exam.id} exam={exam} onEdit={handleEdit} onCancel={handleCancelExam} />
+              <UpcomingExamCard
+                key={exam.id}
+                exam={exam}
+                totalStudents={enrolledCountByGroup.get(exam.group) ?? 0}
+                onEdit={handleEdit}
+                onCancel={handleCancelExam}
+              />
             ))}
           </div>
         )}
@@ -532,7 +621,7 @@ export default function ExamsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {completedExams.map((exam) => (
               <div key={exam.id}>
-                <CompletedExamCard exam={exam} onEnterResults={handleEnterResults} isActive={activeExam?.id === exam.id} />
+                <CompletedExamCard exam={exam} avgScore={avgScoreByExam.get(exam.id) ?? 0} onEnterResults={handleEnterResults} isActive={activeExam?.id === exam.id} />
                 {activeExam?.id === exam.id && <ResultsPanel exam={exam} onClose={() => setActiveExam(null)} />}
               </div>
             ))}

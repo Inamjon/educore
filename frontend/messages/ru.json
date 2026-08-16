@@ -264,7 +264,8 @@
     "upcomingExamsSection": "Предстоящие экзамены",
     "noUpcomingExamsScheduled": "Предстоящих экзаменов не запланировано.",
     "completedExamsSection": "Завершённые экзамены",
-    "noCompletedExamsYet": "Завершённых экзаменов пока нет."
+    "noCompletedExamsYet": "Завершённых экзаменов пока нет.",
+    "resultsNotYetEntered": "Результаты ещё не внесены"
   },
   "StudentMessages": {
     "pageTitle": "Сообщения",

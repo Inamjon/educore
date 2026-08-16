@@ -264,7 +264,8 @@
     "upcomingExamsSection": "Yaqinlashib kelayotgan imtihonlar",
     "noUpcomingExamsScheduled": "Yaqinlashib kelayotgan imtihonlar rejalashtirilmagan.",
     "completedExamsSection": "Yakunlangan imtihonlar",
-    "noCompletedExamsYet": "Hozircha yakunlangan imtihonlar yo'q."
+    "noCompletedExamsYet": "Hozircha yakunlangan imtihonlar yo'q.",
+    "resultsNotYetEntered": "Natijalar hali kiritilmagan"
   },
   "StudentMessages": {
     "pageTitle": "Xabarlar",

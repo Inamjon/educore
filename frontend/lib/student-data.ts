@@ -130,69 +130,6 @@ export const WEEKLY_ATTENDANCE_TREND = [
   { name: "Wk 6", rate: 95 },
 ];
 
-// ─── Student Exams ────────────────────────────────────────────────────────────
-
-export const STUDENT_EXAMS = [
-  {
-    id: "sex1",
-    title: "Algebra A1 Mid-Term Exam",
-    groupId: "g1",
-    groupName: "Algebra A1",
-    courseColor: "#6366f1",
-    date: "2026-07-15",
-    startTime: "09:00",
-    duration: 90,
-    room: "Exam Hall A",
-    maxScore: 100,
-    questions: 40,
-    status: "upcoming" as const,
-  },
-  {
-    id: "sex2",
-    title: "English Literature Essay Exam",
-    groupId: "g4",
-    groupName: "English Literature B",
-    courseColor: "#f59e0b",
-    date: "2026-07-17",
-    startTime: "10:00",
-    duration: 60,
-    room: "Room 210",
-    maxScore: 80,
-    questions: 4,
-    status: "upcoming" as const,
-  },
-  {
-    id: "sex3",
-    title: "Algebra A1 Unit 1 Quiz",
-    groupId: "g1",
-    groupName: "Algebra A1",
-    courseColor: "#6366f1",
-    date: "2026-06-20",
-    startTime: "09:00",
-    duration: 45,
-    room: "Room 101",
-    maxScore: 50,
-    questions: 20,
-    status: "completed" as const,
-    score: 44,
-  },
-  {
-    id: "sex4",
-    title: "Biology Mid-Term Quiz",
-    groupId: "g5",
-    groupName: "Biology B1",
-    courseColor: "#10b981",
-    date: "2026-06-25",
-    startTime: "12:00",
-    duration: 45,
-    room: "Lab 3",
-    maxScore: 80,
-    questions: 25,
-    status: "completed" as const,
-    score: 68,
-  },
-];
-
 // ─── Student Messages ─────────────────────────────────────────────────────────
 
 export const STUDENT_MESSAGES = [
@@ -269,8 +206,9 @@ export const STUDENT_STATS = {
   avgGrade: 85,
   // pendingHomework removed — its only consumer (the Dashboard's "Pending
   // Homework" stat card) now reads the real Homework backend directly, see
-  // app/student/page.tsx.
-  upcomingExams: STUDENT_EXAMS.filter((e) => e.status === "upcoming").length,
+  // app/student/page.tsx. upcomingExams removed the same way — its two
+  // consumers (Dashboard StatCard, Profile StatRow) now read the real Exams
+  // backend directly, see app/student/page.tsx and app/student/profile/page.tsx.
   unreadMessages: STUDENT_MESSAGES.reduce((sum, m) => sum + m.unread, 0),
   enrolledCourses: STUDENT_COURSES.length,
 };
