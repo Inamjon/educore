@@ -182,15 +182,15 @@ export default function StudentExamsPage() {
   const completedExams = exams.filter((e) => e.status === 'completed');
 
   const completedWithScores = completedExams.filter((e) => scoreByExam.get(e.id) != null);
-  const avgCompletedScore =
-    completedWithScores.length > 0
-      ? Math.round(
-          completedWithScores.reduce((sum, e) => {
-            const score = scoreByExam.get(e.id) ?? 0;
-            return sum + (score / e.max_score) * 100;
-          }, 0) / completedWithScores.length
-        )
-      : 0;
+  const hasAvgCompletedScore = completedWithScores.length > 0;
+  const avgCompletedScore = hasAvgCompletedScore
+    ? Math.round(
+        completedWithScores.reduce((sum, e) => {
+          const score = scoreByExam.get(e.id) ?? 0;
+          return sum + (score / e.max_score) * 100;
+        }, 0) / completedWithScores.length
+      )
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -212,7 +212,7 @@ export default function StudentExamsPage() {
         />
         <StatCard
           label={t('statAverageScore')}
-          value={avgCompletedScore > 0 ? `${avgCompletedScore}%` : '—'}
+          value={hasAvgCompletedScore ? `${avgCompletedScore}%` : '—'}
           icon={<BarChart3 className="h-5 w-5 text-amber-600" />}
           iconBg="bg-amber-50"
         />
