@@ -37,7 +37,16 @@ class Exam(UUIDPrimaryKeyMixin, TimestampedMixin, SoftDeleteMixin, OrganizationS
     class Meta:
         db_table = schema_table("exams", "exams")
         constraints = [
-            models.UniqueConstraint(fields=["group", "date", "start_time"], name="uq_exams_group_date_start"),
+            # Scoped to live rows only (see ExamResult's sibling constraint
+            # for the soft-delete gotcha this avoids) — otherwise cancelling
+            # then re-scheduling an exam at the exact same group/date/time
+            # after a soft-delete would hit a stale constraint from a row
+            # nothing can see anymore.
+            models.UniqueConstraint(
+                fields=["group", "date", "start_time"],
+                condition=models.Q(deleted_at__isnull=True),
+                name="uq_exams_group_date_start",
+            ),
             models.CheckConstraint(condition=models.Q(max_score__gt=0), name="chk_exams_max_score"),
             models.CheckConstraint(condition=models.Q(duration_minutes__gt=0), name="chk_exams_duration"),
         ]

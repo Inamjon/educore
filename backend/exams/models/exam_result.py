@@ -28,7 +28,15 @@ class ExamResult(UUIDPrimaryKeyMixin, TimestampedMixin, SoftDeleteMixin, Organiz
     class Meta:
         db_table = schema_table("exams", "exam_results")
         constraints = [
-            models.UniqueConstraint(fields=["exam", "student_profile"], name="uq_exam_results_exam_student"),
+            # Scoped to live rows only — SoftDeleteMixin.delete() just sets
+            # deleted_at, the row stays physically present, so an
+            # unconditioned constraint would block ever re-entering a result
+            # for the same student/exam after a soft-deleted correction.
+            models.UniqueConstraint(
+                fields=["exam", "student_profile"],
+                condition=models.Q(deleted_at__isnull=True),
+                name="uq_exam_results_exam_student",
+            ),
         ]
         indexes = [
             models.Index(fields=["exam"], name="idx_exam_results_exam", condition=models.Q(deleted_at__isnull=True)),

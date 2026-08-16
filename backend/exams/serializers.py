@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from exams.models import Exam, ExamResult
+from groups.models import GroupMember
 
 
 class ExamSerializer(serializers.ModelSerializer):
@@ -45,27 +46,43 @@ class ExamResultSerializer(serializers.ModelSerializer):
             if exam is not None and student_profile is not None:
                 if ExamResult.objects.filter(exam=exam, student_profile=student_profile).exists():
                     raise serializers.ValidationError("A result already exists for this student on this exam.")
+                # _check_owns_group (ExamResultViewSet) only verifies the
+                # teacher teaches the exam's group — it says nothing about
+                # whether this particular student is actually enrolled in
+                # it. Without this, any student_profile in the org could be
+                # attached to the exam's roster by id.
+                if not GroupMember.objects.filter(
+                    group=exam.group, student_profile=student_profile, status="active"
+                ).exists():
+                    raise serializers.ValidationError(
+                        {"student_profile": "This student is not an active member of the exam's group."}
+                    )
 
         return attrs
 
-    def create(self, validated_data):
-        """Stamping a score at creation time counts as grading too — same
-        server-owned-timestamp rule as update() below.
+    @staticmethod
+    def _stamp_grading(validated_data, request):
+        """Grading (`score` newly set) stamps `graded_by`/`graded_at`
+        server-side — never trust a client-sent timestamp for a server-owned
+        fact. Same pattern as SubmissionSerializer.update(). Shared by
+        create() and update() below so the two can't drift on when exactly
+        a score counts as "graded".
         """
-        request = self.context.get("request")
-        if validated_data.get("score") is not None and request is not None and request.user.is_authenticated:
+        if request is not None and request.user.is_authenticated:
             validated_data["graded_by"] = request.user.id
             validated_data["graded_at"] = timezone.now()
+
+    def create(self, validated_data):
+        """Stamping a score at creation time counts as grading too — same
+        rule as update() below.
+        """
+        request = self.context.get("request")
+        if validated_data.get("score") is not None:
+            self._stamp_grading(validated_data, request)
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        """Grading (`score` newly set/changed) stamps `graded_by`/`graded_at`
-        server-side — never trust a client-sent timestamp for a server-owned
-        fact. Same pattern as SubmissionSerializer.update().
-        """
         request = self.context.get("request")
         if "score" in validated_data and validated_data["score"] != instance.score:
-            if request is not None and request.user.is_authenticated:
-                validated_data["graded_by"] = request.user.id
-            validated_data["graded_at"] = timezone.now()
+            self._stamp_grading(validated_data, request)
         return super().update(instance, validated_data)

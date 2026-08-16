@@ -71,7 +71,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='exam',
-            constraint=models.UniqueConstraint(fields=('group', 'date', 'start_time'), name='uq_exams_group_date_start'),
+            constraint=models.UniqueConstraint(condition=models.Q(('deleted_at__isnull', True)), fields=('group', 'date', 'start_time'), name='uq_exams_group_date_start'),
         ),
         migrations.AddConstraint(
             model_name='exam',
@@ -91,6 +91,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='examresult',
-            constraint=models.UniqueConstraint(fields=('exam', 'student_profile'), name='uq_exam_results_exam_student'),
+            constraint=models.UniqueConstraint(condition=models.Q(('deleted_at__isnull', True)), fields=('exam', 'student_profile'), name='uq_exam_results_exam_student'),
         ),
     ]
