@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# RLS schemas every EduCore app owns tables in — kept in one place because
+# both the role-bootstrap step and the post-migrate grant step need the
+# exact same list. See backend/README.md "One-time Postgres role setup".
+env:
+  EDUCORE_SCHEMAS: >-
+    foundation, auth, student, teacher, course, "group", attendance,
+    finance, notification, schedule, homework, payment_gateways, billing,
+    exams
+
+jobs:
+  frontend:
+    name: Frontend (typecheck + lint)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+  backend:
+    name: Backend (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Mirrors backend/README.md's "One-time Postgres role setup" — two
+      # non-superuser, non-owner roles because the app deliberately never
+      # connects as the table owner (owners silently bypass
+      # FORCE ROW LEVEL SECURITY, which would make RLS a no-op).
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      DJANGO_SECRET_KEY: ci-only-secret-key-not-used-anywhere-real
+      DB_HOST: localhost
+      DB_PORT: 5432
+      # settings/test.py reads this into DATABASES["default"]["NAME"]; set
+      # to the exact physical database name we provision below (skipping
+      # Django's usual test-runner-managed "test_<NAME>" auto-creation,
+      # since that path can't create the educore_auth_bypass grants it
+      # needs mid-run — see the grant step below).
+      TEST_DB_NAME: test_educore_test
+      DB_USER: educore_app
+      DB_PASSWORD: ci-app-password
+      DB_AUTH_BYPASS_USER: educore_auth_bypass
+      DB_AUTH_BYPASS_PASSWORD: ci-auth-bypass-password
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Create app roles + test database
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE educore_app LOGIN PASSWORD 'ci-app-password' CREATEDB;
+          CREATE ROLE educore_auth_bypass LOGIN PASSWORD 'ci-auth-bypass-password' BYPASSRLS;
+          CREATE DATABASE test_educore_test OWNER educore_app;
+          SQL
+
+      - name: Migrate test database (owned by educore_app)
+        run: uv run python manage.py migrate
+
+      - name: Grant educore_auth_bypass access on test database
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d test_educore_test -v ON_ERROR_STOP=1 <<SQL
+          GRANT USAGE ON SCHEMA ${EDUCORE_SCHEMAS} TO educore_auth_bypass;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA ${EDUCORE_SCHEMAS} TO educore_auth_bypass;
+          SQL
+
+      - name: Run tests
+        run: uv run pytest --reuse-db -q
