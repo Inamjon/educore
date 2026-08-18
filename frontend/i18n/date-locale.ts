@@ -12,7 +12,7 @@ export const INTL_DATE_LOCALES: Record<Locale, string> = {
 // localized month or weekday names — toLocaleDateString silently falls
 // back to a "M08"-style placeholder for months and plain English ("Sun")
 // for weekdays. Verified directly in the browser console; not a bug in
-// this app, but Uzbek is EduCore's primary target market, so it gets a
+// this app, but Uzbek is Mentorio's primary target market, so it gets a
 // small hand-rolled table instead of trusting the platform for these two
 // fields specifically. Numeric/time formatting (toLocaleTimeString) is
 // unaffected and keeps using the browser's Intl support.

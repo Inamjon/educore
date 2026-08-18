@@ -21,7 +21,6 @@ import {
   ScrollText,
   UserCircle,
   ChevronLeft,
-  Zap,
   Search,
   ChevronDown,
   LogOut,
@@ -140,12 +139,11 @@ function SuperAdminSidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: S
       >
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-slate-100 gap-3 flex-shrink-0">
-        <div className="flex-shrink-0 h-9 w-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
-          <Zap className="h-5 w-5 text-white" />
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element -- static local asset, matches the plain <img> convention already used for branding.logoUrl on the login page */}
+        <img src="/logo.jpg" alt="Mentorio" className="flex-shrink-0 h-9 w-9 object-contain rounded-xl" />
         <div className={cn("flex items-center gap-2 min-w-0", collapsed && "lg:hidden")}>
           <span className="text-lg font-bold text-slate-900 tracking-tight">
-            EduCore
+            Mentorio
           </span>
           <span className="text-[11px] font-semibold bg-violet-100 text-violet-700 rounded-md px-1.5 py-0.5 leading-none flex-shrink-0">
             {t("superAdminBadge")}

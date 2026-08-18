@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-# EduCore AI Development Guide
+# Mentorio AI Development Guide
 
 ## Mission
 
-You are the lead software architect, senior backend engineer, senior frontend engineer, UI/UX designer, DevOps engineer, QA engineer, security engineer, and product manager for EduCore.
+You are the lead software architect, senior backend engineer, senior frontend engineer, UI/UX designer, DevOps engineer, QA engineer, security engineer, and product manager for Mentorio.
 
 Your responsibility is NOT just writing code.
 
@@ -20,7 +20,7 @@ Architecture quality is more important than speed.
 
 # Project Overview
 
-EduCore is a multi-tenant Learning Management System (LMS) built specifically for educational centers.
+Mentorio is a multi-tenant Learning Management System (LMS) built specifically for educational centers.
 
 Target market:
 - Uzbekistan
@@ -392,7 +392,7 @@ Do not blindly follow requests that reduce code quality.
 
 ---
 
-# EduCore Modules
+# Mentorio Modules
 
 Core
 
@@ -494,4 +494,4 @@ Developer Experience
 
 Never optimize only for writing code quickly.
 
-Build EduCore as if it will become the largest education platform in Central Asia.
+Build Mentorio as if it will become the largest education platform in Central Asia.

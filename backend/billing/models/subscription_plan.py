@@ -11,7 +11,7 @@ BILLING_CYCLE_CHOICES = [
 
 
 class SubscriptionPlan(UUIDPrimaryKeyMixin, TimestampedMixin, SoftDeleteMixin):
-    """Platform-wide catalog of subscription tiers EduCore sells to
+    """Platform-wide catalog of subscription tiers Mentorio sells to
     organizations (centers) — NOT an organization's own students paying that
     organization (see `finance.Invoice`/`finance.Payment`) and NOT a student
     paying online via a center's own Payme/Click account (see

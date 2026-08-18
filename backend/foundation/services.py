@@ -8,10 +8,14 @@ from __future__ import annotations
 # JSON blob per panel matches the Super-Admin Settings page's own form
 # shape without inventing a schema for settings that don't persist yet.
 DEFAULT_GENERAL_SETTINGS: dict = {
-    "platformName": "EduCore",
+    "platformName": "Mentorio",
     "tagline": "The All-in-One LMS Platform",
-    "supportEmail": "support@educore.com",
-    "logoUrl": None,
+    "supportEmail": "support@mentorio.com",
+    # Relative path, deliberately not an absolute URL — served from the
+    # frontend's own public/ directory (see frontend/app/(auth)/login/
+    # page.tsx), so the browser resolves it against whatever origin the
+    # login page itself was loaded from, regardless of where the API lives.
+    "logoUrl": "/logo-mentorio.jpg",
     "faviconUrl": None,
 }
 

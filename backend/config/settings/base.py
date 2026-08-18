@@ -1,5 +1,5 @@
 """
-Base Django settings for EduCore, shared by dev/prod/test.
+Base Django settings for Mentorio, shared by dev/prod/test.
 """
 
 import base64

@@ -6,8 +6,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { QueryProvider } from "./query-provider";
 
 export const metadata: Metadata = {
-  title: "EduCore — Education Management System",
+  title: "Mentorio — Education Management System",
   description: "Modern education management platform for schools and learning centers",
+  icons: { icon: "/logo.jpg" },
 };
 
 export default async function RootLayout({

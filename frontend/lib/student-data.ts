@@ -196,7 +196,7 @@ export const STUDENT_NOTIFICATIONS = [
   { id: "sn6", title: "Class Cancelled", message: "Algebra A1 session on July 10 has been cancelled due to a school event.", type: "warning" as const, read: true, createdAt: "2026-07-01T12:00:00Z", category: "class" as const },
   { id: "sn7", title: "Lab Report Graded", message: "Your Cell Structure Lab Report was graded: 45/50.", type: "success" as const, read: true, createdAt: "2026-07-04T18:30:00Z", category: "homework" as const },
   { id: "sn8", title: "Attendance Reminder", message: "You were marked late for English Literature B on July 1.", type: "warning" as const, read: true, createdAt: "2026-07-01T10:30:00Z", category: "class" as const },
-  { id: "sn9", title: "Welcome to EduCore", message: "Your student account has been set up successfully.", type: "success" as const, read: true, createdAt: "2025-09-01T09:00:00Z", category: "admin" as const },
+  { id: "sn9", title: "Welcome to Mentorio", message: "Your student account has been set up successfully.", type: "success" as const, read: true, createdAt: "2025-09-01T09:00:00Z", category: "admin" as const },
 ];
 
 // ─── Student Stats ────────────────────────────────────────────────────────────

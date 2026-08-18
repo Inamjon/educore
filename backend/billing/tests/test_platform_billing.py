@@ -1,5 +1,5 @@
 """Model/service-level tests for billing.PlatformInvoice/PlatformPayment
-(EduCore's own bill to an organization — platform <-> organization, not
+(Mentorio's own bill to an organization — platform <-> organization, not
 finance.Invoice's organization <-> student) plus API-level authorization —
 same "real login" reasoning as billing/tests/test_subscription_plan.py.
 

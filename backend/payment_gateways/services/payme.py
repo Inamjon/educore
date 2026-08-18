@@ -187,7 +187,7 @@ def cancel_transaction(gateway_account, params: dict) -> dict:
         if txn.status == "success":
             # Money was already credited to our ledger — we never held the
             # funds ourselves (see plan Context), so there's nothing to
-            # "refund" through EduCore; this just corrects our own record to
+            # "refund" through Mentorio; this just corrects our own record to
             # match what Payme is telling us actually happened.
             if txn.payment_id:
                 txn.payment.delete()  # soft-delete, SoftDeleteMixin

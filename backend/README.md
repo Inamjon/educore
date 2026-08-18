@@ -1,6 +1,6 @@
-# EduCore Backend
+# Mentorio Backend
 
-Django + DRF backend for EduCore. `foundation` and `auth_custom` (organizations,
+Django + DRF backend for Mentorio. `foundation` and `auth_custom` (organizations,
 branches, users, RBAC, JWT auth with real session tracking) shipped first as
 Phase 0; `student`, `teacher`, `course`, `groups`, `attendance`, `finance`,
 `notifications`, `schedule`, `homework` (assignments + submissions),

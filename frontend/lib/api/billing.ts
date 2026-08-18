@@ -1,6 +1,6 @@
 import { apiFetch, fetchAllPages } from "@/lib/api/client";
 
-/** Platform <-> organization billing — EduCore selling a center a
+/** Platform <-> organization billing — Mentorio selling a center a
  * subscription tier. Distinct from `lib/api/finance.ts` (a center billing
  * its own students) and `lib/api/payment-gateways.ts` (a student paying
  * that center online) — see backend/billing/models/subscription_plan.py's
@@ -94,7 +94,7 @@ export async function deleteSubscriptionPlan(id: string): Promise<void> {
   await apiFetch(`/api/v1/billing/subscription-plans/${id}/`, { method: "DELETE" });
 }
 
-// ─── Platform Invoices/Payments — EduCore's own bill to an organization,
+// ─── Platform Invoices/Payments — Mentorio's own bill to an organization,
 // manually reconciled (bank transfer, cash, ...) by super_admin. Not real-
 // time gateway checkout — see backend/billing/models/platform_payment.py's
 // docstring for why this deliberately doesn't reuse payment_gateways. ─────

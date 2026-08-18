@@ -12,7 +12,7 @@ PROVIDER_CHOICES = [
 
 class PaymentGatewayAccount(UUIDPrimaryKeyMixin, TimestampedMixin, SoftDeleteMixin, OrganizationScopedMixin):
     """A center's own Payme/Click merchant credentials — one row per
-    (organization, provider). Money never passes through EduCore: this row
+    (organization, provider). Money never passes through Mentorio: this row
     only holds what's needed to (a) build a checkout redirect link
     (merchant_id, service_id) and (b) verify that a webhook claiming to be
     Payme/Click really is (secret_key, encrypted at rest — see

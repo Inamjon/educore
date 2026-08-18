@@ -1,8 +1,8 @@
-# EduCore LMS - Database Architecture Overview
+# Mentorio LMS - Database Architecture Overview
 
 ## Platform Description
 
-EduCore is a multi-tenant, cloud-based Learning Management System (LMS) designed to serve thousands of education centers with millions of users. The platform provides comprehensive education management including student/teacher management, course scheduling, attendance tracking, homework/exams, finance, notifications, and AI-powered analytics.
+Mentorio is a multi-tenant, cloud-based Learning Management System (LMS) designed to serve thousands of education centers with millions of users. The platform provides comprehensive education management including student/teacher management, course scheduling, attendance tracking, homework/exams, finance, notifications, and AI-powered analytics.
 
 ---
 

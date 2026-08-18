@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Zap,
   Eye,
   EyeOff,
   User,
@@ -45,11 +44,15 @@ export default function LoginPage() {
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);
   // Public, unauthenticated read (see foundation.views.PlatformBrandingView)
-  // — falls back to the "EduCore" default below while loading or on error,
+  // — falls back to the "Mentorio" default below while loading or on error,
   // same values foundation.services.DEFAULT_GENERAL_SETTINGS ships with.
   const { data: branding } = usePlatformBrandingQuery();
-  const platformName = branding?.platformName || "EduCore";
-  const tagline = branding?.tagline || "EduCore hisobingizga kiring";
+  const platformName = branding?.platformName || "Mentorio";
+  const tagline = branding?.tagline || "Mentorio hisobingizga kiring";
+  // Same default the backend itself ships (see DEFAULT_GENERAL_SETTINGS)
+  // — shown immediately on first paint instead of the Zap-icon placeholder
+  // flashing for the brief moment before the branding query resolves.
+  const logoUrl = branding?.logoUrl || "/logo-mentorio.jpg";
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -107,17 +110,8 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-8">
-          {branding?.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={branding.logoUrl} alt={platformName} className="h-10 max-w-[160px] object-contain" />
-          ) : (
-            <>
-              <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
-                <Zap className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-lg font-bold text-slate-900">{platformName}</span>
-            </>
-          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logoUrl} alt={platformName} className="h-10 max-w-[220px] object-contain" />
         </div>
 
         {/* Card */}
@@ -141,7 +135,7 @@ export default function LoginPage() {
           {success && (
             <div className="flex items-center gap-2.5 bg-emerald-50 border border-emerald-100 rounded-xl p-3.5 mb-5">
               <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-              <p className="text-sm text-emerald-700 font-medium">Muvaffaqiyatli kirildi! Yo'naltirilmoqda…</p>
+              <p className="text-sm text-emerald-700 font-medium">Muvaffaqiyatli kirildi! Yo&apos;naltirilmoqda…</p>
             </div>
           )}
 

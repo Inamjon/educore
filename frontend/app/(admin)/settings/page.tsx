@@ -255,7 +255,7 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium text-slate-700 block mb-1.5">{t("organizationNameLabel")}</label>
-                  <Input defaultValue="EduCore Academy" />
+                  <Input defaultValue="Mentorio Academy" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>

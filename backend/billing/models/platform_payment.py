@@ -19,7 +19,7 @@ class PlatformPayment(UUIDPrimaryKeyMixin, TimestampedMixin, SoftDeleteMixin, Or
     PlatformInvoice — super_admin recording money already received (bank
     transfer, cash, ...), not a real-time gateway charge. Deliberately NOT
     wired to `payment_gateways` — that app is scoped to a *student* paying
-    *their own center* online; EduCore charging a center would need the
+    *their own center* online; Mentorio charging a center would need the
     platform's own Payme/Click merchant account, a distinct, larger future
     project (see plan doc's decision on this).
     """

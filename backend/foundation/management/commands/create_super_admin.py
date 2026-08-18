@@ -43,7 +43,7 @@ class Command(BaseCommand):
         platform_org, _ = Organization.objects.get_or_create(
             slug=PLATFORM_ORG_SLUG,
             defaults={
-                "name": "EduCore Platform",
+                "name": "Mentorio Platform",
                 "email": "platform@educore.internal",
                 "status": "active",
                 "subscription_plan": enterprise_plan,

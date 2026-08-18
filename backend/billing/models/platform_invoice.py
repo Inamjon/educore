@@ -14,7 +14,7 @@ PLATFORM_INVOICE_STATUS_CHOICES = [
 
 
 class PlatformInvoice(UUIDPrimaryKeyMixin, TimestampedMixin, SoftDeleteMixin, OrganizationScopedMixin):
-    """EduCore's own bill to an organization for one subscription billing
+    """Mentorio's own bill to an organization for one subscription billing
     period — the platform <-> organization counterpart of `finance.Invoice`
     (an organization's bill to its own student). Manually created by
     super_admin, not auto-generated on a schedule (see plan doc — automated

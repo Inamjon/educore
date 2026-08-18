@@ -1,6 +1,6 @@
 """Sequential platform-invoice numbering (`PINV-<year>-<seq>`) — platform-
 wide, not per-organization (unlike `finance.numbering.generate_invoice_number`,
-which is per-org: this is EduCore's own invoice to a center, not a center's
+which is per-org: this is Mentorio's own invoice to a center, not a center's
 invoice to its own student).
 
 Because it's platform-wide, `select_for_update()` alone isn't enough the way

@@ -21,7 +21,7 @@ BILLING_PERMISSION_MAP = {
 # Deliberately a *different* module from BILLING_PERMISSION_MAP above —
 # `billing` (SubscriptionPlan) is a public catalog every org can eventually
 # be granted read access to (see SubscriptionPlanViewSet's own docstring);
-# `platform_billing` (PlatformInvoice/PlatformPayment) is EduCore's own
+# `platform_billing` (PlatformInvoice/PlatformPayment) is Mentorio's own
 # sensitive, cross-organization ledger. Sharing one module would mean a
 # future `billing:view` grant for center_admins (so they can see plan
 # pricing) also hands them write access to platform invoices/payments —
@@ -86,7 +86,7 @@ class SubscriptionPlanViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
 
 
 class PlatformInvoiceViewSet(SoftDeleteDestroyMixin, viewsets.ModelViewSet):
-    """EduCore's bill to an organization — RLS-covered (has `organization`),
+    """Mentorio's bill to an organization — RLS-covered (has `organization`),
     but no extra Python-level scoping needed: only super_admin ever holds
     `billing` permissions, and `is_platform_user()`'s RLS bypass already
     lets that role see every organization's rows, same as every other

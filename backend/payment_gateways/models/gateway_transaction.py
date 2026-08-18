@@ -20,7 +20,7 @@ class GatewayTransaction(UUIDPrimaryKeyMixin, TimestampedMixin, OrganizationScop
     cancelled), never a manageable CRUD entity a user deletes; "cancelled"
     already IS this row's own undo state.
 
-    `merchant_trans_id` is EduCore's own opaque reference, minted when the
+    `merchant_trans_id` is Mentorio's own opaque reference, minted when the
     checkout link is built (services/checkout.py) and handed to Payme/Click
     as the account/transaction_param — the anchor idempotency is built on
     before the provider has assigned anything of their own.

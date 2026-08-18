@@ -42,7 +42,7 @@ export interface ListStudentsParams {
    * Students page for the platform-wide use, and the identical pattern in
    * lib/api/teachers.ts). Platform-wide is the one call site in this file
    * where fetchAllPages' "everything fits in a reasonable page-load"
-   * assumption is most likely to stop holding as EduCore's real target
+   * assumption is most likely to stop holding as Mentorio's real target
    * scale (CLAUDE.md: "thousands of students") is reached — real
    * server-side pagination UI is the eventual fix, this is the tactical
    * one that at least stops silent truncation today. */

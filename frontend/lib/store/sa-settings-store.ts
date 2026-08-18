@@ -82,7 +82,7 @@ const DEFAULT_SETTINGS: SASettings = {
     smtpPort: 587,
     username: "postmaster@educore.com",
     password: "••••••••••",
-    fromName: "EduCore Platform",
+    fromName: "Mentorio Platform",
     tlsEnabled: true,
   },
   sms: {
