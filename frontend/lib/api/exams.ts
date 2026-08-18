@@ -91,6 +91,10 @@ export async function createExam(input: ExamInput): Promise<Exam> {
   });
 }
 
+export async function deleteExam(id: string): Promise<void> {
+  await apiFetch(`/api/v1/exams/${id}/`, { method: "DELETE" });
+}
+
 export async function updateExam(id: string, input: Partial<ExamInput>): Promise<Exam> {
   const body: Record<string, unknown> = {};
   if (input.group !== undefined) body.group = input.group;

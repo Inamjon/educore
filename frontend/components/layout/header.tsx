@@ -22,6 +22,7 @@ const PAGE_TITLE_KEYS: Record<string, string> = {
   "/schedule": "navSchedule",
   "/attendance": "navAttendance",
   "/homework": "navHomework",
+  "/exams": "navExams",
   "/finance": "navFinance",
   "/notifications": "navNotifications",
   "/settings": "navSettings",
