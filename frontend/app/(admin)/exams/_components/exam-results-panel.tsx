@@ -79,6 +79,11 @@ export function ExamResultsPanel({ exam, onClose, onEdit, onDelete }: ExamResult
   }
 
   async function handleSaveResults() {
+    // Promise.allSettled([]) resolves to [] with zero rejected entries, so
+    // without this guard an empty save (nothing entered yet, or every input
+    // cleared) would still hit the failed.length === 0 branch below and
+    // toast a false "saved successfully" despite making no request at all.
+    if (enteredEntries.length === 0) return;
     setSaving(true);
     try {
       const toSave = enteredEntries.filter(([, value]) => !isNaN(Number(value)));
@@ -234,7 +239,7 @@ export function ExamResultsPanel({ exam, onClose, onEdit, onDelete }: ExamResult
 
       <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
         <span className="text-xs text-slate-400">{t("studentsScored", { scored: scores.length, total: students.length })}</span>
-        <Button variant="primary" onClick={handleSaveResults} loading={saving} disabled={students.length === 0}>
+        <Button variant="primary" onClick={handleSaveResults} loading={saving} disabled={students.length === 0 || enteredEntries.length === 0}>
           {t("saveResultsButton")}
         </Button>
       </div>

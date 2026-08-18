@@ -89,9 +89,16 @@ export default function ExamsPage() {
     // .has(), not a truthy check — a completed exam where every student
     // genuinely scored 0 still has a real average of 0, distinct from one
     // nobody has graded yet. Same reasoning as Teacher Exams' identical stat.
-    const withScores = completedExams.filter((e) => avgScoreByExam.has(e.id)).map((e) => avgScoreByExam.get(e.id) as number);
-    if (withScores.length === 0) return null;
-    return Math.round(withScores.reduce((a, b) => a + b, 0) / withScores.length);
+    // Normalized to a % of each exam's own max_score *before* averaging
+    // across exams — exams don't all share the same point scale (a 50-point
+    // quiz next to a 200-point final is a normal mix), so averaging raw
+    // scores and slapping a "%" on the result would silently misrepresent
+    // performance the moment any exam departs from the max_score=100 default.
+    const percentages = completedExams
+      .filter((e) => avgScoreByExam.has(e.id) && e.max_score > 0)
+      .map((e) => ((avgScoreByExam.get(e.id) as number) / e.max_score) * 100);
+    if (percentages.length === 0) return null;
+    return Math.round(percentages.reduce((a, b) => a + b, 0) / percentages.length);
   })();
 
   function openEdit(exam: Exam) {
@@ -201,6 +208,11 @@ export default function ExamsPage() {
 
       {selectedExam && (
         <ExamResultsPanel
+          // Forces a remount on exam change — without this, clicking a
+          // different row while the panel is open reuses the same instance,
+          // and its seededRef guard permanently blocks reseeding, leaving
+          // Save posting the *previous* exam's scores onto the new one.
+          key={selectedExam.id}
           exam={selectedExam}
           onClose={() => setSelectedId(null)}
           onEdit={openEdit}

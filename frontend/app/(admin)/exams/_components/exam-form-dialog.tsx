@@ -186,11 +186,13 @@ function ExamFormFields({
             placeholder={t("fieldDuration")}
             value={values.duration}
             onChange={(e) => setField("duration", e.target.value)}
+            error={errors.duration}
           />
           <Input
             placeholder={t("roomPlaceholder")}
             value={values.room}
             onChange={(e) => setField("room", e.target.value)}
+            error={errors.room}
           />
           <Input
             type="number"
@@ -198,6 +200,7 @@ function ExamFormFields({
             placeholder={t("fieldMaxScore")}
             value={values.maxScore}
             onChange={(e) => setField("maxScore", e.target.value)}
+            error={errors.maxScore}
           />
           <Input
             type="number"
@@ -205,6 +208,7 @@ function ExamFormFields({
             placeholder={t("fieldQuestionCount")}
             value={values.questionCount}
             onChange={(e) => setField("questionCount", e.target.value)}
+            error={errors.questionCount}
           />
         </div>
       </DialogBody>
