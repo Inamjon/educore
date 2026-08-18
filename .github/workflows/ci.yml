@@ -13,7 +13,8 @@ on:
 env:
   EDUCORE_SCHEMAS: >-
     foundation, auth, student, teacher, course, "group", attendance,
-    finance, notification, schedule, homework, payment_gateways, billing
+    finance, notification, schedule, homework, payment_gateways, billing,
+    exams
 
 jobs:
   frontend:
