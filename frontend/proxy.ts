@@ -83,5 +83,15 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api).*)"],
+  // Static files under public/ (logo images, favicons, ...) were falling
+  // through to the role guard below like any other page request — harmless
+  // for Admin (whose portal is the "anything unclaimed" fallback, so it
+  // always passed), but a Teacher/Student/Super-Admin session would have
+  // its own <img src="/logo.jpg"> request redirected to an HTML page
+  // instead of the image (no PORTAL_GUARDS prefix matches a bare asset
+  // path, so it fell into the ADMIN_ROLES-only fallback and got treated as
+  // a wrong-portal hit). Excluding any path with a file extension in its
+  // last segment fixes this generically for every current and future
+  // public/ asset, not just today's logo files.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api|.*\\..*$).*)"],
 };
