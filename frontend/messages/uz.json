@@ -468,7 +468,8 @@
     "statusActive": "Faol",
     "statusCompleted": "Yakunlangan",
     "statusCancelled": "Bekor qilingan",
-    "statusArchived": "Arxivlangan"
+    "statusArchived": "Arxivlangan",
+    "windowSuffix30d": " (30 kun)"
   },
   "TeacherGroups": {
     "pageTitle": "Guruhlarim",
@@ -732,7 +733,8 @@
     "statusPresent": "Kelgan",
     "statusAbsent": "Kelmagan",
     "statusLate": "Kechikkan",
-    "statusExcused": "Sababli"
+    "statusExcused": "Sababli",
+    "windowSuffix30d": " (30 kun)"
   },
   "TeacherMessages": {
     "pageTitle": "Xabarlar",
@@ -2316,7 +2318,8 @@
     "entitySession": "Sessiya",
     "entityAttendance": "Davomat",
     "entityTeacherProfile": "O'qituvchi profili",
-    "truncatedNote": "{total} tadan birinchi {shown} tasi ko'rsatilmoqda — qolganini ko'rish uchun sana oralig'ini torroq qiling."
+    "truncatedNote": "{total} tadan birinchi {shown} tasi ko'rsatilmoqda — qolganini ko'rish uchun sana oralig'ini torroq qiling.",
+    "shownPageSuffix": "(ko'rsatilgan sahifada)"
   },
   "SuperAdminProfile": {
     "pageTitle": "Profil",

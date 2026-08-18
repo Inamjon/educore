@@ -468,7 +468,8 @@
     "statusActive": "Active",
     "statusCompleted": "Completed",
     "statusCancelled": "Cancelled",
-    "statusArchived": "Archived"
+    "statusArchived": "Archived",
+    "windowSuffix30d": " (30d)"
   },
   "TeacherGroups": {
     "pageTitle": "My Groups",
@@ -732,7 +733,8 @@
     "statusPresent": "Present",
     "statusAbsent": "Absent",
     "statusLate": "Late",
-    "statusExcused": "Excused"
+    "statusExcused": "Excused",
+    "windowSuffix30d": " (30d)"
   },
   "TeacherMessages": {
     "pageTitle": "Messages",
@@ -2316,7 +2318,8 @@
     "entitySession": "Session",
     "entityAttendance": "Attendance",
     "entityTeacherProfile": "Teacher Profile",
-    "truncatedNote": "Showing the first {shown} of {total} matching events — narrow the date range to see the rest."
+    "truncatedNote": "Showing the first {shown} of {total} matching events — narrow the date range to see the rest.",
+    "shownPageSuffix": "(shown page)"
   },
   "SuperAdminProfile": {
     "pageTitle": "Profile",

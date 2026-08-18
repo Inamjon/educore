@@ -35,8 +35,14 @@ export function useAttendanceQuery(params: ListAttendanceParams) {
 const DASHBOARD_WINDOW_DAYS = 30;
 
 /** Aggregates attendance across several groups (e.g. all of a teacher's own
- * groups) — same fan-out-in-parallel shape as useMyRosterQuery, and shares
- * its per-group queryKey so the cache is reused. */
+ * groups) — same fan-out-in-parallel shape as useMyRosterQuery. Its queryKey
+ * now includes `dateFrom`, so — unlike useMyRosterQuery/useGroupMembersQuery,
+ * which really do share one cache entry with their single-target
+ * counterpart — this does NOT warm the cache for a single-group
+ * `useAttendanceQuery({organizationId, group})` call (no `dateFrom`) opened
+ * afterward; those are deliberately different queries now; see
+ * listAttendance's own comment for why they're bounded differently. Reuse
+ * here is only across this hook's own concurrent per-group fan-out. */
 export function useAttendanceForGroupsQuery(organizationId: string, groupIds: string[]) {
   const dateFrom = daysFromTodayIso(-DASHBOARD_WINDOW_DAYS);
   const results = useQueries({

@@ -178,7 +178,13 @@ export default function AuditLogsPage() {
   const updateCount = list.filter((l) => l.action === 'update').length;
   const deleteCount = list.filter((l) => l.action === 'delete').length;
 
-  const hasFilters = !!(organizationId || action || entityType || dateFrom || dateTo);
+  // dateFrom is never empty — it's seeded from defaultDateFrom() and Clear
+  // resets it back to that same default (see the Clear handler below), so
+  // comparing it for mere truthiness would make this true from the very
+  // first render (Clear visible + a no-op click) even when nothing has
+  // actually been filtered. Only a value that *differs* from the default
+  // counts as an active filter.
+  const hasFilters = !!(organizationId || action || entityType || dateTo || (dateFrom && dateFrom !== defaultDateFrom()));
 
   const columns: Column<AuditLog>[] = useMemo(
     () => [
@@ -258,11 +264,16 @@ export default function AuditLogsPage() {
       />
 
       {/* ── Stats Row ────────────────────────────────────────────────────── */}
+      {/* Created/Updated/Deleted are counted from `list` — the visible page
+          — while Total Events uses the real backend `totalCount`. Those only
+          agree when nothing's truncated; when it is, the three sub-stats get
+          a "(shown page)" qualifier so they don't silently misrepresent the
+          filter's true composition (see the isTruncated banner below). */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t('statTotalEvents')} value={totalCount} icon={<ScrollText className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
-        <StatCard label={t('statCreated')} value={createCount} icon={<PlusCircle className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
-        <StatCard label={t('statUpdated')} value={updateCount} icon={<Pencil className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
-        <StatCard label={t('statDeleted')} value={deleteCount} icon={<Trash2 className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
+        <StatCard label={t('statCreated') + (isTruncated ? ` ${t('shownPageSuffix')}` : '')} value={createCount} icon={<PlusCircle className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label={t('statUpdated') + (isTruncated ? ` ${t('shownPageSuffix')}` : '')} value={updateCount} icon={<Pencil className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
+        <StatCard label={t('statDeleted') + (isTruncated ? ` ${t('shownPageSuffix')}` : '')} value={deleteCount} icon={<Trash2 className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
       </div>
 
       {/* ── Truncation banner ────────────────────────────────────────────── */}

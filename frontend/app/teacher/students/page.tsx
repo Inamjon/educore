@@ -63,7 +63,7 @@ function StudentCard({
       <div className="w-full space-y-2 text-left">
         <div>
           <div className="flex justify-between text-xs text-slate-500 mb-1">
-            <span>{t('attendanceLabel')}</span>
+            <span>{t('attendanceLabel')}{t('windowSuffix30d')}</span>
             <span className="font-medium text-slate-700">{attendanceRate}%</span>
           </div>
           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -154,7 +154,7 @@ function StudentDetailPanel({
 
         <div className="space-y-5">
           <div className="grid grid-cols-1 gap-3">
-            <MiniStat icon={<ClipboardCheck className="h-4 w-4 text-indigo-600" />} label={t('attendanceLabel')} value={`${attendanceRate}%`} bg="bg-indigo-50" />
+            <MiniStat icon={<ClipboardCheck className="h-4 w-4 text-indigo-600" />} label={`${t('attendanceLabel')}${t('windowSuffix30d')}`} value={`${attendanceRate}%`} bg="bg-indigo-50" />
           </div>
 
           <div>
@@ -272,7 +272,7 @@ export default function TeacherStudentsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard label={t('statTotalStudents')} value={totalStudents} icon={<Users className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
-        <StatCard label={t('statAvgAttendance')} value={`${avgAttendance}%`} icon={<ClipboardCheck className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label={`${t('statAvgAttendance')}${t('windowSuffix30d')}`} value={`${avgAttendance}%`} icon={<ClipboardCheck className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
       </div>
 
       {isLoading ? (

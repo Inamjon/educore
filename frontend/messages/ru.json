@@ -468,7 +468,8 @@
     "statusActive": "Активна",
     "statusCompleted": "Завершена",
     "statusCancelled": "Отменена",
-    "statusArchived": "В архиве"
+    "statusArchived": "В архиве",
+    "windowSuffix30d": " (30 дн.)"
   },
   "TeacherGroups": {
     "pageTitle": "Мои группы",
@@ -732,7 +733,8 @@
     "statusPresent": "Присутствовал",
     "statusAbsent": "Отсутствовал",
     "statusLate": "Опоздал",
-    "statusExcused": "По уважительной причине"
+    "statusExcused": "По уважительной причине",
+    "windowSuffix30d": " (30 дн.)"
   },
   "TeacherMessages": {
     "pageTitle": "Сообщения",
@@ -2316,7 +2318,8 @@
     "entitySession": "Сессия",
     "entityAttendance": "Посещаемость",
     "entityTeacherProfile": "Профиль преподавателя",
-    "truncatedNote": "Показаны первые {shown} из {total} подходящих событий — сузьте диапазон дат, чтобы увидеть остальные."
+    "truncatedNote": "Показаны первые {shown} из {total} подходящих событий — сузьте диапазон дат, чтобы увидеть остальные.",
+    "shownPageSuffix": "(на показанной странице)"
   },
   "SuperAdminProfile": {
     "pageTitle": "Профиль",
