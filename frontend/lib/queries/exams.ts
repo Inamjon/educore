@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createExam,
   createExamResult,
+  deleteExam,
   listExamResults,
   listExams,
   updateExam,
@@ -44,6 +45,19 @@ export function useUpdateExamMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: Partial<ExamInput> }) => updateExam(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["exams"] });
+    },
+  });
+}
+
+/** Real (soft-)delete — center_admin-only at the API level (exams:delete;
+ * a teacher never gets this grant, so Teacher's page has no equivalent and
+ * only ever cancels via a status update, see useUpdateExamMutation above). */
+export function useDeleteExamMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteExam(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["exams"] });
     },

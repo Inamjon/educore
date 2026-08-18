@@ -11,6 +11,7 @@ import {
   Calendar,
   ClipboardCheck,
   ClipboardList,
+  Award,
   CreditCard,
   Bell,
   Settings,
@@ -44,6 +45,7 @@ const NAV_ITEMS = [
       { href: "/schedule", labelKey: "navSchedule", icon: Calendar },
       { href: "/attendance", labelKey: "navAttendance", icon: ClipboardCheck },
       { href: "/homework", labelKey: "navHomework", icon: ClipboardList },
+      { href: "/exams", labelKey: "navExams", icon: Award },
     ],
   },
   {

@@ -39,13 +39,33 @@ interface ListResponse<T> {
   pagination: { count: number; page: number; pages: number };
 }
 
+/** Fetches every page and concatenates results. The backend hard-caps
+ * page_size at 100 (see backend/common/pagination.py's
+ * EnvelopePageNumberPagination.max_page_size) — a single request with a
+ * bigger page_size silently gets clamped back down, so any org-wide list
+ * with more than 100 rows (a realistic count for exams/results once a
+ * center has a real semester's worth) was getting truncated with no error
+ * and no sign anything was missing. Every unscoped list in this file goes
+ * through this now, not just a larger page_size. */
+async function fetchAllPages<T>(path: string, query: URLSearchParams): Promise<T[]> {
+  query.set("page_size", "100");
+  query.set("page", "1");
+  const first = await apiFetch<ListResponse<T>>(`${path}?${query}`);
+  const results = [...first.results];
+  for (let page = 2; page <= first.pagination.pages; page++) {
+    query.set("page", String(page));
+    const next = await apiFetch<ListResponse<T>>(`${path}?${query}`);
+    results.push(...next.results);
+  }
+  return results;
+}
+
 export interface ListExamsParams {
   organizationId: string;
   group?: string;
   status?: ExamStatus;
   dateFrom?: string;
   dateTo?: string;
-  pageSize?: number;
 }
 
 export async function listExams(params: ListExamsParams): Promise<Exam[]> {
@@ -54,10 +74,8 @@ export async function listExams(params: ListExamsParams): Promise<Exam[]> {
   if (params.status) query.set("status", params.status);
   if (params.dateFrom) query.set("date_from", params.dateFrom);
   if (params.dateTo) query.set("date_to", params.dateTo);
-  query.set("page_size", String(params.pageSize ?? 200));
 
-  const data = await apiFetch<ListResponse<Exam>>(`/api/v1/exams/?${query}`);
-  return data.results;
+  return fetchAllPages<Exam>("/api/v1/exams/", query);
 }
 
 export interface ExamInput {
@@ -91,6 +109,10 @@ export async function createExam(input: ExamInput): Promise<Exam> {
   });
 }
 
+export async function deleteExam(id: string): Promise<void> {
+  await apiFetch(`/api/v1/exams/${id}/`, { method: "DELETE" });
+}
+
 export async function updateExam(id: string, input: Partial<ExamInput>): Promise<Exam> {
   const body: Record<string, unknown> = {};
   if (input.group !== undefined) body.group = input.group;
@@ -113,17 +135,14 @@ export interface ListExamResultsParams {
   organizationId: string;
   exam?: string;
   studentProfile?: string;
-  pageSize?: number;
 }
 
 export async function listExamResults(params: ListExamResultsParams): Promise<ExamResult[]> {
   const query = new URLSearchParams({ organization: params.organizationId });
   if (params.exam) query.set("exam", params.exam);
   if (params.studentProfile) query.set("student_profile", params.studentProfile);
-  query.set("page_size", String(params.pageSize ?? 100));
 
-  const data = await apiFetch<ListResponse<ExamResult>>(`/api/v1/exams/results/?${query}`);
-  return data.results;
+  return fetchAllPages<ExamResult>("/api/v1/exams/results/", query);
 }
 
 /** Teacher entering a score for one student. There's no bulk-upsert
