@@ -15,11 +15,17 @@ import {
 const examsKey = (params: ListExamsParams) => ["exams", params] as const;
 const examResultsKey = (params: ListExamResultsParams) => ["examResults", params] as const;
 
+// No `enabled` gate on organizationId — omitting it entirely is a valid,
+// meaningful call (a super_admin's platform-wide query, see
+// ListExamsParams's own doc), not a "not ready yet" state to wait out. Row
+// visibility is enforced by RLS regardless of whether this param is
+// present, so an org-scoped caller mid-auth-hydration just gets their own
+// (still-correct) rows back — matches lib/queries/teachers.ts/students.ts's
+// identical no-gate precedent.
 export function useExamsQuery(params: ListExamsParams) {
   return useQuery({
     queryKey: examsKey(params),
     queryFn: () => listExams(params),
-    enabled: !!params.organizationId,
   });
 }
 
@@ -27,7 +33,6 @@ export function useExamResultsQuery(params: ListExamResultsParams) {
   return useQuery({
     queryKey: examResultsKey(params),
     queryFn: () => listExamResults(params),
-    enabled: !!params.organizationId,
   });
 }
 

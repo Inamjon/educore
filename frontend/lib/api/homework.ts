@@ -38,7 +38,9 @@ export interface Submission {
 }
 
 export interface ListAssignmentsParams {
-  organizationId: string;
+  /** Omit for a platform-wide query — see lib/api/teachers.ts's identical
+   * pattern; needed for the Super-Admin Homework oversight page. */
+  organizationId?: string;
   group?: string;
   status?: AssignmentStatus;
 }
@@ -49,7 +51,8 @@ export interface ListAssignmentsParams {
 // rather than the bounded-default-filter treatment those need. Revisit if
 // a real org's assignment count ever grows large enough to make this slow.
 export async function listAssignments(params: ListAssignmentsParams): Promise<Assignment[]> {
-  const query = new URLSearchParams({ organization: params.organizationId });
+  const query = new URLSearchParams();
+  if (params.organizationId) query.set("organization", params.organizationId);
   if (params.group) query.set("group", params.group);
   if (params.status) query.set("status", params.status);
 
@@ -100,13 +103,15 @@ export async function deleteAssignment(id: string): Promise<void> {
 }
 
 export interface ListSubmissionsParams {
-  organizationId: string;
+  /** Omit for a platform-wide query — see ListAssignmentsParams's identical note. */
+  organizationId?: string;
   assignment?: string;
   studentProfile?: string;
 }
 
 export async function listSubmissions(params: ListSubmissionsParams): Promise<Submission[]> {
-  const query = new URLSearchParams({ organization: params.organizationId });
+  const query = new URLSearchParams();
+  if (params.organizationId) query.set("organization", params.organizationId);
   if (params.assignment) query.set("assignment", params.assignment);
   if (params.studentProfile) query.set("student_profile", params.studentProfile);
 
