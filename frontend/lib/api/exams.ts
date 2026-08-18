@@ -35,7 +35,11 @@ export interface ExamResult {
 }
 
 export interface ListExamsParams {
-  organizationId: string;
+  /** Omit for a platform-wide query — only a super_admin's RLS bypass
+   * actually returns cross-org rows when this is left out; every other
+   * role stays org-scoped regardless (see lib/api/teachers.ts's identical
+   * pattern). Needed for the Super-Admin Exams oversight page. */
+  organizationId?: string;
   group?: string;
   status?: ExamStatus;
   dateFrom?: string;
@@ -43,7 +47,8 @@ export interface ListExamsParams {
 }
 
 export async function listExams(params: ListExamsParams): Promise<Exam[]> {
-  const query = new URLSearchParams({ organization: params.organizationId });
+  const query = new URLSearchParams();
+  if (params.organizationId) query.set("organization", params.organizationId);
   if (params.group) query.set("group", params.group);
   if (params.status) query.set("status", params.status);
   if (params.dateFrom) query.set("date_from", params.dateFrom);
@@ -106,13 +111,15 @@ export async function updateExam(id: string, input: Partial<ExamInput>): Promise
 }
 
 export interface ListExamResultsParams {
-  organizationId: string;
+  /** Omit for a platform-wide query — see ListExamsParams's identical note. */
+  organizationId?: string;
   exam?: string;
   studentProfile?: string;
 }
 
 export async function listExamResults(params: ListExamResultsParams): Promise<ExamResult[]> {
-  const query = new URLSearchParams({ organization: params.organizationId });
+  const query = new URLSearchParams();
+  if (params.organizationId) query.set("organization", params.organizationId);
   if (params.exam) query.set("exam", params.exam);
   if (params.studentProfile) query.set("student_profile", params.studentProfile);
 

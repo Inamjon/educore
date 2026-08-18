@@ -11,6 +11,8 @@ import {
   ShieldCheck,
   GraduationCap,
   Users,
+  Award,
+  ClipboardList,
   CreditCard,
   DollarSign,
   BarChart2,
@@ -54,6 +56,13 @@ const NAV_GROUPS = [
     ],
   },
   {
+    groupKey: "navGroupAcademics",
+    items: [
+      { href: "/super-admin/exams",    labelKey: "navExams",    icon: Award         },
+      { href: "/super-admin/homework", labelKey: "navHomework", icon: ClipboardList },
+    ],
+  },
+  {
     groupKey: "navGroupBusiness",
     items: [
       { href: "/super-admin/subscriptions", labelKey: "navSubscriptions", icon: CreditCard },
@@ -88,6 +97,8 @@ const PAGE_TITLE_KEYS: Record<string, string> = {
   "/super-admin/administrators":   "navAdministrators",
   "/super-admin/teachers":         "navTeachers",
   "/super-admin/students":         "navStudents",
+  "/super-admin/exams":            "navExams",
+  "/super-admin/homework":         "navHomework",
   "/super-admin/subscriptions":    "navSubscriptions",
   "/super-admin/payments":         "navPayments",
   "/super-admin/reports":          "navReports",

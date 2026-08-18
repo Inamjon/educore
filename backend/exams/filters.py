@@ -9,7 +9,13 @@ class ExamFilter(django_filters.FilterSet):
 
     class Meta:
         model = Exam
-        fields = ["group", "status", "date"]
+        # "organization" was missing here — harmless for an org-scoped
+        # caller (RLS already narrows those rows regardless of what's
+        # passed), but meant a platform-wide caller (super_admin, RLS
+        # bypassed) had no way to filter down to one center — needed for
+        # the Super-Admin Exams oversight page. Same shape as teacher.
+        # filters.py::TeacherProfileFilter's "organization" field.
+        fields = ["organization", "group", "status", "date"]
 
 
 class ExamResultFilter(django_filters.FilterSet):
