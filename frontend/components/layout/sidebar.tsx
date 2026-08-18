@@ -11,6 +11,7 @@ import {
   Calendar,
   ClipboardCheck,
   ClipboardList,
+  Award,
   CreditCard,
   Bell,
   Settings,
@@ -44,6 +45,7 @@ const NAV_ITEMS = [
       { href: "/schedule", labelKey: "navSchedule", icon: Calendar },
       { href: "/attendance", labelKey: "navAttendance", icon: ClipboardCheck },
       { href: "/homework", labelKey: "navHomework", icon: ClipboardList },
+      { href: "/exams", labelKey: "navExams", icon: Award },
     ],
   },
   {
@@ -59,33 +61,44 @@ const NAV_ITEMS = [
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  mobileOpen: boolean;
+  onMobileClose: () => void;
 }
 
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const t = useTranslations("AdminNav");
 
   return (
-    <aside
-      className={cn(
-        "fixed left-0 top-0 h-full bg-white border-r border-slate-100 z-30 flex flex-col transition-all duration-300",
-        collapsed ? "w-16" : "w-[260px]"
+    <>
+      {/* Mobile backdrop — tapping it dismisses the drawer, same as tapping a nav link */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/40 z-30 lg:hidden"
+          onClick={onMobileClose}
+          aria-hidden="true"
+        />
       )}
-    >
+      <aside
+        className={cn(
+          "fixed left-0 top-0 h-full w-[260px] bg-white border-r border-slate-100 z-40 flex flex-col transition-all duration-300",
+          "lg:z-30",
+          collapsed ? "lg:w-16" : "lg:w-[260px]",
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+      >
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-slate-100 gap-3">
         <div className="flex-shrink-0 h-9 w-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
           <Zap className="h-5 w-5 text-white" />
         </div>
-        {!collapsed && (
-          <span className="text-lg font-bold text-slate-900 tracking-tight">
-            EduCore
-          </span>
-        )}
+        <span className={cn("text-lg font-bold text-slate-900 tracking-tight", collapsed && "lg:hidden")}>
+          EduCore
+        </span>
         <button
           onClick={onToggle}
           className={cn(
-            "ml-auto flex-shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors",
+            "ml-auto flex-shrink-0 h-7 w-7 rounded-lg hidden lg:flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors",
             collapsed && "rotate-180"
           )}
           aria-label={collapsed ? t("expandSidebar") : t("collapseSidebar")}
@@ -98,11 +111,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
         {NAV_ITEMS.map((group) => (
           <div key={group.groupKey}>
-            {!collapsed && (
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 px-2">
-                {t(group.groupKey)}
-              </p>
-            )}
+            <p
+              className={cn(
+                "text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 px-2",
+                collapsed && "lg:hidden"
+              )}
+            >
+              {t(group.groupKey)}
+            </p>
             <ul className="space-y-0.5">
               {group.items.map(({ href, labelKey, icon: Icon }) => {
                 const isActive =
@@ -112,13 +128,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   <li key={href}>
                     <Link
                       href={href}
+                      onClick={onMobileClose}
                       title={collapsed ? label : undefined}
                       className={cn(
                         "flex items-center gap-3 h-9 rounded-xl px-2.5 text-sm font-medium transition-all group",
                         isActive
                           ? "bg-indigo-50 text-indigo-700"
                           : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
-                        collapsed && "justify-center"
+                        collapsed && "lg:justify-center"
                       )}
                     >
                       <Icon
@@ -129,9 +146,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                             : "text-slate-400 group-hover:text-slate-700"
                         )}
                       />
-                      {!collapsed && <span>{label}</span>}
-                      {isActive && !collapsed && (
-                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                      <span className={cn(collapsed && "lg:hidden")}>{label}</span>
+                      {isActive && (
+                        <span className={cn("ml-auto h-1.5 w-1.5 rounded-full bg-indigo-500", collapsed && "lg:hidden")} />
                       )}
                     </Link>
                   </li>
@@ -141,8 +158,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </div>
         ))}
       </nav>
-
-
-    </aside>
+      </aside>
+    </>
   );
 }

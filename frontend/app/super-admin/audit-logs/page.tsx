@@ -21,7 +21,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui/stat-card';
-import { Select } from '@/components/ui/input';
+import { Input, Select } from '@/components/ui/input';
 import { DataTable, Column } from '@/components/ui/data-table';
 import {
   Dialog,
@@ -34,7 +34,7 @@ import { useOrganizationsQuery } from '@/lib/queries/organizations';
 import { useAuditLogsQuery } from '@/lib/queries/audit-logs';
 import type { AuditLog, AuditAction } from '@/lib/api/audit-logs';
 import { ApiError } from '@/lib/api/client';
-import { cn } from '@/lib/utils';
+import { cn, daysFromTodayIso } from '@/lib/utils';
 import { formatLocalizedDate, INTL_DATE_LOCALES } from '@/i18n/date-locale';
 import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 
@@ -135,15 +135,27 @@ export default function AuditLogsPage() {
     ...(Object.keys(ACTION_KEY_MAP) as AuditAction[]).map((a) => ({ value: a, label: t(ACTION_KEY_MAP[a]) })),
   ];
 
+  // Defaults to a recent window rather than the account's entire history —
+  // audit logs accumulate one row per audited action, forever, with no
+  // natural cap (see lib/api/audit-logs.ts's listAuditLogs comment). The
+  // date inputs below stay fully admin-editable, so widening or clearing
+  // the range for a real investigation is still one click away; this only
+  // changes what loads by default before anyone touches the filters. Clear
+  // resets to this same default rather than '' — an empty dateFrom would
+  // silently re-request the platform's *entire* history, one page of which
+  // (100 rows) is exactly the truncation bug this default exists to avoid.
+  const DEFAULT_WINDOW_DAYS = 30;
+  const defaultDateFrom = () => daysFromTodayIso(-DEFAULT_WINDOW_DAYS);
+
   const [organizationId, setOrganizationId] = useState('');
   const [action, setAction] = useState<AuditAction | ''>('');
   const [entityType, setEntityType] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
+  const [dateFrom, setDateFrom] = useState(defaultDateFrom);
   const [dateTo, setDateTo] = useState('');
   const [viewingLog, setViewingLog] = useState<AuditLog | null>(null);
 
   const { data: centers } = useOrganizationsQuery();
-  const { data: logs, isLoading, isError, error } = useAuditLogsQuery({
+  const { data: logsPage, isLoading, isError, error } = useAuditLogsQuery({
     organizationId: organizationId || undefined,
     action: action || undefined,
     entityType: entityType || undefined,
@@ -153,13 +165,26 @@ export default function AuditLogsPage() {
 
   const centerOptions = [{ value: '', label: t('allCentersPlaceholder') }, ...(centers ?? []).map((c) => ({ value: c.id, label: c.name }))];
 
-  const list = logs ?? [];
-  const totalLogs = list.length;
+  const list = logsPage?.results ?? [];
+  // The real total matching the filter — NOT list.length. list is capped at
+  // one page (100 rows); totalCount can be higher, in which case list is a
+  // partial view and every stat/label below needs to say so, not quietly
+  // report the truncated count as if it were the truth (see PR discussion:
+  // this is the exact failure mode the date-bound default above exists to
+  // avoid, and Clear briefly reintroduced it before this fix).
+  const totalCount = logsPage?.count ?? 0;
+  const isTruncated = list.length < totalCount;
   const createCount = list.filter((l) => l.action === 'create').length;
   const updateCount = list.filter((l) => l.action === 'update').length;
   const deleteCount = list.filter((l) => l.action === 'delete').length;
 
-  const hasFilters = !!(organizationId || action || entityType || dateFrom || dateTo);
+  // dateFrom is never empty — it's seeded from defaultDateFrom() and Clear
+  // resets it back to that same default (see the Clear handler below), so
+  // comparing it for mere truthiness would make this true from the very
+  // first render (Clear visible + a no-op click) even when nothing has
+  // actually been filtered. Only a value that *differs* from the default
+  // counts as an active filter.
+  const hasFilters = !!(organizationId || action || entityType || dateTo || (dateFrom && dateFrom !== defaultDateFrom()));
 
   const columns: Column<AuditLog>[] = useMemo(
     () => [
@@ -239,42 +264,45 @@ export default function AuditLogsPage() {
       />
 
       {/* ── Stats Row ────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label={t('statTotalEvents')} value={totalLogs} icon={<ScrollText className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
-        <StatCard label={t('statCreated')} value={createCount} icon={<PlusCircle className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
-        <StatCard label={t('statUpdated')} value={updateCount} icon={<Pencil className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
-        <StatCard label={t('statDeleted')} value={deleteCount} icon={<Trash2 className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
+      {/* Created/Updated/Deleted are counted from `list` — the visible page
+          — while Total Events uses the real backend `totalCount`. Those only
+          agree when nothing's truncated; when it is, the three sub-stats get
+          a "(shown page)" qualifier so they don't silently misrepresent the
+          filter's true composition (see the isTruncated banner below). */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label={t('statTotalEvents')} value={totalCount} icon={<ScrollText className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
+        <StatCard label={t('statCreated') + (isTruncated ? ` ${t('shownPageSuffix')}` : '')} value={createCount} icon={<PlusCircle className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label={t('statUpdated') + (isTruncated ? ` ${t('shownPageSuffix')}` : '')} value={updateCount} icon={<Pencil className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
+        <StatCard label={t('statDeleted') + (isTruncated ? ` ${t('shownPageSuffix')}` : '')} value={deleteCount} icon={<Trash2 className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />
       </div>
+
+      {/* ── Truncation banner ────────────────────────────────────────────── */}
+      {isTruncated && (
+        <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-4 py-2.5 text-sm text-amber-800">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          {t('truncatedNote', { shown: list.length, total: totalCount })}
+        </div>
+      )}
 
       {/* ── Table Card ───────────────────────────────────────────────────── */}
       <Card
         noPadding
         title={t('eventLogTitle')}
-        subtitle={t('eventsCountLabel', { count: totalLogs })}
+        subtitle={t('eventsCountLabel', { count: totalCount })}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
             <Select value={organizationId} onChange={(e) => setOrganizationId(e.target.value)} options={centerOptions} />
             <Select value={action} onChange={(e) => setAction(e.target.value as AuditAction | '')} options={ACTION_OPTIONS} />
             <Select value={entityType} onChange={(e) => setEntityType(e.target.value)} options={ENTITY_TYPE_OPTIONS} />
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="h-9 rounded-lg border border-slate-200 px-3 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-            />
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="h-9 rounded-lg border border-slate-200 px-3 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-            />
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
             {hasFilters && (
               <button
                 onClick={() => {
                   setOrganizationId('');
                   setAction('');
                   setEntityType('');
-                  setDateFrom('');
+                  setDateFrom(defaultDateFrom());
                   setDateTo('');
                 }}
                 className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"

@@ -26,6 +26,15 @@ interface ListResponse<T> {
   pagination: { count: number; page: number; pages: number };
 }
 
+export interface AuditLogsPage {
+  results: AuditLog[];
+  /** The real total matching the filter, from the backend's own count —
+   * NOT `results.length`. `results` is capped at one page (100 rows); a
+   * caller that needs to know whether it's looking at everything or just
+   * the first page must compare `results.length` against this. */
+  count: number;
+}
+
 export interface ListAuditLogsParams {
   organizationId?: string;
   /** Backed by AuditLogFilter's `user` field — used by the Profile page's
@@ -38,7 +47,18 @@ export interface ListAuditLogsParams {
   pageSize?: number;
 }
 
-export async function listAuditLogs(params: ListAuditLogsParams = {}): Promise<AuditLog[]> {
+// Deliberately does NOT paginate through every page like most of this
+// file's siblings now do (see lib/api/client.ts::fetchAllPages) — audit
+// logs are a genuinely unbounded, ever-growing event log (every audited
+// action, forever), and this function is also used for a small bounded
+// "recent N" widget (Profile page's pageSize: 6). Looping every page here
+// would risk paging through an org's/platform's entire history. The
+// Super-Admin Audit Logs page instead defaults its own date_from filter to
+// a recent window — see that page for the actual bound. Returns the real
+// `count` alongside `results` (not just the array) so a caller whose
+// filtered set exceeds one page can tell it's looking at a partial view
+// instead of silently trusting `results.length` as the true total.
+export async function listAuditLogs(params: ListAuditLogsParams = {}): Promise<AuditLogsPage> {
   const query = new URLSearchParams();
   if (params.organizationId) query.set("organization", params.organizationId);
   if (params.userId) query.set("user", params.userId);
@@ -49,5 +69,5 @@ export async function listAuditLogs(params: ListAuditLogsParams = {}): Promise<A
   query.set("page_size", String(params.pageSize ?? 100));
 
   const data = await apiFetch<ListResponse<AuditLog>>(`/api/v1/audit-logs/?${query}`);
-  return data.results;
+  return { results: data.results, count: data.pagination.count };
 }

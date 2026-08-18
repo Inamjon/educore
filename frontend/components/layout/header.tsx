@@ -22,6 +22,7 @@ const PAGE_TITLE_KEYS: Record<string, string> = {
   "/schedule": "navSchedule",
   "/attendance": "navAttendance",
   "/homework": "navHomework",
+  "/exams": "navExams",
   "/finance": "navFinance",
   "/notifications": "navNotifications",
   "/settings": "navSettings",
@@ -59,8 +60,8 @@ export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
   return (
     <header
       className={cn(
-        "fixed top-0 right-0 h-16 bg-white border-b border-slate-100 z-20 flex items-center gap-4 px-6 transition-all duration-300",
-        sidebarCollapsed ? "left-16" : "left-[260px]"
+        "fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-100 z-20 flex items-center gap-4 px-4 sm:px-6 transition-all duration-300",
+        sidebarCollapsed ? "lg:left-16" : "lg:left-[260px]"
       )}
     >
       <button
@@ -71,9 +72,9 @@ export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
         <Menu className="h-5 w-5" />
       </button>
 
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900 leading-none">{title}</h2>
-        <p className="text-xs text-slate-400 mt-0.5">
+      <div className="min-w-0">
+        <h2 className="text-lg font-semibold text-slate-900 leading-none truncate">{title}</h2>
+        <p className="text-xs text-slate-400 mt-0.5 hidden sm:block">
           {formatLocalizedDate(new Date(), locale, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
         </p>
       </div>

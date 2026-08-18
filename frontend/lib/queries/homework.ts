@@ -16,11 +16,13 @@ import {
 const assignmentsKey = (params: ListAssignmentsParams) => ["assignments", params] as const;
 const submissionsKey = (params: ListSubmissionsParams) => ["submissions", params] as const;
 
+// No `enabled` gate on organizationId — see lib/queries/exams.ts's
+// identical note; omitting it is a valid platform-wide query, not a
+// not-ready-yet state, and RLS enforces row visibility regardless.
 export function useAssignmentsQuery(params: ListAssignmentsParams) {
   return useQuery({
     queryKey: assignmentsKey(params),
     queryFn: () => listAssignments(params),
-    enabled: !!params.organizationId,
   });
 }
 
@@ -28,7 +30,6 @@ export function useSubmissionsQuery(params: ListSubmissionsParams) {
   return useQuery({
     queryKey: submissionsKey(params),
     queryFn: () => listSubmissions(params),
-    enabled: !!params.organizationId,
   });
 }
 

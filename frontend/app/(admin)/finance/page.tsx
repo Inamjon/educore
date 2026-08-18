@@ -22,6 +22,21 @@ import { InvoiceFormDialog } from "./_components/invoice-form-dialog";
 import { InvoiceDetailPanel } from "./_components/invoice-detail-panel";
 import { formatLocalizedDate } from "@/i18n/date-locale";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
+import { daysFromTodayIso } from "@/lib/utils";
+
+// Invoices/payments accumulate every billing cycle for every student with
+// no natural cap (see lib/api/finance.ts's listInvoices/listPayments
+// comments). Unlike Attendance's page, this one can't default to a short
+// window — "Total Overdue" and "Total Pending" are headline KPIs computed
+// from the same unfiltered fetch, and an unpaid invoice from 6+ months ago
+// is exactly the kind of thing this page exists to surface, not hide. A
+// full year is a pragmatic compromise: bounded (stops the silent-
+// truncation bug), while still covering the overwhelming majority of
+// real-world overdue cases. A properly correct fix would query "still
+// open" statuses (pending/partially_paid/overdue) with no date bound
+// separately from a date-bounded "recent activity" list — bigger change,
+// left for a follow-up if a year ever proves too short in practice.
+const RECENT_WINDOW_DAYS = 365;
 
 export default function FinancePage() {
   const t = useTranslations("AdminFinance");
@@ -49,9 +64,10 @@ export default function FinancePage() {
   };
 
   const organizationId = useAuthStore((s) => s.user?.organizationId);
-  const { data: invoicesData, isLoading } = useInvoicesQuery({ organizationId: organizationId ?? "" });
+  const [dateFrom] = useState(() => daysFromTodayIso(-RECENT_WINDOW_DAYS));
+  const { data: invoicesData, isLoading } = useInvoicesQuery({ organizationId: organizationId ?? "", dateFrom });
   const invoices = invoicesData ?? [];
-  const { data: paymentsData } = usePaymentsQuery({ organizationId: organizationId ?? "" });
+  const { data: paymentsData } = usePaymentsQuery({ organizationId: organizationId ?? "", dateFrom });
   const recentPayments = [...(paymentsData ?? [])]
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
     .slice(0, 5);
@@ -126,7 +142,7 @@ export default function FinancePage() {
     <div className="space-y-6">
       <PageHeader
         title={t("pageTitle")}
-        subtitle={t("pageSubtitle")}
+        subtitle={`${t("pageSubtitle")} — ${t("last12MonthsNote")}`}
         actions={
           <Button onClick={() => setFormOpen(true)}>
             <DollarSign className="h-4 w-4" />
@@ -135,7 +151,7 @@ export default function FinancePage() {
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t("statTotalCollected")} value={formatCurrency(totalRevenue)} icon={<DollarSign className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
         <StatCard label={t("statPending")} value={formatCurrency(totalPending)} icon={<TrendingUp className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
         <StatCard label={t("statOverdue")} value={formatCurrency(totalOverdue)} icon={<AlertCircle className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" />

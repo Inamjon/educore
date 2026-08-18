@@ -162,7 +162,7 @@ export default function HomeworkPage() {
     <div className="space-y-6">
       <PageHeader title={t("pageTitle")} subtitle={t("pageSubtitleCount", { count: list.length })} />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t("statTotalAssignments")} value={list.length} icon={<ClipboardList className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
         <StatCard label={t("statSubmitted")} value={totalSubmitted} icon={<CheckCircle2 className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
         <StatCard label={t("statGraded")} value={totalGraded} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />

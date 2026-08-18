@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createTeacher,
+  createTeacherSalary,
   deleteTeacher,
   getTeacherSalaries,
   getTeacherSpecializations,
   listTeachers,
   updateTeacher,
   type CreateTeacherInput,
+  type CreateTeacherSalaryInput,
   type ListTeachersParams,
   type UpdateTeacherInput,
 } from "@/lib/api/teachers";
@@ -82,6 +84,16 @@ export function useUpdateTeacherMutation() {
       updateTeacher(profileId, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teachers"] });
+    },
+  });
+}
+
+export function useCreateTeacherSalaryMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateTeacherSalaryInput) => createTeacherSalary(input),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["teacher-salaries", variables.teacherProfileId] });
     },
   });
 }

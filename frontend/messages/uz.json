@@ -78,9 +78,14 @@
     "interfaceLanguage": "Interfeys tili",
     "timezone": "Vaqt zonasi",
     "dateFormat": "Sana formati",
-    "saveSettings": "Sozlamalarni saqlash"
+    "saveSettings": "Sozlamalarni saqlash",
+    "timezoneTashkentUZT": "Toshkent (UZT)",
+    "timezoneAlmatyALMT": "Almati (ALMT)",
+    "timezoneMoscowMSK": "Moskva (MSK)",
+    "timezoneEasternET": "Sharqiy vaqt (ET)"
   },
   "StudentNav": {
+    "openMenuAriaLabel": "Menyuni ochish",
     "navGroupMain": "Asosiy",
     "navGroupLearning": "Ta'lim",
     "navGroupProgress": "Taraqqiyot",
@@ -226,6 +231,7 @@
     "statLateExcused": "Kechikkan / Sababli",
     "weeklyRateTitle": "Haftalik davomat darajasi",
     "last6WeeksSubtitle": "So'nggi 6 hafta",
+    "weekLabel": "{number}-hafta",
     "tooltipAttendanceLabel": "Davomat",
     "breakdownTitle": "Tafsilot",
     "allTimeRecordSubtitle": "Barcha vaqt bo'yicha yozuv",
@@ -238,7 +244,10 @@
     "colDate": "Sana",
     "colCourse": "Kurs",
     "colStatus": "Holat",
-    "colNote": "Izoh"
+    "colNote": "Izoh",
+    "loadingAttendance": "Davomat yuklanmoqda…",
+    "loadErrorFallback": "Davomatni yuklab bo'lmadi.",
+    "noAttendanceRecordsYet": "Hali davomat yozuvlari yo'q."
   },
   "StudentExams": {
     "pageTitle": "Imtihonlar",
@@ -255,7 +264,8 @@
     "upcomingExamsSection": "Yaqinlashib kelayotgan imtihonlar",
     "noUpcomingExamsScheduled": "Yaqinlashib kelayotgan imtihonlar rejalashtirilmagan.",
     "completedExamsSection": "Yakunlangan imtihonlar",
-    "noCompletedExamsYet": "Hozircha yakunlangan imtihonlar yo'q."
+    "noCompletedExamsYet": "Hozircha yakunlangan imtihonlar yo'q.",
+    "resultsNotYetEntered": "Natijalar hali kiritilmagan"
   },
   "StudentMessages": {
     "pageTitle": "Xabarlar",
@@ -367,6 +377,7 @@
     "methodPayme": "Payme"
   },
   "TeacherNav": {
+    "openMenuAriaLabel": "Menyuni ochish",
     "navGroupMain": "Asosiy",
     "navGroupTeaching": "O'qitish",
     "navGroupAcademics": "O'quv jarayoni",
@@ -384,6 +395,7 @@
     "navResources": "Materiallar",
     "navNotifications": "Bildirishnomalar",
     "navProfile": "Profil",
+    "navSalary": "Mening maoshim",
     "navSettings": "Sozlamalar",
     "portalFallbackTitle": "O'qituvchi portali",
     "expandSidebar": "Yon panelni kengaytirish",
@@ -392,6 +404,24 @@
     "notificationsAriaLabel": "Bildirishnomalar ({count} ta o'qilmagan)",
     "signOut": "Chiqish",
     "roleTeacher": "O'qituvchi"
+  },
+  "TeacherSalary": {
+    "pageTitle": "Mening maoshim",
+    "pageSubtitle": "Joriy ish haqingiz va maosh tarixini ko'ring.",
+    "loading": "Yuklanmoqda…",
+    "noSalaryYet": "Sizning maoshingiz hali belgilanmagan. Markaz administratoriga murojaat qiling.",
+    "currentAmountLabel": "Joriy summa",
+    "salaryTypeLabel": "Maosh turi",
+    "effectiveSinceLabel": "Kuchga kirgan sana",
+    "notesLabel": "Izoh",
+    "historyTitle": "Maosh tarixi",
+    "noHistory": "Oldingi maosh yozuvlari yo'q.",
+    "historyInactive": "O'tgan",
+    "salaryTypeFixed": "Belgilangan",
+    "salaryTypeHourly": "Soatlik",
+    "salaryTypePerLesson": "Dars uchun",
+    "salaryTypePerStudent": "O'quvchi uchun",
+    "salaryTypePercentage": "Foizli"
   },
   "TeacherDashboard": {
     "teacherFallbackName": "O'qituvchi",
@@ -438,7 +468,8 @@
     "statusActive": "Faol",
     "statusCompleted": "Yakunlangan",
     "statusCancelled": "Bekor qilingan",
-    "statusArchived": "Arxivlangan"
+    "statusArchived": "Arxivlangan",
+    "windowSuffix30d": " (30 kun)"
   },
   "TeacherGroups": {
     "pageTitle": "Guruhlarim",
@@ -657,9 +688,12 @@
     "maxPtsLabel": "Maksimal {points} ball",
     "editButton": "Tahrirlash",
     "cancelButton": "Bekor qilish",
+    "markCompletedButton": "Yakunlangan deb belgilash",
     "examUpdatedToast": "Imtihon yangilandi",
     "examScheduledToast": "Imtihon rejalashtirildi",
     "examCancelledToast": "Imtihon bekor qilindi",
+    "examMarkedCompletedToast": "Imtihon yakunlangan deb belgilandi",
+    "resultsPartiallySavedToast": "{total} tadan {failed} tasi saqlanmadi — qolganlarini qayta urinib ko'ring",
     "resultsNotYetEntered": "Natijalar hali kiritilmagan",
     "closeResultsButton": "Natijalarni yopish",
     "viewResultsButton": "Natijalarni ko'rish",
@@ -699,7 +733,8 @@
     "statusPresent": "Kelgan",
     "statusAbsent": "Kelmagan",
     "statusLate": "Kechikkan",
-    "statusExcused": "Sababli"
+    "statusExcused": "Sababli",
+    "windowSuffix30d": " (30 kun)"
   },
   "TeacherMessages": {
     "pageTitle": "Xabarlar",
@@ -738,6 +773,9 @@
     "pageSubtitle": "O'quvchilaringiz bilan o'quv materiallarini boshqaring va ulashing",
     "searchPlaceholder": "Materiallarni qidirish...",
     "allSubjectsOption": "Barcha fanlar",
+    "subjectAlgebra": "Algebra",
+    "subjectCalculus": "Matematik analiz",
+    "subjectMathematics": "Matematika",
     "uploadFileButton": "Fayl yuklash",
     "uploadNewResourceTitle": "Yangi material yuklash",
     "fieldTitle": "Nomi",
@@ -865,7 +903,16 @@
     "passwordUpdatedToast": "Parol yangilandi",
     "profileUpdatedToast": "Profil yangilandi",
     "appearancePrefsSavedToast": "Ko'rinish afzalliklari saqlandi",
-    "languageRegionSavedToast": "Til va mintaqa sozlamalari saqlandi"
+    "languageRegionSavedToast": "Til va mintaqa sozlamalari saqlandi",
+    "timezoneEasternET": "Sharqiy vaqt (ET)",
+    "timezoneCentralCT": "Markaziy vaqt (CT)",
+    "timezoneMountainMT": "Tog' vaqti (MT)",
+    "timezonePacificPT": "Tinch okeani vaqti (PT)",
+    "timezoneLondonGMT": "London (GMT)",
+    "timezoneParisCET": "Parij (CET)",
+    "timezoneDubaiGST": "Dubay (GST)",
+    "timezoneKarachiPKT": "Karachi (PKT)",
+    "timezoneTokyoJST": "Tokio (JST)"
   },
   "AdminNav": {
     "navGroupMain": "Asosiy",
@@ -880,6 +927,7 @@
     "navSchedule": "Dars jadvali",
     "navAttendance": "Davomat",
     "navHomework": "Uy vazifalari",
+    "navExams": "Imtihonlar",
     "navFinance": "Moliya",
     "navNotifications": "Bildirishnomalar",
     "navSettings": "Sozlamalar",
@@ -1078,7 +1126,21 @@
     "createdToast": "O'qituvchi yaratildi",
     "updatedToast": "O'qituvchi yangilandi",
     "fixHighlightedFields": "Iltimos, belgilangan maydonlarni to'g'irlang.",
-    "genericError": "Nimadir xato ketdi. Qaytadan urinib ko'ring."
+    "genericError": "Nimadir xato ketdi. Qaytadan urinib ko'ring.",
+    "noSalarySet": "Maosh belgilanmagan",
+    "adjustSalaryButton": "O'zgartirish",
+    "setSalaryButton": "Maosh belgilash",
+    "salaryDialogTitle": "Maoshni yangilash",
+    "salaryDialogDescription": "Bu quyidagi sanadan boshlab amal qiladigan yangi maosh yozuvi yaratadi — joriysi tarix sifatida saqlanadi va avtomatik deaktivatsiya qilinadi.",
+    "salaryTypeFixed": "Belgilangan",
+    "salaryTypeHourly": "Soatlik",
+    "salaryTypePerLesson": "Dars uchun",
+    "salaryTypePerStudent": "O'quvchi uchun",
+    "salaryTypePercentage": "Foizli",
+    "fieldAmount": "Summa",
+    "fieldPercentageValue": "Foiz (%)",
+    "fieldSalaryNotes": "Izoh (ixtiyoriy)",
+    "salaryUpdatedToast": "Maosh yangilandi"
   },
   "AdminCourses": {
     "pageTitle": "Kurslar",
@@ -1245,7 +1307,8 @@
     "scheduleButton": "Rejalashtirish",
     "lessonScheduledToast": "Dars rejalashtirildi",
     "fixHighlightedFields": "Iltimos, belgilangan maydonlarni to'g'irlang.",
-    "genericError": "Nimadir xato ketdi. Qaytadan urinib ko'ring."
+    "genericError": "Nimadir xato ketdi. Qaytadan urinib ko'ring.",
+    "listViewWindowNote": "90 kun oldingi va 90 kun keyingi darslar ko'rsatilmoqda"
   },
   "AdminAttendance": {
     "pageTitle": "Davomat",
@@ -1278,7 +1341,8 @@
     "noAttendanceRecordsYet": "Hali davomat yozuvlari yo'q.",
     "legendGood": "80–100% — Yaxshi",
     "legendWarning": "70–79% — Ogohlantirish",
-    "legendCritical": "70% dan past — Tanqidiy"
+    "legendCritical": "70% dan past — Tanqidiy",
+    "last30DaysNote": "oxirgi 30 kun"
   },
   "AdminHomework": {
     "pageTitle": "Uy vazifalari",
@@ -1308,6 +1372,68 @@
     "loadErrorFallback": "Topshiriqlarni yuklab bo'lmadi.",
     "loadingAssignments": "Topshiriqlar yuklanmoqda…",
     "noAssignmentsFound": "Topshiriqlar topilmadi"
+  },
+  "AdminExams": {
+    "pageTitle": "Imtihonlar",
+    "pageSubtitleCount": "{count, plural, other {# ta imtihon}}",
+    "newExamButton": "Yangi imtihon",
+    "statusAll": "Barcha holatlar",
+    "statusScheduled": "Rejalashtirilgan",
+    "statusCompleted": "Yakunlangan",
+    "statusCancelled": "Bekor qilingan",
+    "statTotalExams": "Jami imtihonlar",
+    "statUpcomingExams": "Yaqinlashib kelayotgan imtihonlar",
+    "statCompletedExams": "Yakunlangan imtihonlar",
+    "statAverageScore": "O'rtacha ball",
+    "allExamsTitle": "Barcha imtihonlar",
+    "examsCount": "{count, plural, other {# ta imtihon}}",
+    "searchPlaceholder": "Imtihonlarni qidirish...",
+    "allGroupsOption": "Barcha guruhlar",
+    "columnExam": "Imtihon",
+    "columnDateTime": "Sana va vaqt",
+    "columnStatus": "Holat",
+    "columnScore": "Ball",
+    "columnActions": "Amallar",
+    "noResultsYet": "Hali natija yo'q",
+    "loadErrorFallback": "Imtihonlarni yuklab bo'lmadi.",
+    "loadingExams": "Imtihonlar yuklanmoqda…",
+    "noExamsFound": "Imtihonlar topilmadi",
+    "formTitleNew": "Yangi imtihon",
+    "formTitleEdit": "Imtihonni tahrirlash",
+    "titlePlaceholder": "Masalan: Algebra A1 oraliq nazorati",
+    "selectGroupPlaceholder": "Guruhni tanlang",
+    "fieldDuration": "Davomiyligi (daqiqa)",
+    "roomPlaceholder": "Masalan: Imtihon zali A",
+    "fieldMaxScore": "Maksimal ball",
+    "fieldQuestionCount": "Savollar soni",
+    "scheduleExamButton": "Imtihonni rejalashtirish",
+    "examScheduledToast": "Imtihon rejalashtirildi",
+    "examUpdatedToast": "Imtihon yangilandi",
+    "noOrganizationError": "Ushbu hisobda tashkilot yo'q.",
+    "fixHighlightedFields": "Iltimos, belgilangan maydonlarni to'g'irlang.",
+    "genericError": "Nimadir xato ketdi. Qaytadan urinib ko'ring.",
+    "durationMinutes": "{count} daqiqa",
+    "currentAverageLabel": "Joriy o'rtacha",
+    "markCompletedButton": "Yakunlangan deb belgilash",
+    "cancelButton": "Bekor qilish",
+    "editButton": "Tahrirlash",
+    "deleteButton": "O'chirish",
+    "examCancelledToast": "Imtihon bekor qilindi",
+    "examMarkedCompletedToast": "Imtihon yakunlangan deb belgilandi",
+    "loadingResults": "Natijalar yuklanmoqda…",
+    "colStudent": "O'quvchi",
+    "colScore": "Ball",
+    "colGrade": "Baho",
+    "noStudentsInGroup": "Bu guruhda o'quvchilar yo'q.",
+    "studentsScored": "{scored}/{total} o'quvchi baholandi",
+    "saveResultsButton": "Natijalarni saqlash",
+    "resultsSavedToast": "Natijalar muvaffaqiyatli saqlandi",
+    "resultsPartiallySavedToast": "{total} tadan {failed} tasi saqlanmadi — qolganlarini qayta urinib ko'ring",
+    "deleteDialogTitle": "Imtihonni o'chirish",
+    "deleteDialogDescription": "{name}ni olib tashlashni xohlaysizmi? Kerak bo'lsa, keyinchalik bazadan tiklash mumkin.",
+    "deleteConfirmLabel": "O'chirish",
+    "deleteSuccessToast": "Imtihon o'chirildi",
+    "deleteErrorFallback": "Imtihonni o'chirib bo'lmadi."
   },
   "AdminFinance": {
     "statusAll": "Barcha holatlar",
@@ -1370,7 +1496,8 @@
     "notesOptionalPlaceholder": "Izoh (ixtiyoriy)",
     "createButton": "Yaratish",
     "invoiceCreatedToast": "Hisob-faktura yaratildi",
-    "fixHighlightedFields": "Iltimos, belgilangan maydonlarni to'g'irlang."
+    "fixHighlightedFields": "Iltimos, belgilangan maydonlarni to'g'irlang.",
+    "last12MonthsNote": "oxirgi 12 oy"
   },
   "AdminNotifications": {
     "pageTitle": "Bildirishnomalar",
@@ -1456,6 +1583,16 @@
     "dateFormatLabel": "Sana formati",
     "languageRegionSavedToast": "Til va hudud sozlamalari saqlandi",
     "saveSettingsButton": "Sozlamalarni saqlash",
+    "timezoneEasternET": "Sharqiy vaqt (ET)",
+    "timezoneCentralCT": "Markaziy vaqt (CT)",
+    "timezoneMountainMT": "Tog' vaqti (MT)",
+    "timezonePacificPT": "Tinch okeani vaqti (PT)",
+    "timezoneLondonGMT": "London (GMT)",
+    "timezoneParisCET": "Parij (CET)",
+    "timezoneTashkentUZT": "Toshkent (UZT)",
+    "timezoneDubaiGST": "Dubay (GST)",
+    "timezoneKarachiPKT": "Karachi (PKT)",
+    "timezoneTokyoJST": "Tokio (JST)",
     "merchantIdRequired": "Merchant ID talab qilinadi.",
     "serviceIdRequiredForClick": "Click uchun Service ID talab qilinadi.",
     "secretKeyRequired": "Maxfiy kalit talab qilinadi.",
@@ -1481,6 +1618,7 @@
     "loadingLabel": "Yuklanmoqda…"
   },
   "SuperAdminNav": {
+    "openMenuAriaLabel": "Menyuni ochish",
     "navGroupOverview": "Umumiy",
     "navGroupManagement": "Boshqaruv",
     "navGroupBusiness": "Biznes",
@@ -1505,7 +1643,10 @@
     "collapseSidebar": "Yon panelni yig'ish",
     "quickSearchPlaceholder": "Tezkor qidiruv...",
     "notificationsAriaLabel": "Bildirishnomalar ({count} ta o'qilmagan)",
-    "signOut": "Chiqish"
+    "signOut": "Chiqish",
+    "navGroupAcademics": "O'quv jarayoni",
+    "navExams": "Imtihonlar",
+    "navHomework": "Uy vazifalari"
   },
   "SuperAdminDashboard": {
     "welcomeBack": "Xush kelibsiz, {name} 👋",
@@ -1783,6 +1924,66 @@
     "detailHired": "Ishga olingan",
     "detailStatus": "Holat"
   },
+  "SuperAdminExams": {
+    "pageTitle": "Imtihonlar",
+    "pageSubtitle": "Barcha markazlar bo'yicha imtihonlarni platforma darajasida kuzatish",
+    "statusAll": "Barcha holatlar",
+    "statusScheduled": "Rejalashtirilgan",
+    "statusCompleted": "Yakunlangan",
+    "statusCancelled": "Bekor qilingan",
+    "statTotalExams": "Jami imtihonlar",
+    "statUpcomingExams": "Yaqinlashib kelayotgan imtihonlar",
+    "statCompletedExams": "Yakunlangan imtihonlar",
+    "statAverageScore": "O'rtacha ball",
+    "allExamsTitle": "Barcha imtihonlar",
+    "examsOfCount": "{total} tadan {filtered} ta imtihon",
+    "searchPlaceholder": "Imtihonlarni qidirish...",
+    "allCentersPlaceholder": "Barcha markazlar",
+    "clearButton": "Tozalash",
+    "columnExam": "Imtihon",
+    "columnCenter": "Markaz",
+    "columnDateTime": "Sana va vaqt",
+    "columnStatus": "Holat",
+    "columnScore": "Ball",
+    "noResultsYet": "Hali natija yo'q",
+    "loadErrorFallback": "Imtihonlarni yuklab bo'lmadi.",
+    "loadingExams": "Imtihonlar yuklanmoqda…",
+    "noExamsFound": "Imtihonlar topilmadi",
+    "averageLabel": "O'rtacha",
+    "loadingResults": "Natijalar yuklanmoqda…",
+    "awaitingGrading": "Baholanishi kutilmoqda"
+  },
+  "SuperAdminHomework": {
+    "pageTitle": "Uy vazifalari",
+    "pageSubtitleCount": "{count, plural, other {barcha markazlar bo'yicha # ta topshiriq}}",
+    "statusAll": "Barcha holatlar",
+    "statusActive": "Faol",
+    "statusClosed": "Yopilgan",
+    "columnAssignment": "Topshiriq",
+    "columnCenter": "Markaz",
+    "columnDue": "Muddati",
+    "columnStatus": "Holat",
+    "columnSubmitted": "Topshirilgan",
+    "columnGraded": "Baholangan",
+    "dueSubtitle": "{center} · {group} · Muddati {date}",
+    "loadingSubmissions": "Topshiriqlar yuklanmoqda…",
+    "noSubmissionsYet": "Hali hech kim topshirmagan.",
+    "submittedAt": "{datetime} da topshirilgan",
+    "lateLabel": "Kechikkan",
+    "awaitingGrading": "Baholanishi kutilmoqda",
+    "statTotalAssignments": "Jami topshiriqlar",
+    "statSubmitted": "Topshirilgan",
+    "statGraded": "Baholangan",
+    "statCompletionRate": "Bajarilish darajasi",
+    "allAssignmentsTitle": "Barcha topshiriqlar",
+    "assignmentsOfCount": "{total} tadan {filtered} ta topshiriq",
+    "searchPlaceholder": "Topshiriqlarni qidirish...",
+    "allCentersPlaceholder": "Barcha markazlar",
+    "clearButton": "Tozalash",
+    "loadErrorFallback": "Topshiriqlarni yuklab bo'lmadi.",
+    "loadingAssignments": "Topshiriqlar yuklanmoqda…",
+    "noAssignmentsFound": "Topshiriqlar topilmadi"
+  },
   "SuperAdminStudents": {
     "pageTitle": "O'quvchilar",
     "pageSubtitle": "Platforma darajasidagi o'quvchilar ko'rinishi",
@@ -1940,7 +2141,8 @@
     "csvHeaderAmount": "Summa",
     "csvHeaderBalance": "Qoldiq",
     "csvHeaderStatus": "Holat",
-    "csvHeaderDueDate": "Muddati"
+    "csvHeaderDueDate": "Muddati",
+    "last12MonthsNote": "oxirgi 12 oy"
   },
   "SuperAdminSettings": {
     "pageTitle": "Tizim sozlamalari",
@@ -2178,7 +2380,9 @@
     "entityCourse": "Kurs",
     "entitySession": "Sessiya",
     "entityAttendance": "Davomat",
-    "entityTeacherProfile": "O'qituvchi profili"
+    "entityTeacherProfile": "O'qituvchi profili",
+    "truncatedNote": "{total} tadan birinchi {shown} tasi ko'rsatilmoqda — qolganini ko'rish uchun sana oralig'ini torroq qiling.",
+    "shownPageSuffix": "(ko'rsatilgan sahifada)"
   },
   "SuperAdminProfile": {
     "pageTitle": "Profil",

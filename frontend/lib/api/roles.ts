@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { fetchAllPages } from "@/lib/api/client";
 
 export interface Role {
   id: string;
@@ -10,18 +10,17 @@ export interface Role {
   is_active: boolean;
 }
 
-interface RoleListResponse {
-  results: Role[];
-}
-
 /**
- * RoleViewSet has no filterset — fetch the (small, seeded) full list and
- * filter client-side. Roles rarely change, so callers can cache this
- * aggressively (see lib/queries/students.ts's long staleTime).
+ * RoleViewSet has no filterset — fetch the full list and filter client-side.
+ * Every org gets 3 org-scoped roles (center_admin/teacher/student) on
+ * creation, so this grows with the platform's organization count, not a
+ * small fixed number — worth paginating properly (not just a bigger
+ * page_size) once the platform has more than ~30 organizations. Roles
+ * rarely change, so callers can cache this aggressively (see
+ * lib/queries/students.ts's long staleTime).
  */
 export async function listRoles(): Promise<Role[]> {
-  const data = await apiFetch<RoleListResponse>("/api/v1/roles/?page_size=100");
-  return data.results;
+  return fetchAllPages<Role>("/api/v1/roles/", new URLSearchParams());
 }
 
 export function findRoleBySlug(roles: Role[], organizationId: string, slug: string): Role | undefined {

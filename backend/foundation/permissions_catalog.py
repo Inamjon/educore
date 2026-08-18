@@ -11,9 +11,17 @@ migration that loads it — as new apps/ViewSets are added.
 `notifications`, `schedule`, `assignments`, and `submissions` were added
 2026-08-07. `audit_logs` was added the same day, for the read-only
 Super-Admin/Admin Audit Logs surface — see `foundation/views.py::AuditLogViewSet`.
-`exams` is deliberately still not here — out of scope for that pass,
-possibly getting dropped from the product entirely; don't add it without
-checking first.
+
+`exams` was added 2026-08-16 — one module (not split like assignments/
+submissions) since both `Exam` scheduling and `ExamResult` score entry are
+teacher/center_admin-only writes; there's no "student authors their own row"
+case the way `Submission` has, so a module-wide grant can't overreach the
+way the assignments/submissions split was needed for. `teacher` gets create/
+update but not delete (cancel an exam via a status update instead, same
+convention as `schedule`/`assignments`); `student` gets view only. See
+`exams/views.py` for the read-scoping split — `Exam` reads are unrestricted
+within the org (schedule metadata), `ExamResult` reads are row-scoped (a
+grade, same sensitivity as `submissions`).
 
 `payment_gateways` was added 2026-08-08, for the Admin Settings "Payment
 Gateways" surface (a center's own Payme/Click merchant credentials) — see
@@ -53,6 +61,17 @@ Settings page's General/Security panels (platform-wide config, stored via
 singleton config blobs, always read or upserted, never created/deleted as
 distinct rows. Same "system-role bypass only, absent from
 DEFAULT_ROLE_PERMISSIONS" treatment as `billing`/`platform_billing` above.
+
+`teacher_salary` was split out of `teachers` on 2026-08-12 — TeacherSalaryViewSet
+had been reusing `teachers`' permission_map, which meant `teacher:update`
+(granted module-wide so a teacher can edit their own profile bio/education —
+see the comment on that grant below) also let any teacher PATCH any other
+teacher's salary, and `teacher:view` let them list every salary in the org.
+Salary is compensation data — same confidentiality bar as `finance`/
+`audit_logs` — so it gets its own module, full CRUD center_admin-only, with
+`teacher` getting `view` only, further narrowed to their own row by
+TeacherSalaryViewSet.get_queryset() (same "object-scoped grant" pattern as
+`finance`/`payment_gateways` for the `student` role above).
 """
 
 PERMISSIONS_CATALOG: list[tuple[str, str, str]] = [
@@ -125,6 +144,14 @@ PERMISSIONS_CATALOG: list[tuple[str, str, str]] = [
     ("platform_billing", "delete", "Delete platform invoices and payments"),
     ("platform_settings", "view", "View platform-wide General/Security settings"),
     ("platform_settings", "update", "Update platform-wide General/Security settings"),
+    ("teacher_salary", "view", "View teacher salary records"),
+    ("teacher_salary", "create", "Create teacher salary records"),
+    ("teacher_salary", "update", "Update teacher salary records"),
+    ("teacher_salary", "delete", "Delete teacher salary records"),
+    ("exams", "view", "View exams and results"),
+    ("exams", "create", "Schedule exams and enter results"),
+    ("exams", "update", "Update exams and results"),
+    ("exams", "delete", "Delete exams and results"),
 ]
 
 # Default permission grants for the three org-scoped roles every
@@ -204,6 +231,18 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("payment_gateways", "update"),
         ("payment_gateways", "delete"),
         ("roles", "view"),
+        # See the module docstring's "teacher_salary" note — split out of
+        # `teachers` because that grant is module-wide and salary is
+        # compensation data, not something every teacher-editable module
+        # should double as access control for.
+        ("teacher_salary", "view"),
+        ("teacher_salary", "create"),
+        ("teacher_salary", "update"),
+        ("teacher_salary", "delete"),
+        ("exams", "view"),
+        ("exams", "create"),
+        ("exams", "update"),
+        ("exams", "delete"),
     ],
     "teacher": [
         ("students", "view"),
@@ -214,6 +253,11 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         # AttendanceViewSet's teacher-owns-group check. Needed for the
         # Teacher Portal's Profile page to save bio/education/etc.
         ("teachers", "update"),
+        # view-only, and further narrowed to the caller's own row by
+        # TeacherSalaryViewSet.get_queryset() — a teacher has no create/
+        # update/delete grant on this module at all, unlike `teachers`
+        # above. See the module docstring's "teacher_salary" note.
+        ("teacher_salary", "view"),
         ("courses", "view"),
         ("groups", "view"),
         ("attendance", "view"),
@@ -237,6 +281,11 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         # only the student who owns a submission does that.
         ("submissions", "view"),
         ("submissions", "update"),
+        # No "exams:delete" — same convention as attendance/schedule: a
+        # teacher cancels an exam via a status update, not a delete.
+        ("exams", "view"),
+        ("exams", "create"),
+        ("exams", "update"),
         ("roles", "view"),
     ],
     "student": [
@@ -266,6 +315,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
         ("submissions", "view"),
         ("submissions", "create"),
         ("submissions", "update"),
+        ("exams", "view"),
         ("roles", "view"),
     ],
 }

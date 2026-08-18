@@ -85,7 +85,8 @@ export default function ProfilePage() {
 
   const { data: user, isLoading: userLoading } = useUserQuery(authUser?.id ?? null);
   const { data: sessions, isLoading: sessionsLoading } = useSessionsQuery();
-  const { data: myLogs } = useAuditLogsQuery({ userId: authUser?.id, pageSize: 6 });
+  const { data: myLogsPage } = useAuditLogsQuery({ userId: authUser?.id, pageSize: 6 });
+  const myLogs = myLogsPage?.results;
 
   const updateSelfMutation = useUpdateSelfMutation();
   const changePasswordMutation = useChangePasswordMutation();
@@ -115,12 +116,12 @@ export default function ProfilePage() {
       name: user.full_name,
       loginId: user.login_id,
       phone: user.phone,
-      role: user.roles[0]?.name ?? 'Super Administrator',
+      role: user.roles[0]?.name ?? t('roleBadge'),
       joinedAt: user.created_at,
       lastLogin: user.last_login ?? user.created_at,
       avatar: user.avatar_url ?? undefined,
     });
-  }, [user, syncCache]);
+  }, [user, syncCache, t]);
 
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');

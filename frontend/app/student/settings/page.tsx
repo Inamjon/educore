@@ -342,10 +342,10 @@ export default function StudentSettingsPage() {
                     value={regionSettings.timezone}
                     onChange={(e) => setRegionSettings({ ...regionSettings, timezone: e.target.value })}
                   >
-                    <option value="Asia/Tashkent">Tashkent (UZT)</option>
-                    <option value="Asia/Almaty">Almaty (ALMT)</option>
-                    <option value="Europe/Moscow">Moscow (MSK)</option>
-                    <option value="America/New_York">Eastern Time (ET)</option>
+                    <option value="Asia/Tashkent">{t('timezoneTashkentUZT')}</option>
+                    <option value="Asia/Almaty">{t('timezoneAlmatyALMT')}</option>
+                    <option value="Europe/Moscow">{t('timezoneMoscowMSK')}</option>
+                    <option value="America/New_York">{t('timezoneEasternET')}</option>
                   </select>
                 </Field>
 

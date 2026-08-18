@@ -28,10 +28,10 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import {
   STUDENT_PROFILE,
   STUDENT_STATS,
-  STUDENT_EXAMS,
   GRADE_TREND_DATA,
 } from "@/lib/student-data";
 import { useNotificationsQuery } from "@/lib/queries/notifications";
+import { useExamsQuery } from "@/lib/queries/exams";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { useLessonsQuery } from "@/lib/queries/schedule";
 import type { Lesson } from "@/lib/api/schedule";
@@ -52,16 +52,17 @@ function toLocalIso(d: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-const upcomingExams = STUDENT_EXAMS.filter((e) => e.status === "upcoming");
-
 function formatDate(dateStr: string, locale: Locale) {
   const d = new Date(dateStr + "T00:00:00");
   return formatLocalizedDate(d, locale, { month: "short", day: "numeric", year: "numeric" });
 }
 
-// t is StudentDashboard's useTranslations return value.
+// t is StudentDashboard's useTranslations return value. Real wall-clock
+// "now" — Exams is wired to the real API, unlike the fixed TODAY anchor
+// still used below for the still-mock welcome-banner date label.
 function daysUntil(dateStr: string, t: ReturnType<typeof useTranslations<"StudentDashboard">>) {
-  const now = new Date(TODAY);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
   const target = new Date(dateStr + "T00:00:00");
   const diff = Math.round((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   if (diff === 0) return t("todayRelative");
@@ -181,6 +182,14 @@ export default function StudentDashboardPage() {
   const allPendingHomework = myAssignments.filter((a) => !submittedAssignmentIds.has(a.id));
   const pendingHomework = allPendingHomework.slice(0, 4);
 
+  // Not filtered to the student's own groups — same "schedule metadata,
+  // not personal data" convention as the lessons query above (also
+  // unfiltered by group), see backend/exams/views.py::ExamViewSet.
+  const { data: exams = [] } = useExamsQuery({ organizationId: organizationId ?? "" });
+  const upcomingExams = exams
+    .filter((e) => e.status === "scheduled")
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time));
+
   const todayLabel = formatLocalizedDate(new Date(TODAY + "T00:00:00"), locale, {
     weekday: "long",
     month: "long",
@@ -214,7 +223,7 @@ export default function StudentDashboardPage() {
       </div>
 
       {/* ── Stats Row ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label={t("statAttendanceRate")}
           value={`${STUDENT_STATS.attendanceRate}%`}
@@ -235,7 +244,7 @@ export default function StudentDashboardPage() {
         />
         <StatCard
           label={t("statUpcomingExams")}
-          value={STUDENT_STATS.upcomingExams}
+          value={upcomingExams.length}
           icon={<BookOpenCheck className="h-5 w-5 text-violet-600" />}
           iconBg="bg-violet-50"
         />
@@ -391,14 +400,14 @@ export default function StudentDashboardPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-slate-800 truncate">{exam.title}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{exam.groupName}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{exam.group_name}</p>
                     </div>
                     <BookOpenCheck className="h-4 w-4 text-violet-500 flex-shrink-0 mt-0.5" />
                   </div>
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-xs text-slate-400 flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
-                      {formatDate(exam.date, locale)} &middot; {exam.startTime}
+                      {formatDate(exam.date, locale)} &middot; {exam.start_time.slice(0, 5)}
                     </span>
                     <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 rounded-full px-2 py-0.5">
                       {daysUntil(exam.date, t)}

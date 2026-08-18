@@ -78,9 +78,14 @@
     "interfaceLanguage": "Interface Language",
     "timezone": "Timezone",
     "dateFormat": "Date Format",
-    "saveSettings": "Save Settings"
+    "saveSettings": "Save Settings",
+    "timezoneTashkentUZT": "Tashkent (UZT)",
+    "timezoneAlmatyALMT": "Almaty (ALMT)",
+    "timezoneMoscowMSK": "Moscow (MSK)",
+    "timezoneEasternET": "Eastern Time (ET)"
   },
   "StudentNav": {
+    "openMenuAriaLabel": "Open menu",
     "navGroupMain": "Main",
     "navGroupLearning": "Learning",
     "navGroupProgress": "Progress",
@@ -226,6 +231,7 @@
     "statLateExcused": "Late / Excused",
     "weeklyRateTitle": "Weekly Attendance Rate",
     "last6WeeksSubtitle": "Last 6 weeks",
+    "weekLabel": "Wk {number}",
     "tooltipAttendanceLabel": "Attendance",
     "breakdownTitle": "Breakdown",
     "allTimeRecordSubtitle": "All-time record",
@@ -238,7 +244,10 @@
     "colDate": "Date",
     "colCourse": "Course",
     "colStatus": "Status",
-    "colNote": "Note"
+    "colNote": "Note",
+    "loadingAttendance": "Loading attendance…",
+    "loadErrorFallback": "Failed to load attendance.",
+    "noAttendanceRecordsYet": "No attendance records yet."
   },
   "StudentExams": {
     "pageTitle": "Exams",
@@ -255,7 +264,8 @@
     "upcomingExamsSection": "Upcoming Exams",
     "noUpcomingExamsScheduled": "No upcoming exams scheduled.",
     "completedExamsSection": "Completed Exams",
-    "noCompletedExamsYet": "No completed exams yet."
+    "noCompletedExamsYet": "No completed exams yet.",
+    "resultsNotYetEntered": "Results not yet entered"
   },
   "StudentMessages": {
     "pageTitle": "Messages",
@@ -367,6 +377,7 @@
     "methodPayme": "Payme"
   },
   "TeacherNav": {
+    "openMenuAriaLabel": "Open menu",
     "navGroupMain": "Main",
     "navGroupTeaching": "Teaching",
     "navGroupAcademics": "Academics",
@@ -384,6 +395,7 @@
     "navResources": "Resources",
     "navNotifications": "Notifications",
     "navProfile": "Profile",
+    "navSalary": "My Salary",
     "navSettings": "Settings",
     "portalFallbackTitle": "Teacher Portal",
     "expandSidebar": "Expand sidebar",
@@ -392,6 +404,24 @@
     "notificationsAriaLabel": "Notifications ({count} unread)",
     "signOut": "Sign Out",
     "roleTeacher": "Teacher"
+  },
+  "TeacherSalary": {
+    "pageTitle": "My Salary",
+    "pageSubtitle": "View your current compensation and salary history.",
+    "loading": "Loading…",
+    "noSalaryYet": "Your salary hasn't been set yet. Contact your center administrator.",
+    "currentAmountLabel": "Current Amount",
+    "salaryTypeLabel": "Salary Type",
+    "effectiveSinceLabel": "Effective Since",
+    "notesLabel": "Notes",
+    "historyTitle": "Salary History",
+    "noHistory": "No previous salary records.",
+    "historyInactive": "Past",
+    "salaryTypeFixed": "Fixed",
+    "salaryTypeHourly": "Hourly",
+    "salaryTypePerLesson": "Per Lesson",
+    "salaryTypePerStudent": "Per Student",
+    "salaryTypePercentage": "Percentage"
   },
   "TeacherDashboard": {
     "teacherFallbackName": "Teacher",
@@ -438,7 +468,8 @@
     "statusActive": "Active",
     "statusCompleted": "Completed",
     "statusCancelled": "Cancelled",
-    "statusArchived": "Archived"
+    "statusArchived": "Archived",
+    "windowSuffix30d": " (30d)"
   },
   "TeacherGroups": {
     "pageTitle": "My Groups",
@@ -657,9 +688,12 @@
     "maxPtsLabel": "Max {points} pts",
     "editButton": "Edit",
     "cancelButton": "Cancel",
+    "markCompletedButton": "Mark Completed",
     "examUpdatedToast": "Exam updated",
     "examScheduledToast": "Exam scheduled",
     "examCancelledToast": "Exam cancelled",
+    "examMarkedCompletedToast": "Exam marked as completed",
+    "resultsPartiallySavedToast": "Saved {failed} of {total} results — please retry the rest",
     "resultsNotYetEntered": "Results not yet entered",
     "closeResultsButton": "Close Results",
     "viewResultsButton": "View Results",
@@ -699,7 +733,8 @@
     "statusPresent": "Present",
     "statusAbsent": "Absent",
     "statusLate": "Late",
-    "statusExcused": "Excused"
+    "statusExcused": "Excused",
+    "windowSuffix30d": " (30d)"
   },
   "TeacherMessages": {
     "pageTitle": "Messages",
@@ -738,6 +773,9 @@
     "pageSubtitle": "Manage and share learning materials with your students",
     "searchPlaceholder": "Search resources...",
     "allSubjectsOption": "All Subjects",
+    "subjectAlgebra": "Algebra",
+    "subjectCalculus": "Calculus",
+    "subjectMathematics": "Mathematics",
     "uploadFileButton": "Upload File",
     "uploadNewResourceTitle": "Upload New Resource",
     "fieldTitle": "Title",
@@ -865,7 +903,16 @@
     "passwordUpdatedToast": "Password updated",
     "profileUpdatedToast": "Profile updated",
     "appearancePrefsSavedToast": "Appearance preferences saved",
-    "languageRegionSavedToast": "Language & region settings saved"
+    "languageRegionSavedToast": "Language & region settings saved",
+    "timezoneEasternET": "Eastern Time (ET)",
+    "timezoneCentralCT": "Central Time (CT)",
+    "timezoneMountainMT": "Mountain Time (MT)",
+    "timezonePacificPT": "Pacific Time (PT)",
+    "timezoneLondonGMT": "London (GMT)",
+    "timezoneParisCET": "Paris (CET)",
+    "timezoneDubaiGST": "Dubai (GST)",
+    "timezoneKarachiPKT": "Karachi (PKT)",
+    "timezoneTokyoJST": "Tokyo (JST)"
   },
   "AdminNav": {
     "navGroupMain": "Main",
@@ -880,6 +927,7 @@
     "navSchedule": "Schedule",
     "navAttendance": "Attendance",
     "navHomework": "Homework",
+    "navExams": "Exams",
     "navFinance": "Finance",
     "navNotifications": "Notifications",
     "navSettings": "Settings",
@@ -1078,7 +1126,21 @@
     "createdToast": "Teacher created",
     "updatedToast": "Teacher updated",
     "fixHighlightedFields": "Please fix the highlighted fields.",
-    "genericError": "Something went wrong. Please try again."
+    "genericError": "Something went wrong. Please try again.",
+    "noSalarySet": "No salary set",
+    "adjustSalaryButton": "Adjust",
+    "setSalaryButton": "Set Salary",
+    "salaryDialogTitle": "Update Salary",
+    "salaryDialogDescription": "This creates a new salary record effective from the date below — the current one is kept as history and automatically deactivated.",
+    "salaryTypeFixed": "Fixed",
+    "salaryTypeHourly": "Hourly",
+    "salaryTypePerLesson": "Per Lesson",
+    "salaryTypePerStudent": "Per Student",
+    "salaryTypePercentage": "Percentage",
+    "fieldAmount": "Amount",
+    "fieldPercentageValue": "Percentage (%)",
+    "fieldSalaryNotes": "Notes (optional)",
+    "salaryUpdatedToast": "Salary updated"
   },
   "AdminCourses": {
     "pageTitle": "Courses",
@@ -1245,7 +1307,8 @@
     "scheduleButton": "Schedule",
     "lessonScheduledToast": "Lesson scheduled",
     "fixHighlightedFields": "Please fix the highlighted fields.",
-    "genericError": "Something went wrong. Please try again."
+    "genericError": "Something went wrong. Please try again.",
+    "listViewWindowNote": "Showing lessons from 90 days ago to 90 days from now"
   },
   "AdminAttendance": {
     "pageTitle": "Attendance",
@@ -1278,7 +1341,8 @@
     "noAttendanceRecordsYet": "No attendance records yet.",
     "legendGood": "80–100% — Good",
     "legendWarning": "70–79% — Warning",
-    "legendCritical": "Below 70% — Critical"
+    "legendCritical": "Below 70% — Critical",
+    "last30DaysNote": "last 30 days"
   },
   "AdminHomework": {
     "pageTitle": "Homework",
@@ -1308,6 +1372,68 @@
     "loadErrorFallback": "Failed to load assignments.",
     "loadingAssignments": "Loading assignments…",
     "noAssignmentsFound": "No assignments found"
+  },
+  "AdminExams": {
+    "pageTitle": "Exams",
+    "pageSubtitleCount": "{count, plural, one {# exam} other {# exams}}",
+    "newExamButton": "New Exam",
+    "statusAll": "All Status",
+    "statusScheduled": "Scheduled",
+    "statusCompleted": "Completed",
+    "statusCancelled": "Cancelled",
+    "statTotalExams": "Total Exams",
+    "statUpcomingExams": "Upcoming Exams",
+    "statCompletedExams": "Completed Exams",
+    "statAverageScore": "Average Score",
+    "allExamsTitle": "All Exams",
+    "examsCount": "{count, plural, one {# exam} other {# exams}}",
+    "searchPlaceholder": "Search exams...",
+    "allGroupsOption": "All Groups",
+    "columnExam": "Exam",
+    "columnDateTime": "Date & Time",
+    "columnStatus": "Status",
+    "columnScore": "Score",
+    "columnActions": "Actions",
+    "noResultsYet": "No results yet",
+    "loadErrorFallback": "Failed to load exams.",
+    "loadingExams": "Loading exams…",
+    "noExamsFound": "No exams found",
+    "formTitleNew": "New Exam",
+    "formTitleEdit": "Edit Exam",
+    "titlePlaceholder": "e.g. Algebra A1 Mid-Term Exam",
+    "selectGroupPlaceholder": "Select a group",
+    "fieldDuration": "Duration (minutes)",
+    "roomPlaceholder": "e.g. Exam Hall A",
+    "fieldMaxScore": "Max Score",
+    "fieldQuestionCount": "Question Count",
+    "scheduleExamButton": "Schedule Exam",
+    "examScheduledToast": "Exam scheduled",
+    "examUpdatedToast": "Exam updated",
+    "noOrganizationError": "No organization on this account.",
+    "fixHighlightedFields": "Please fix the highlighted fields.",
+    "genericError": "Something went wrong. Please try again.",
+    "durationMinutes": "{count} min",
+    "currentAverageLabel": "Current Average",
+    "markCompletedButton": "Mark Completed",
+    "cancelButton": "Cancel",
+    "editButton": "Edit",
+    "deleteButton": "Delete",
+    "examCancelledToast": "Exam cancelled",
+    "examMarkedCompletedToast": "Exam marked as completed",
+    "loadingResults": "Loading results…",
+    "colStudent": "Student",
+    "colScore": "Score",
+    "colGrade": "Grade",
+    "noStudentsInGroup": "No students in this group.",
+    "studentsScored": "{scored}/{total} students scored",
+    "saveResultsButton": "Save Results",
+    "resultsSavedToast": "Results saved successfully",
+    "resultsPartiallySavedToast": "Saved {failed} of {total} results — please retry the rest",
+    "deleteDialogTitle": "Delete exam",
+    "deleteDialogDescription": "Are you sure you want to remove {name}? This can be restored later from the database if needed.",
+    "deleteConfirmLabel": "Delete",
+    "deleteSuccessToast": "Exam removed",
+    "deleteErrorFallback": "Failed to delete exam."
   },
   "AdminFinance": {
     "statusAll": "All Status",
@@ -1370,7 +1496,8 @@
     "notesOptionalPlaceholder": "Notes (optional)",
     "createButton": "Create",
     "invoiceCreatedToast": "Invoice created",
-    "fixHighlightedFields": "Please fix the highlighted fields."
+    "fixHighlightedFields": "Please fix the highlighted fields.",
+    "last12MonthsNote": "last 12 months"
   },
   "AdminNotifications": {
     "pageTitle": "Notifications",
@@ -1456,6 +1583,16 @@
     "dateFormatLabel": "Date Format",
     "languageRegionSavedToast": "Language & region settings saved",
     "saveSettingsButton": "Save Settings",
+    "timezoneEasternET": "Eastern Time (ET)",
+    "timezoneCentralCT": "Central Time (CT)",
+    "timezoneMountainMT": "Mountain Time (MT)",
+    "timezonePacificPT": "Pacific Time (PT)",
+    "timezoneLondonGMT": "London (GMT)",
+    "timezoneParisCET": "Paris (CET)",
+    "timezoneTashkentUZT": "Tashkent (UZT)",
+    "timezoneDubaiGST": "Dubai (GST)",
+    "timezoneKarachiPKT": "Karachi (PKT)",
+    "timezoneTokyoJST": "Tokyo (JST)",
     "merchantIdRequired": "Merchant ID is required.",
     "serviceIdRequiredForClick": "Service ID is required for Click.",
     "secretKeyRequired": "Secret key is required.",
@@ -1481,6 +1618,7 @@
     "loadingLabel": "Loading…"
   },
   "SuperAdminNav": {
+    "openMenuAriaLabel": "Open menu",
     "navGroupOverview": "Overview",
     "navGroupManagement": "Management",
     "navGroupBusiness": "Business",
@@ -1505,7 +1643,10 @@
     "collapseSidebar": "Collapse sidebar",
     "quickSearchPlaceholder": "Quick search...",
     "notificationsAriaLabel": "Notifications ({count} unread)",
-    "signOut": "Sign Out"
+    "signOut": "Sign Out",
+    "navGroupAcademics": "Academics",
+    "navExams": "Exams",
+    "navHomework": "Homework"
   },
   "SuperAdminDashboard": {
     "welcomeBack": "Welcome back, {name} 👋",
@@ -1783,6 +1924,66 @@
     "detailHired": "Hired",
     "detailStatus": "Status"
   },
+  "SuperAdminExams": {
+    "pageTitle": "Exams",
+    "pageSubtitle": "Platform-wide exam oversight across every center",
+    "statusAll": "All Status",
+    "statusScheduled": "Scheduled",
+    "statusCompleted": "Completed",
+    "statusCancelled": "Cancelled",
+    "statTotalExams": "Total Exams",
+    "statUpcomingExams": "Upcoming Exams",
+    "statCompletedExams": "Completed Exams",
+    "statAverageScore": "Average Score",
+    "allExamsTitle": "All Exams",
+    "examsOfCount": "{filtered} of {total} exams",
+    "searchPlaceholder": "Search exams...",
+    "allCentersPlaceholder": "All Centers",
+    "clearButton": "Clear",
+    "columnExam": "Exam",
+    "columnCenter": "Center",
+    "columnDateTime": "Date & Time",
+    "columnStatus": "Status",
+    "columnScore": "Score",
+    "noResultsYet": "No results yet",
+    "loadErrorFallback": "Failed to load exams.",
+    "loadingExams": "Loading exams…",
+    "noExamsFound": "No exams found",
+    "averageLabel": "Average",
+    "loadingResults": "Loading results…",
+    "awaitingGrading": "Awaiting grading"
+  },
+  "SuperAdminHomework": {
+    "pageTitle": "Homework",
+    "pageSubtitleCount": "{count, plural, one {# assignment across all centers} other {# assignments across all centers}}",
+    "statusAll": "All Status",
+    "statusActive": "Active",
+    "statusClosed": "Closed",
+    "columnAssignment": "Assignment",
+    "columnCenter": "Center",
+    "columnDue": "Due",
+    "columnStatus": "Status",
+    "columnSubmitted": "Submitted",
+    "columnGraded": "Graded",
+    "dueSubtitle": "{center} · {group} · Due {date}",
+    "loadingSubmissions": "Loading submissions…",
+    "noSubmissionsYet": "No submissions yet.",
+    "submittedAt": "Submitted {datetime}",
+    "lateLabel": "Late",
+    "awaitingGrading": "Awaiting grading",
+    "statTotalAssignments": "Total Assignments",
+    "statSubmitted": "Submitted",
+    "statGraded": "Graded",
+    "statCompletionRate": "Completion Rate",
+    "allAssignmentsTitle": "All Assignments",
+    "assignmentsOfCount": "{filtered} of {total} assignments",
+    "searchPlaceholder": "Search assignments...",
+    "allCentersPlaceholder": "All Centers",
+    "clearButton": "Clear",
+    "loadErrorFallback": "Failed to load assignments.",
+    "loadingAssignments": "Loading assignments…",
+    "noAssignmentsFound": "No assignments found"
+  },
   "SuperAdminStudents": {
     "pageTitle": "Students",
     "pageSubtitle": "Platform-wide student overview",
@@ -1940,7 +2141,8 @@
     "csvHeaderAmount": "Amount",
     "csvHeaderBalance": "Balance",
     "csvHeaderStatus": "Status",
-    "csvHeaderDueDate": "Due Date"
+    "csvHeaderDueDate": "Due Date",
+    "last12MonthsNote": "last 12 months"
   },
   "SuperAdminSettings": {
     "pageTitle": "System Settings",
@@ -2178,7 +2380,9 @@
     "entityCourse": "Course",
     "entitySession": "Session",
     "entityAttendance": "Attendance",
-    "entityTeacherProfile": "Teacher Profile"
+    "entityTeacherProfile": "Teacher Profile",
+    "truncatedNote": "Showing the first {shown} of {total} matching events — narrow the date range to see the rest.",
+    "shownPageSuffix": "(shown page)"
   },
   "SuperAdminProfile": {
     "pageTitle": "Profile",

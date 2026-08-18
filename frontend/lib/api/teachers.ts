@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 import type { Gender } from "@/lib/api/students";
 
 export type TeacherStatus = "active" | "inactive" | "on_leave" | "terminated" | "pending";
@@ -37,6 +37,8 @@ export interface TeacherSpecialization {
   years_experience: number;
 }
 
+export type SalaryType = "fixed" | "hourly" | "per_lesson" | "per_student" | "percentage";
+
 export interface TeacherSalary {
   id: string;
   organization: string;
@@ -44,25 +46,22 @@ export interface TeacherSalary {
   salary_type: string;
   amount: string;
   currency: string;
+  percentage_value: string | null;
   effective_from: string;
   effective_to: string | null;
   is_active: boolean;
-}
-
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
+  notes: string | null;
 }
 
 export interface ListTeachersParams {
   /** Omit for a platform-wide query — only a super_admin's RLS bypass
    * actually returns cross-org rows when this is left out; every other
    * role is still scoped to their own org regardless (see the Super-Admin
-   * Teachers page for the platform-wide use). */
+   * Teachers page for the platform-wide use). Same real-pagination caveat
+   * as lib/api/students.ts::ListStudentsParams — see that comment. */
   organizationId?: string;
   status?: TeacherStatus;
   search?: string;
-  pageSize?: number;
 }
 
 export async function listTeachers(params: ListTeachersParams): Promise<TeacherProfile[]> {
@@ -70,22 +69,50 @@ export async function listTeachers(params: ListTeachersParams): Promise<TeacherP
   if (params.organizationId) query.set("organization", params.organizationId);
   if (params.status) query.set("status", params.status);
   if (params.search) query.set("search", params.search);
-  query.set("page_size", String(params.pageSize ?? 100));
 
-  const data = await apiFetch<ListResponse<TeacherProfile>>(`/api/v1/teachers/?${query}`);
-  return data.results;
+  return fetchAllPages<TeacherProfile>("/api/v1/teachers/", query);
 }
 
 export async function getTeacherSpecializations(teacherProfileId: string): Promise<TeacherSpecialization[]> {
-  const query = new URLSearchParams({ teacher_profile: teacherProfileId, page_size: "20" });
-  const data = await apiFetch<ListResponse<TeacherSpecialization>>(`/api/v1/teachers/specializations/?${query}`);
-  return data.results;
+  const query = new URLSearchParams({ teacher_profile: teacherProfileId });
+  return fetchAllPages<TeacherSpecialization>("/api/v1/teachers/specializations/", query);
 }
 
 export async function getTeacherSalaries(teacherProfileId: string): Promise<TeacherSalary[]> {
-  const query = new URLSearchParams({ teacher_profile: teacherProfileId, page_size: "20" });
-  const data = await apiFetch<ListResponse<TeacherSalary>>(`/api/v1/teachers/salaries/?${query}`);
-  return data.results;
+  const query = new URLSearchParams({ teacher_profile: teacherProfileId });
+  return fetchAllPages<TeacherSalary>("/api/v1/teachers/salaries/", query);
+}
+
+export interface CreateTeacherSalaryInput {
+  organizationId: string;
+  teacherProfileId: string;
+  salaryType: SalaryType;
+  amount: number;
+  percentageValue?: number;
+  effectiveFrom: string;
+  notes?: string;
+}
+
+/** Always creates a new row, never PATCHes the current active one — see
+ * lib/schemas/teacher-profile-schema.ts's teacherSalarySchema docstring for
+ * why (matches the backend's history-of-changes model design). The backend
+ * (TeacherSalaryViewSet.perform_create) deactivates the previous active row
+ * for this teacher automatically. */
+export async function createTeacherSalary(input: CreateTeacherSalaryInput): Promise<TeacherSalary> {
+  return apiFetch<TeacherSalary>("/api/v1/teachers/salaries/", {
+    method: "POST",
+    body: JSON.stringify({
+      organization: input.organizationId,
+      teacher_profile: input.teacherProfileId,
+      salary_type: input.salaryType,
+      amount: input.amount,
+      currency: "UZS",
+      percentage_value: input.salaryType === "percentage" ? input.percentageValue : null,
+      effective_from: input.effectiveFrom,
+      notes: input.notes || null,
+      is_active: true,
+    }),
+  });
 }
 
 export interface CreateTeacherInput {

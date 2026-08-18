@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 
 export type StudentStatus = "active" | "inactive" | "graduated" | "expelled" | "transferred" | "on_leave" | "pending";
 export type Gender = "male" | "female" | "other";
@@ -35,21 +35,20 @@ export interface StudentParent {
   can_pickup: boolean;
 }
 
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
-}
-
 export interface ListStudentsParams {
   /** Omit for a platform-wide query — only a super_admin's RLS bypass
    * actually returns cross-org rows when this is left out; every other
    * role is still scoped to their own org regardless (see the Super-Admin
    * Students page for the platform-wide use, and the identical pattern in
-   * lib/api/teachers.ts). */
+   * lib/api/teachers.ts). Platform-wide is the one call site in this file
+   * where fetchAllPages' "everything fits in a reasonable page-load"
+   * assumption is most likely to stop holding as EduCore's real target
+   * scale (CLAUDE.md: "thousands of students") is reached — real
+   * server-side pagination UI is the eventual fix, this is the tactical
+   * one that at least stops silent truncation today. */
   organizationId?: string;
   status?: StudentStatus;
   search?: string;
-  pageSize?: number;
 }
 
 export async function listStudents(params: ListStudentsParams): Promise<StudentProfile[]> {
@@ -57,16 +56,13 @@ export async function listStudents(params: ListStudentsParams): Promise<StudentP
   if (params.organizationId) query.set("organization", params.organizationId);
   if (params.status) query.set("status", params.status);
   if (params.search) query.set("search", params.search);
-  query.set("page_size", String(params.pageSize ?? 100));
 
-  const data = await apiFetch<ListResponse<StudentProfile>>(`/api/v1/students/?${query}`);
-  return data.results;
+  return fetchAllPages<StudentProfile>("/api/v1/students/", query);
 }
 
 export async function getStudentParents(studentProfileId: string): Promise<StudentParent[]> {
-  const query = new URLSearchParams({ student_profile: studentProfileId, page_size: "20" });
-  const data = await apiFetch<ListResponse<StudentParent>>(`/api/v1/students/parents/?${query}`);
-  return data.results;
+  const query = new URLSearchParams({ student_profile: studentProfileId });
+  return fetchAllPages<StudentParent>("/api/v1/students/parents/", query);
 }
 
 export interface CreateStudentInput {

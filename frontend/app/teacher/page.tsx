@@ -30,8 +30,9 @@ import { useTranslations, useLocale } from 'next-intl';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TEACHER_EXAMS, GRADE_DISTRIBUTION_DATA } from '@/lib/teacher-data';
+import { GRADE_DISTRIBUTION_DATA } from '@/lib/teacher-data';
 import { useNotificationsQuery } from '@/lib/queries/notifications';
+import { useExamsQuery } from '@/lib/queries/exams';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useMyTeacherProfileQuery } from '@/lib/queries/teachers';
 import { useGroupsQuery, useMyRosterQuery } from '@/lib/queries/groups';
@@ -47,8 +48,6 @@ const DAY_ABBR: DayOfWeek[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 function todayDay(): DayOfWeek {
   return DAY_ABBR[new Date().getDay()];
 }
-
-const upcomingExams = TEACHER_EXAMS.filter((e) => e.status === 'upcoming');
 
 // t is TeacherDashboard's useTranslations return value.
 function daysUntil(dateStr: string, t: ReturnType<typeof useTranslations<'TeacherDashboard'>>) {
@@ -143,6 +142,11 @@ export default function TeacherDashboardPage() {
   const groupIds = (groups ?? []).map((g) => g.id);
   const { data: roster } = useMyRosterQuery(groupIds);
   const { data: attendance } = useAttendanceForGroupsQuery(organizationId ?? '', groupIds);
+  const { data: exams = [] } = useExamsQuery({ organizationId: organizationId ?? '' });
+  const groupIdSet = new Set(groupIds);
+  const upcomingExams = exams
+    .filter((e) => e.status === 'scheduled' && groupIdSet.has(e.group))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time));
 
   const activeRosterCount = roster
     .filter((m) => m.status === 'active')
@@ -200,10 +204,10 @@ export default function TeacherDashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t('statTodaysClasses')} value={todayClasses.length} icon={<CalendarCheck className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50" />
         <StatCard label={t('statTotalStudents')} value={activeRosterCount} icon={<Users className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
-        <StatCard label={t('statAvgAttendance')} value={`${avgAttendance}%`} icon={<TrendingUp className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label={`${t('statAvgAttendance')}${t('windowSuffix30d')}`} value={`${avgAttendance}%`} icon={<TrendingUp className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
         <StatCard label={t('statActiveGroups')} value={(groups ?? []).length} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
       </div>
 
@@ -289,8 +293,6 @@ export default function TeacherDashboardPage() {
         </Card>
       </div>
 
-      {/* Exam Reminders has no backend yet (Exams module deliberately
-          skipped this pass) — stays mock. Recent Activity is real. */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Card title={t('recentActivityTitle')} subtitle={t('latestNotifications')}>
@@ -326,12 +328,12 @@ export default function TeacherDashboardPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-slate-800 truncate">{exam.title}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{exam.groupName}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{exam.group_name}</p>
                     </div>
                     <BookOpen className="h-4 w-4 text-violet-500 flex-shrink-0 mt-0.5" />
                   </div>
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-slate-400">{formatDate(exam.date, locale)} &middot; {exam.startTime}</span>
+                    <span className="text-xs text-slate-400">{formatDate(exam.date, locale)} &middot; {exam.start_time.slice(0, 5)}</span>
                     <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 rounded-full px-2 py-0.5">{daysUntil(exam.date, t)}</span>
                   </div>
                 </div>

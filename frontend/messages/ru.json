@@ -78,9 +78,14 @@
     "interfaceLanguage": "Язык интерфейса",
     "timezone": "Часовой пояс",
     "dateFormat": "Формат даты",
-    "saveSettings": "Сохранить настройки"
+    "saveSettings": "Сохранить настройки",
+    "timezoneTashkentUZT": "Ташкент (UZT)",
+    "timezoneAlmatyALMT": "Алматы (ALMT)",
+    "timezoneMoscowMSK": "Москва (MSK)",
+    "timezoneEasternET": "Восточное время (ET)"
   },
   "StudentNav": {
+    "openMenuAriaLabel": "Открыть меню",
     "navGroupMain": "Главное",
     "navGroupLearning": "Обучение",
     "navGroupProgress": "Прогресс",
@@ -226,6 +231,7 @@
     "statLateExcused": "Опоздания / Уважительные",
     "weeklyRateTitle": "Недельная посещаемость",
     "last6WeeksSubtitle": "Последние 6 недель",
+    "weekLabel": "Нед. {number}",
     "tooltipAttendanceLabel": "Посещаемость",
     "breakdownTitle": "Разбивка",
     "allTimeRecordSubtitle": "За всё время",
@@ -238,7 +244,10 @@
     "colDate": "Дата",
     "colCourse": "Курс",
     "colStatus": "Статус",
-    "colNote": "Примечание"
+    "colNote": "Примечание",
+    "loadingAttendance": "Загрузка посещаемости…",
+    "loadErrorFallback": "Не удалось загрузить посещаемость.",
+    "noAttendanceRecordsYet": "Записей о посещаемости пока нет."
   },
   "StudentExams": {
     "pageTitle": "Экзамены",
@@ -255,7 +264,8 @@
     "upcomingExamsSection": "Предстоящие экзамены",
     "noUpcomingExamsScheduled": "Предстоящих экзаменов не запланировано.",
     "completedExamsSection": "Завершённые экзамены",
-    "noCompletedExamsYet": "Завершённых экзаменов пока нет."
+    "noCompletedExamsYet": "Завершённых экзаменов пока нет.",
+    "resultsNotYetEntered": "Результаты ещё не внесены"
   },
   "StudentMessages": {
     "pageTitle": "Сообщения",
@@ -367,6 +377,7 @@
     "methodPayme": "Payme"
   },
   "TeacherNav": {
+    "openMenuAriaLabel": "Открыть меню",
     "navGroupMain": "Главное",
     "navGroupTeaching": "Преподавание",
     "navGroupAcademics": "Учебный процесс",
@@ -384,6 +395,7 @@
     "navResources": "Материалы",
     "navNotifications": "Уведомления",
     "navProfile": "Профиль",
+    "navSalary": "Моя зарплата",
     "navSettings": "Настройки",
     "portalFallbackTitle": "Портал преподавателя",
     "expandSidebar": "Развернуть боковую панель",
@@ -392,6 +404,24 @@
     "notificationsAriaLabel": "Уведомления ({count} непрочитано)",
     "signOut": "Выйти",
     "roleTeacher": "Преподаватель"
+  },
+  "TeacherSalary": {
+    "pageTitle": "Моя зарплата",
+    "pageSubtitle": "Просмотр текущей зарплаты и истории изменений.",
+    "loading": "Загрузка…",
+    "noSalaryYet": "Ваша зарплата ещё не указана. Обратитесь к администратору центра.",
+    "currentAmountLabel": "Текущая сумма",
+    "salaryTypeLabel": "Тип зарплаты",
+    "effectiveSinceLabel": "Действует с",
+    "notesLabel": "Примечание",
+    "historyTitle": "История зарплаты",
+    "noHistory": "Предыдущих записей о зарплате нет.",
+    "historyInactive": "Прошлая",
+    "salaryTypeFixed": "Фиксированная",
+    "salaryTypeHourly": "Почасовая",
+    "salaryTypePerLesson": "За урок",
+    "salaryTypePerStudent": "За ученика",
+    "salaryTypePercentage": "Процентная"
   },
   "TeacherDashboard": {
     "teacherFallbackName": "Преподаватель",
@@ -438,7 +468,8 @@
     "statusActive": "Активна",
     "statusCompleted": "Завершена",
     "statusCancelled": "Отменена",
-    "statusArchived": "В архиве"
+    "statusArchived": "В архиве",
+    "windowSuffix30d": " (30 дн.)"
   },
   "TeacherGroups": {
     "pageTitle": "Мои группы",
@@ -657,9 +688,12 @@
     "maxPtsLabel": "Максимум {points} баллов",
     "editButton": "Изменить",
     "cancelButton": "Отменить",
+    "markCompletedButton": "Отметить завершённым",
     "examUpdatedToast": "Экзамен обновлён",
     "examScheduledToast": "Экзамен запланирован",
     "examCancelledToast": "Экзамен отменён",
+    "examMarkedCompletedToast": "Экзамен отмечен как завершённый",
+    "resultsPartiallySavedToast": "Сохранено {failed} из {total} результатов — повторите оставшиеся",
     "resultsNotYetEntered": "Результаты ещё не внесены",
     "closeResultsButton": "Скрыть результаты",
     "viewResultsButton": "Посмотреть результаты",
@@ -699,7 +733,8 @@
     "statusPresent": "Присутствовал",
     "statusAbsent": "Отсутствовал",
     "statusLate": "Опоздал",
-    "statusExcused": "По уважительной причине"
+    "statusExcused": "По уважительной причине",
+    "windowSuffix30d": " (30 дн.)"
   },
   "TeacherMessages": {
     "pageTitle": "Сообщения",
@@ -738,6 +773,9 @@
     "pageSubtitle": "Управляйте учебными материалами и делитесь ими со студентами",
     "searchPlaceholder": "Поиск материалов...",
     "allSubjectsOption": "Все предметы",
+    "subjectAlgebra": "Алгебра",
+    "subjectCalculus": "Матанализ",
+    "subjectMathematics": "Математика",
     "uploadFileButton": "Загрузить файл",
     "uploadNewResourceTitle": "Загрузить новый материал",
     "fieldTitle": "Название",
@@ -865,7 +903,16 @@
     "passwordUpdatedToast": "Пароль обновлён",
     "profileUpdatedToast": "Профиль обновлён",
     "appearancePrefsSavedToast": "Настройки внешнего вида сохранены",
-    "languageRegionSavedToast": "Настройки языка и региона сохранены"
+    "languageRegionSavedToast": "Настройки языка и региона сохранены",
+    "timezoneEasternET": "Восточное время (ET)",
+    "timezoneCentralCT": "Центральное время (CT)",
+    "timezoneMountainMT": "Горное время (MT)",
+    "timezonePacificPT": "Тихоокеанское время (PT)",
+    "timezoneLondonGMT": "Лондон (GMT)",
+    "timezoneParisCET": "Париж (CET)",
+    "timezoneDubaiGST": "Дубай (GST)",
+    "timezoneKarachiPKT": "Карачи (PKT)",
+    "timezoneTokyoJST": "Токио (JST)"
   },
   "AdminNav": {
     "navGroupMain": "Главное",
@@ -880,6 +927,7 @@
     "navSchedule": "Расписание",
     "navAttendance": "Посещаемость",
     "navHomework": "Домашние задания",
+    "navExams": "Экзамены",
     "navFinance": "Финансы",
     "navNotifications": "Уведомления",
     "navSettings": "Настройки",
@@ -1078,7 +1126,21 @@
     "createdToast": "Преподаватель создан",
     "updatedToast": "Преподаватель обновлён",
     "fixHighlightedFields": "Пожалуйста, исправьте выделенные поля.",
-    "genericError": "Что-то пошло не так. Попробуйте снова."
+    "genericError": "Что-то пошло не так. Попробуйте снова.",
+    "noSalarySet": "Зарплата не указана",
+    "adjustSalaryButton": "Изменить",
+    "setSalaryButton": "Указать зарплату",
+    "salaryDialogTitle": "Обновить зарплату",
+    "salaryDialogDescription": "Это создаст новую запись о зарплате, действующую с указанной даты — текущая сохраняется как история и автоматически деактивируется.",
+    "salaryTypeFixed": "Фиксированная",
+    "salaryTypeHourly": "Почасовая",
+    "salaryTypePerLesson": "За урок",
+    "salaryTypePerStudent": "За ученика",
+    "salaryTypePercentage": "Процентная",
+    "fieldAmount": "Сумма",
+    "fieldPercentageValue": "Процент (%)",
+    "fieldSalaryNotes": "Примечание (необязательно)",
+    "salaryUpdatedToast": "Зарплата обновлена"
   },
   "AdminCourses": {
     "pageTitle": "Курсы",
@@ -1245,7 +1307,8 @@
     "scheduleButton": "Запланировать",
     "lessonScheduledToast": "Урок запланирован",
     "fixHighlightedFields": "Пожалуйста, исправьте выделенные поля.",
-    "genericError": "Что-то пошло не так. Попробуйте снова."
+    "genericError": "Что-то пошло не так. Попробуйте снова.",
+    "listViewWindowNote": "Показаны занятия за 90 дней до и 90 дней после сегодняшнего дня"
   },
   "AdminAttendance": {
     "pageTitle": "Посещаемость",
@@ -1278,7 +1341,8 @@
     "noAttendanceRecordsYet": "Записей о посещаемости пока нет.",
     "legendGood": "80–100% — Хорошо",
     "legendWarning": "70–79% — Предупреждение",
-    "legendCritical": "Ниже 70% — Критично"
+    "legendCritical": "Ниже 70% — Критично",
+    "last30DaysNote": "последние 30 дней"
   },
   "AdminHomework": {
     "pageTitle": "Домашние задания",
@@ -1308,6 +1372,68 @@
     "loadErrorFallback": "Не удалось загрузить задания.",
     "loadingAssignments": "Загрузка заданий…",
     "noAssignmentsFound": "Задания не найдены"
+  },
+  "AdminExams": {
+    "pageTitle": "Экзамены",
+    "pageSubtitleCount": "{count, plural, one {# экзамен} few {# экзамена} many {# экзаменов} other {# экзамена}}",
+    "newExamButton": "Новый экзамен",
+    "statusAll": "Все статусы",
+    "statusScheduled": "Запланирован",
+    "statusCompleted": "Завершён",
+    "statusCancelled": "Отменён",
+    "statTotalExams": "Всего экзаменов",
+    "statUpcomingExams": "Предстоящие экзамены",
+    "statCompletedExams": "Завершённые экзамены",
+    "statAverageScore": "Средний балл",
+    "allExamsTitle": "Все экзамены",
+    "examsCount": "{count, plural, one {# экзамен} few {# экзамена} many {# экзаменов} other {# экзамена}}",
+    "searchPlaceholder": "Поиск экзаменов...",
+    "allGroupsOption": "Все группы",
+    "columnExam": "Экзамен",
+    "columnDateTime": "Дата и время",
+    "columnStatus": "Статус",
+    "columnScore": "Балл",
+    "columnActions": "Действия",
+    "noResultsYet": "Результатов пока нет",
+    "loadErrorFallback": "Не удалось загрузить экзамены.",
+    "loadingExams": "Загрузка экзаменов…",
+    "noExamsFound": "Экзамены не найдены",
+    "formTitleNew": "Новый экзамен",
+    "formTitleEdit": "Редактировать экзамен",
+    "titlePlaceholder": "Например: Промежуточный экзамен по Алгебре A1",
+    "selectGroupPlaceholder": "Выберите группу",
+    "fieldDuration": "Продолжительность (минуты)",
+    "roomPlaceholder": "Например: Экзаменационный зал A",
+    "fieldMaxScore": "Максимальный балл",
+    "fieldQuestionCount": "Количество вопросов",
+    "scheduleExamButton": "Запланировать экзамен",
+    "examScheduledToast": "Экзамен запланирован",
+    "examUpdatedToast": "Экзамен обновлён",
+    "noOrganizationError": "У этого аккаунта нет организации.",
+    "fixHighlightedFields": "Пожалуйста, исправьте выделенные поля.",
+    "genericError": "Что-то пошло не так. Попробуйте снова.",
+    "durationMinutes": "{count} мин",
+    "currentAverageLabel": "Текущий средний балл",
+    "markCompletedButton": "Отметить завершённым",
+    "cancelButton": "Отменить",
+    "editButton": "Изменить",
+    "deleteButton": "Удалить",
+    "examCancelledToast": "Экзамен отменён",
+    "examMarkedCompletedToast": "Экзамен отмечен как завершённый",
+    "loadingResults": "Загрузка результатов…",
+    "colStudent": "Студент",
+    "colScore": "Балл",
+    "colGrade": "Оценка",
+    "noStudentsInGroup": "В этой группе нет студентов.",
+    "studentsScored": "{scored}/{total} студентов оценено",
+    "saveResultsButton": "Сохранить результаты",
+    "resultsSavedToast": "Результаты успешно сохранены",
+    "resultsPartiallySavedToast": "Сохранено {failed} из {total} результатов — повторите оставшиеся",
+    "deleteDialogTitle": "Удалить экзамен",
+    "deleteDialogDescription": "Вы уверены, что хотите удалить {name}? При необходимости это можно восстановить позже из базы данных.",
+    "deleteConfirmLabel": "Удалить",
+    "deleteSuccessToast": "Экзамен удалён",
+    "deleteErrorFallback": "Не удалось удалить экзамен."
   },
   "AdminFinance": {
     "statusAll": "Все статусы",
@@ -1370,7 +1496,8 @@
     "notesOptionalPlaceholder": "Заметки (необязательно)",
     "createButton": "Создать",
     "invoiceCreatedToast": "Счёт создан",
-    "fixHighlightedFields": "Пожалуйста, исправьте выделенные поля."
+    "fixHighlightedFields": "Пожалуйста, исправьте выделенные поля.",
+    "last12MonthsNote": "последние 12 месяцев"
   },
   "AdminNotifications": {
     "pageTitle": "Уведомления",
@@ -1456,6 +1583,16 @@
     "dateFormatLabel": "Формат даты",
     "languageRegionSavedToast": "Настройки языка и региона сохранены",
     "saveSettingsButton": "Сохранить настройки",
+    "timezoneEasternET": "Восточное время (ET)",
+    "timezoneCentralCT": "Центральное время (CT)",
+    "timezoneMountainMT": "Горное время (MT)",
+    "timezonePacificPT": "Тихоокеанское время (PT)",
+    "timezoneLondonGMT": "Лондон (GMT)",
+    "timezoneParisCET": "Париж (CET)",
+    "timezoneTashkentUZT": "Ташкент (UZT)",
+    "timezoneDubaiGST": "Дубай (GST)",
+    "timezoneKarachiPKT": "Карачи (PKT)",
+    "timezoneTokyoJST": "Токио (JST)",
     "merchantIdRequired": "Требуется Merchant ID.",
     "serviceIdRequiredForClick": "Для Click требуется Service ID.",
     "secretKeyRequired": "Требуется секретный ключ.",
@@ -1481,6 +1618,7 @@
     "loadingLabel": "Загрузка…"
   },
   "SuperAdminNav": {
+    "openMenuAriaLabel": "Открыть меню",
     "navGroupOverview": "Обзор",
     "navGroupManagement": "Управление",
     "navGroupBusiness": "Бизнес",
@@ -1505,7 +1643,10 @@
     "collapseSidebar": "Свернуть боковую панель",
     "quickSearchPlaceholder": "Быстрый поиск...",
     "notificationsAriaLabel": "Уведомления ({count} непрочитано)",
-    "signOut": "Выйти"
+    "signOut": "Выйти",
+    "navGroupAcademics": "Учебный процесс",
+    "navExams": "Экзамены",
+    "navHomework": "Домашние задания"
   },
   "SuperAdminDashboard": {
     "welcomeBack": "С возвращением, {name} 👋",
@@ -1783,6 +1924,66 @@
     "detailHired": "Принят",
     "detailStatus": "Статус"
   },
+  "SuperAdminExams": {
+    "pageTitle": "Экзамены",
+    "pageSubtitle": "Обзор экзаменов по всем центрам платформы",
+    "statusAll": "Все статусы",
+    "statusScheduled": "Запланирован",
+    "statusCompleted": "Завершён",
+    "statusCancelled": "Отменён",
+    "statTotalExams": "Всего экзаменов",
+    "statUpcomingExams": "Предстоящие экзамены",
+    "statCompletedExams": "Завершённые экзамены",
+    "statAverageScore": "Средний балл",
+    "allExamsTitle": "Все экзамены",
+    "examsOfCount": "{filtered} из {total} экзаменов",
+    "searchPlaceholder": "Поиск экзаменов...",
+    "allCentersPlaceholder": "Все центры",
+    "clearButton": "Очистить",
+    "columnExam": "Экзамен",
+    "columnCenter": "Центр",
+    "columnDateTime": "Дата и время",
+    "columnStatus": "Статус",
+    "columnScore": "Балл",
+    "noResultsYet": "Результатов пока нет",
+    "loadErrorFallback": "Не удалось загрузить экзамены.",
+    "loadingExams": "Загрузка экзаменов…",
+    "noExamsFound": "Экзамены не найдены",
+    "averageLabel": "Средний",
+    "loadingResults": "Загрузка результатов…",
+    "awaitingGrading": "Ожидает оценки"
+  },
+  "SuperAdminHomework": {
+    "pageTitle": "Домашние задания",
+    "pageSubtitleCount": "{count, plural, one {# задание по всем центрам} few {# задания по всем центрам} many {# заданий по всем центрам} other {# задания по всем центрам}}",
+    "statusAll": "Все статусы",
+    "statusActive": "Активно",
+    "statusClosed": "Закрыто",
+    "columnAssignment": "Задание",
+    "columnCenter": "Центр",
+    "columnDue": "Срок",
+    "columnStatus": "Статус",
+    "columnSubmitted": "Сдано",
+    "columnGraded": "Оценено",
+    "dueSubtitle": "{center} · {group} · Срок {date}",
+    "loadingSubmissions": "Загрузка ответов…",
+    "noSubmissionsYet": "Пока никто не сдал.",
+    "submittedAt": "Сдано {datetime}",
+    "lateLabel": "С опозданием",
+    "awaitingGrading": "Ожидает оценки",
+    "statTotalAssignments": "Всего заданий",
+    "statSubmitted": "Сдано",
+    "statGraded": "Оценено",
+    "statCompletionRate": "Процент выполнения",
+    "allAssignmentsTitle": "Все задания",
+    "assignmentsOfCount": "{filtered} из {total} заданий",
+    "searchPlaceholder": "Поиск заданий...",
+    "allCentersPlaceholder": "Все центры",
+    "clearButton": "Очистить",
+    "loadErrorFallback": "Не удалось загрузить задания.",
+    "loadingAssignments": "Загрузка заданий…",
+    "noAssignmentsFound": "Задания не найдены"
+  },
   "SuperAdminStudents": {
     "pageTitle": "Студенты",
     "pageSubtitle": "Обзор студентов по всей платформе",
@@ -1940,7 +2141,8 @@
     "csvHeaderAmount": "Сумма",
     "csvHeaderBalance": "Остаток",
     "csvHeaderStatus": "Статус",
-    "csvHeaderDueDate": "Срок оплаты"
+    "csvHeaderDueDate": "Срок оплаты",
+    "last12MonthsNote": "последние 12 месяцев"
   },
   "SuperAdminSettings": {
     "pageTitle": "Настройки системы",
@@ -2178,7 +2380,9 @@
     "entityCourse": "Курс",
     "entitySession": "Сессия",
     "entityAttendance": "Посещаемость",
-    "entityTeacherProfile": "Профиль преподавателя"
+    "entityTeacherProfile": "Профиль преподавателя",
+    "truncatedNote": "Показаны первые {shown} из {total} подходящих событий — сузьте диапазон дат, чтобы увидеть остальные.",
+    "shownPageSuffix": "(на показанной странице)"
   },
   "SuperAdminProfile": {
     "pageTitle": "Профиль",
