@@ -87,9 +87,26 @@ export default function SchedulePage() {
     dateTo: weekDates[6],
   });
   // List view isn't week-bound — widen the window instead of re-deriving a
-  // second query shape for one toggle state.
+  // second query shape for one toggle state. Still bounded, not fully
+  // unbounded: a lesson accumulates every calendar date the org has ever
+  // held class, with no natural cap (see lib/api/schedule.ts's listLessons
+  // comment) — a ±90-day rolling window covers "recent past and near
+  // future", which is what a schedule list view is actually for, without
+  // silently paging through years of history.
+  const listViewFrom = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 90);
+    return toLocalIso(d);
+  }, []);
+  const listViewTo = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 90);
+    return toLocalIso(d);
+  }, []);
   const { data: allLessons = [] } = useLessonsQuery({
     organizationId: view === "list" ? organizationId ?? "" : "",
+    dateFrom: listViewFrom,
+    dateTo: listViewTo,
   });
 
   return (
@@ -178,7 +195,7 @@ export default function SchedulePage() {
           </div>
         </Card>
       ) : (
-        <Card noPadding title={t("allLessonsTitle")}>
+        <Card noPadding title={t("allLessonsTitle")} subtitle={t("listViewWindowNote")}>
           <div className="divide-y divide-slate-50">
             {[...allLessons]
               .sort((a, b) => a.date.localeCompare(b.date))

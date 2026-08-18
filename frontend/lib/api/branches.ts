@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 
 export interface Branch {
   id: string;
@@ -25,16 +25,10 @@ export interface Branch {
   updated_at: string | null;
 }
 
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
-}
-
 export interface ListBranchesParams {
   organization?: string;
   isActive?: boolean;
   search?: string;
-  pageSize?: number;
 }
 
 export async function listBranches(params: ListBranchesParams = {}): Promise<Branch[]> {
@@ -42,10 +36,8 @@ export async function listBranches(params: ListBranchesParams = {}): Promise<Bra
   if (params.organization) query.set("organization", params.organization);
   if (params.isActive !== undefined) query.set("is_active", String(params.isActive));
   if (params.search) query.set("search", params.search);
-  query.set("page_size", String(params.pageSize ?? 100));
 
-  const data = await apiFetch<ListResponse<Branch>>(`/api/v1/branches/?${query}`);
-  return data.results;
+  return fetchAllPages<Branch>("/api/v1/branches/", query);
 }
 
 export interface BranchInput {

@@ -1305,7 +1305,8 @@
     "scheduleButton": "Schedule",
     "lessonScheduledToast": "Lesson scheduled",
     "fixHighlightedFields": "Please fix the highlighted fields.",
-    "genericError": "Something went wrong. Please try again."
+    "genericError": "Something went wrong. Please try again.",
+    "listViewWindowNote": "Showing lessons from 90 days ago to 90 days from now"
   },
   "AdminAttendance": {
     "pageTitle": "Attendance",
@@ -1338,7 +1339,8 @@
     "noAttendanceRecordsYet": "No attendance records yet.",
     "legendGood": "80–100% — Good",
     "legendWarning": "70–79% — Warning",
-    "legendCritical": "Below 70% — Critical"
+    "legendCritical": "Below 70% — Critical",
+    "last30DaysNote": "last 30 days"
   },
   "AdminHomework": {
     "pageTitle": "Homework",
@@ -1492,7 +1494,8 @@
     "notesOptionalPlaceholder": "Notes (optional)",
     "createButton": "Create",
     "invoiceCreatedToast": "Invoice created",
-    "fixHighlightedFields": "Please fix the highlighted fields."
+    "fixHighlightedFields": "Please fix the highlighted fields.",
+    "last12MonthsNote": "last 12 months"
   },
   "AdminNotifications": {
     "pageTitle": "Notifications",
@@ -2073,7 +2076,8 @@
     "csvHeaderAmount": "Amount",
     "csvHeaderBalance": "Balance",
     "csvHeaderStatus": "Status",
-    "csvHeaderDueDate": "Due Date"
+    "csvHeaderDueDate": "Due Date",
+    "last12MonthsNote": "last 12 months"
   },
   "SuperAdminSettings": {
     "pageTitle": "System Settings",

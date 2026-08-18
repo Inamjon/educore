@@ -1305,7 +1305,8 @@
     "scheduleButton": "Rejalashtirish",
     "lessonScheduledToast": "Dars rejalashtirildi",
     "fixHighlightedFields": "Iltimos, belgilangan maydonlarni to'g'irlang.",
-    "genericError": "Nimadir xato ketdi. Qaytadan urinib ko'ring."
+    "genericError": "Nimadir xato ketdi. Qaytadan urinib ko'ring.",
+    "listViewWindowNote": "90 kun oldingi va 90 kun keyingi darslar ko'rsatilmoqda"
   },
   "AdminAttendance": {
     "pageTitle": "Davomat",
@@ -1338,7 +1339,8 @@
     "noAttendanceRecordsYet": "Hali davomat yozuvlari yo'q.",
     "legendGood": "80–100% — Yaxshi",
     "legendWarning": "70–79% — Ogohlantirish",
-    "legendCritical": "70% dan past — Tanqidiy"
+    "legendCritical": "70% dan past — Tanqidiy",
+    "last30DaysNote": "oxirgi 30 kun"
   },
   "AdminHomework": {
     "pageTitle": "Uy vazifalari",
@@ -1492,7 +1494,8 @@
     "notesOptionalPlaceholder": "Izoh (ixtiyoriy)",
     "createButton": "Yaratish",
     "invoiceCreatedToast": "Hisob-faktura yaratildi",
-    "fixHighlightedFields": "Iltimos, belgilangan maydonlarni to'g'irlang."
+    "fixHighlightedFields": "Iltimos, belgilangan maydonlarni to'g'irlang.",
+    "last12MonthsNote": "oxirgi 12 oy"
   },
   "AdminNotifications": {
     "pageTitle": "Bildirishnomalar",
@@ -2073,7 +2076,8 @@
     "csvHeaderAmount": "Summa",
     "csvHeaderBalance": "Qoldiq",
     "csvHeaderStatus": "Holat",
-    "csvHeaderDueDate": "Muddati"
+    "csvHeaderDueDate": "Muddati",
+    "last12MonthsNote": "oxirgi 12 oy"
   },
   "SuperAdminSettings": {
     "pageTitle": "Tizim sozlamalari",

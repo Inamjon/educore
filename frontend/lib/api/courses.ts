@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 
 export type CourseStatus = "draft" | "active" | "archived" | "discontinued";
 export type CourseLevel = "beginner" | "intermediate" | "advanced";
@@ -25,17 +25,11 @@ export interface CourseProfile {
   updated_at: string | null;
 }
 
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
-}
-
 export interface ListCoursesParams {
   organizationId: string;
   status?: CourseStatus;
   level?: CourseLevel;
   search?: string;
-  pageSize?: number;
 }
 
 export async function listCourses(params: ListCoursesParams): Promise<CourseProfile[]> {
@@ -43,10 +37,8 @@ export async function listCourses(params: ListCoursesParams): Promise<CourseProf
   if (params.status) query.set("status", params.status);
   if (params.level) query.set("level", params.level);
   if (params.search) query.set("search", params.search);
-  query.set("page_size", String(params.pageSize ?? 100));
 
-  const data = await apiFetch<ListResponse<CourseProfile>>(`/api/v1/courses/?${query}`);
-  return data.results;
+  return fetchAllPages<CourseProfile>("/api/v1/courses/", query);
 }
 
 export interface CourseInput {

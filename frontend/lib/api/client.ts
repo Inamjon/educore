@@ -106,3 +106,40 @@ async function apiFetchWithRefresh<T>(path: string, init: RequestInit, isRetry: 
 
   return body.data;
 }
+
+export interface PaginatedEnvelope<T> {
+  results: T[];
+  pagination: { count: number; page: number; pages: number };
+}
+
+/**
+ * Fetches every page and concatenates results. The backend hard-caps
+ * page_size at 100 (`common/pagination.py::EnvelopePageNumberPagination
+ * .max_page_size`) — a single request with a bigger page_size is silently
+ * clamped back down, so any "give me everything in this org" list call with
+ * more than 100 rows was getting truncated with no error and no sign
+ * anything was missing (first found in exams' Admin oversight page, then
+ * confirmed to be the same bug shape across most of this file's siblings —
+ * see the educore-frontend-architecture memory entry on it).
+ *
+ * Only appropriate for a genuinely *bounded* list (students, teachers,
+ * groups, a group's roster, one student's/exam's results, …) where "all of
+ * it" is still a reasonable single page-load. Do NOT reach for this on a
+ * list that grows without bound over the org's lifetime with no natural cap
+ * (audit logs, an unfiltered lesson/attendance history) — looping every
+ * page there risks hammering the backend and hanging the tab instead of
+ * just being wrong. Those need a bounded default filter (e.g. a default
+ * date range) or real server-side pagination UI instead.
+ */
+export async function fetchAllPages<T>(path: string, query: URLSearchParams): Promise<T[]> {
+  query.set("page_size", "100");
+  query.set("page", "1");
+  const first = await apiFetch<PaginatedEnvelope<T>>(`${path}?${query}`);
+  const results = [...first.results];
+  for (let page = 2; page <= first.pagination.pages; page++) {
+    query.set("page", String(page));
+    const next = await apiFetch<PaginatedEnvelope<T>>(`${path}?${query}`);
+    results.push(...next.results);
+  }
+  return results;
+}

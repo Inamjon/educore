@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 
 export type NotificationType = "info" | "success" | "warning" | "error";
 
@@ -17,25 +17,20 @@ export interface Notification {
   created_at: string;
 }
 
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
-}
-
 /**
  * Always the caller's own inbox — the backend scopes `NotificationViewSet`
  * to `recipient=request.user` unconditionally (see
  * backend/notifications/views.py), so there's no `organizationId`/
  * `recipient` param to pass here, unlike every other list* function in
- * `lib/api/*`.
+ * `lib/api/*`. One person's inbox, not an org-wide log, so fetchAllPages'
+ * "everything fits in a reasonable page-load" assumption holds even though
+ * it technically grows without bound over the account's lifetime.
  */
-export async function listNotifications(params: { read?: boolean; pageSize?: number } = {}): Promise<Notification[]> {
+export async function listNotifications(params: { read?: boolean } = {}): Promise<Notification[]> {
   const query = new URLSearchParams();
   if (params.read !== undefined) query.set("read", String(params.read));
-  query.set("page_size", String(params.pageSize ?? 100));
 
-  const data = await apiFetch<ListResponse<Notification>>(`/api/v1/notifications/?${query}`);
-  return data.results;
+  return fetchAllPages<Notification>("/api/v1/notifications/", query);
 }
 
 export interface NotificationInput {

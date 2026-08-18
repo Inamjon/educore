@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 
 export type AttendanceStatus = "present" | "absent" | "late" | "excused" | "early_leave" | "sick";
 
@@ -20,30 +20,31 @@ export interface AttendanceRecord {
   updated_at: string | null;
 }
 
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
-}
-
 export interface ListAttendanceParams {
   organizationId: string;
   group?: string;
   studentProfile?: string;
   date?: string;
+  dateFrom?: string;
+  dateTo?: string;
   status?: AttendanceStatus;
-  pageSize?: number;
 }
 
+// Unscoped (no group/studentProfile) callers are responsible for their own
+// date bound — this is a per-session record that accumulates without limit
+// over an org's lifetime, so an unbounded org-wide call risks paging through
+// years of history. See app/(admin)/attendance/page.tsx's default date
+// filter for the one such caller in this app.
 export async function listAttendance(params: ListAttendanceParams): Promise<AttendanceRecord[]> {
   const query = new URLSearchParams({ organization: params.organizationId });
   if (params.group) query.set("group", params.group);
   if (params.studentProfile) query.set("student_profile", params.studentProfile);
   if (params.date) query.set("date", params.date);
+  if (params.dateFrom) query.set("date_from", params.dateFrom);
+  if (params.dateTo) query.set("date_to", params.dateTo);
   if (params.status) query.set("status", params.status);
-  query.set("page_size", String(params.pageSize ?? 200));
 
-  const data = await apiFetch<ListResponse<AttendanceRecord>>(`/api/v1/attendance/?${query}`);
-  return data.results;
+  return fetchAllPages<AttendanceRecord>("/api/v1/attendance/", query);
 }
 
 export interface MarkAttendanceInput {

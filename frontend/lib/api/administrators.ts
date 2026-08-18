@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 
 export type AdminStatus = "active" | "inactive" | "suspended" | "pending";
 
@@ -25,17 +25,11 @@ export interface Administrator {
   created_at: string;
 }
 
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
-}
-
 export interface ListAdministratorsParams {
   organization?: string;
   branch?: string;
   status?: AdminStatus;
   search?: string;
-  pageSize?: number;
 }
 
 /** Always filtered to role=center_admin — this page manages center
@@ -47,10 +41,8 @@ export async function listAdministrators(params: ListAdministratorsParams = {}):
   if (params.branch) query.set("branch", params.branch);
   if (params.status) query.set("status", params.status);
   if (params.search) query.set("search", params.search);
-  query.set("page_size", String(params.pageSize ?? 100));
 
-  const data = await apiFetch<ListResponse<Administrator>>(`/api/v1/users/?${query}`);
-  return data.results;
+  return fetchAllPages<Administrator>("/api/v1/users/", query);
 }
 
 export interface AdministratorInput {

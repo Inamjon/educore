@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 
 export type AssignmentStatus = "active" | "closed";
 
@@ -37,26 +37,23 @@ export interface Submission {
   created_at: string;
 }
 
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
-}
-
 export interface ListAssignmentsParams {
   organizationId: string;
   group?: string;
   status?: AssignmentStatus;
-  pageSize?: number;
 }
 
+// Unscoped (no group) callers get every assignment the org has ever
+// created — grows more slowly than a per-session record (attendance) or
+// per-cycle one (invoices), so fetchAllPages is an acceptable tradeoff here
+// rather than the bounded-default-filter treatment those need. Revisit if
+// a real org's assignment count ever grows large enough to make this slow.
 export async function listAssignments(params: ListAssignmentsParams): Promise<Assignment[]> {
   const query = new URLSearchParams({ organization: params.organizationId });
   if (params.group) query.set("group", params.group);
   if (params.status) query.set("status", params.status);
-  query.set("page_size", String(params.pageSize ?? 100));
 
-  const data = await apiFetch<ListResponse<Assignment>>(`/api/v1/homework/assignments/?${query}`);
-  return data.results;
+  return fetchAllPages<Assignment>("/api/v1/homework/assignments/", query);
 }
 
 export interface AssignmentInput {
@@ -106,17 +103,14 @@ export interface ListSubmissionsParams {
   organizationId: string;
   assignment?: string;
   studentProfile?: string;
-  pageSize?: number;
 }
 
 export async function listSubmissions(params: ListSubmissionsParams): Promise<Submission[]> {
   const query = new URLSearchParams({ organization: params.organizationId });
   if (params.assignment) query.set("assignment", params.assignment);
   if (params.studentProfile) query.set("student_profile", params.studentProfile);
-  query.set("page_size", String(params.pageSize ?? 100));
 
-  const data = await apiFetch<ListResponse<Submission>>(`/api/v1/homework/submissions/?${query}`);
-  return data.results;
+  return fetchAllPages<Submission>("/api/v1/homework/submissions/", query);
 }
 
 /** Student submitting their own homework — `student_profile` is ignored

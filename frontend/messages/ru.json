@@ -1305,7 +1305,8 @@
     "scheduleButton": "Запланировать",
     "lessonScheduledToast": "Урок запланирован",
     "fixHighlightedFields": "Пожалуйста, исправьте выделенные поля.",
-    "genericError": "Что-то пошло не так. Попробуйте снова."
+    "genericError": "Что-то пошло не так. Попробуйте снова.",
+    "listViewWindowNote": "Показаны занятия за 90 дней до и 90 дней после сегодняшнего дня"
   },
   "AdminAttendance": {
     "pageTitle": "Посещаемость",
@@ -1338,7 +1339,8 @@
     "noAttendanceRecordsYet": "Записей о посещаемости пока нет.",
     "legendGood": "80–100% — Хорошо",
     "legendWarning": "70–79% — Предупреждение",
-    "legendCritical": "Ниже 70% — Критично"
+    "legendCritical": "Ниже 70% — Критично",
+    "last30DaysNote": "последние 30 дней"
   },
   "AdminHomework": {
     "pageTitle": "Домашние задания",
@@ -1492,7 +1494,8 @@
     "notesOptionalPlaceholder": "Заметки (необязательно)",
     "createButton": "Создать",
     "invoiceCreatedToast": "Счёт создан",
-    "fixHighlightedFields": "Пожалуйста, исправьте выделенные поля."
+    "fixHighlightedFields": "Пожалуйста, исправьте выделенные поля.",
+    "last12MonthsNote": "последние 12 месяцев"
   },
   "AdminNotifications": {
     "pageTitle": "Уведомления",
@@ -2073,7 +2076,8 @@
     "csvHeaderAmount": "Сумма",
     "csvHeaderBalance": "Остаток",
     "csvHeaderStatus": "Статус",
-    "csvHeaderDueDate": "Срок оплаты"
+    "csvHeaderDueDate": "Срок оплаты",
+    "last12MonthsNote": "последние 12 месяцев"
   },
   "SuperAdminSettings": {
     "pageTitle": "Настройки системы",

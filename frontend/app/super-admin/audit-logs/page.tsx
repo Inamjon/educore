@@ -34,7 +34,7 @@ import { useOrganizationsQuery } from '@/lib/queries/organizations';
 import { useAuditLogsQuery } from '@/lib/queries/audit-logs';
 import type { AuditLog, AuditAction } from '@/lib/api/audit-logs';
 import { ApiError } from '@/lib/api/client';
-import { cn } from '@/lib/utils';
+import { cn, toLocalIsoDate } from '@/lib/utils';
 import { formatLocalizedDate, INTL_DATE_LOCALES } from '@/i18n/date-locale';
 import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales';
 
@@ -138,7 +138,17 @@ export default function AuditLogsPage() {
   const [organizationId, setOrganizationId] = useState('');
   const [action, setAction] = useState<AuditAction | ''>('');
   const [entityType, setEntityType] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
+  // Defaults to a recent window rather than the account's entire history —
+  // audit logs accumulate one row per audited action, forever, with no
+  // natural cap (see lib/api/audit-logs.ts's listAuditLogs comment). The
+  // date inputs below stay fully admin-editable, so widening or clearing
+  // the range for a real investigation is still one click away; this only
+  // changes what loads by default before anyone touches the filters.
+  const [dateFrom, setDateFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return toLocalIsoDate(d);
+  });
   const [dateTo, setDateTo] = useState('');
   const [viewingLog, setViewingLog] = useState<AuditLog | null>(null);
 

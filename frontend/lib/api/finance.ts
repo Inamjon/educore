@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 
 export type InvoiceStatus = "draft" | "pending" | "partially_paid" | "paid" | "overdue" | "cancelled" | "refunded";
 export type PaymentMethod = "cash" | "card" | "bank_transfer" | "online" | "mobile_payment" | "payme" | "click" | "other";
@@ -40,30 +40,30 @@ export interface Payment {
   updated_at: string | null;
 }
 
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
-}
-
 export interface ListInvoicesParams {
   organizationId: string;
   studentProfile?: string;
   group?: string;
   status?: InvoiceStatus;
   search?: string;
-  pageSize?: number;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
+// Unscoped (no studentProfile/group) callers are responsible for their own
+// date bound — this accumulates a new row every billing cycle for every
+// student with no natural cap. See the Admin Finance page's default date
+// filter for the one such caller in this app.
 export async function listInvoices(params: ListInvoicesParams): Promise<Invoice[]> {
   const query = new URLSearchParams({ organization: params.organizationId });
   if (params.studentProfile) query.set("student_profile", params.studentProfile);
   if (params.group) query.set("group", params.group);
   if (params.status) query.set("status", params.status);
   if (params.search) query.set("search", params.search);
-  query.set("page_size", String(params.pageSize ?? 100));
+  if (params.dateFrom) query.set("date_from", params.dateFrom);
+  if (params.dateTo) query.set("date_to", params.dateTo);
 
-  const data = await apiFetch<ListResponse<Invoice>>(`/api/v1/finance/invoices/?${query}`);
-  return data.results;
+  return fetchAllPages<Invoice>("/api/v1/finance/invoices/", query);
 }
 
 export interface InvoiceInput {
@@ -109,17 +109,18 @@ export interface ListPaymentsParams {
   organizationId: string;
   invoice?: string;
   studentProfile?: string;
-  pageSize?: number;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export async function listPayments(params: ListPaymentsParams): Promise<Payment[]> {
   const query = new URLSearchParams({ organization: params.organizationId });
   if (params.invoice) query.set("invoice", params.invoice);
   if (params.studentProfile) query.set("student_profile", params.studentProfile);
-  query.set("page_size", String(params.pageSize ?? 100));
+  if (params.dateFrom) query.set("date_from", params.dateFrom);
+  if (params.dateTo) query.set("date_to", params.dateTo);
 
-  const data = await apiFetch<ListResponse<Payment>>(`/api/v1/finance/payments/?${query}`);
-  return data.results;
+  return fetchAllPages<Payment>("/api/v1/finance/payments/", query);
 }
 
 export interface PaymentInput {

@@ -40,7 +40,7 @@ import {
   useCreatePlatformPaymentMutation,
 } from '@/lib/queries/billing';
 import { toast } from '@/lib/store/toast-store';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, toLocalIsoDate } from '@/lib/utils';
 import { ApiError } from '@/lib/api/client';
 import type { PlatformInvoice, PlatformInvoiceStatus, PlatformPaymentMethod } from '@/lib/api/billing';
 import { formatLocalizedDate } from '@/i18n/date-locale';
@@ -134,11 +134,25 @@ export default function PaymentsPage() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
+  // Platform invoices/payments accumulate every billing cycle for every
+  // center on the platform with no natural cap (see lib/api/billing.ts's
+  // listPlatformInvoices/listPlatformPayments comments). Same pragmatic
+  // trade-off as the Admin Finance page: a full year bounds the query while
+  // still covering virtually every real-world open balance, since
+  // pendingCount/overdueCount below are computed from this same unfiltered
+  // fetch — see that page's comment for the fuller reasoning.
+  const [dateFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 365);
+    return toLocalIsoDate(d);
+  });
+
   const { data: invoicesData, isLoading, isError, error } = usePlatformInvoicesQuery({
     status: (filterStatus || undefined) as PlatformInvoiceStatus | undefined,
+    dateFrom,
   });
   const invoices = invoicesData ?? [];
-  const { data: paymentsData } = usePlatformPaymentsQuery();
+  const { data: paymentsData } = usePlatformPaymentsQuery({ dateFrom });
   const payments = paymentsData ?? [];
   const recentPayments = [...payments].sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 5);
 
@@ -325,7 +339,7 @@ export default function PaymentsPage() {
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
       <PageHeader
         title={t('pageTitle')}
-        subtitle={t('pageSubtitle')}
+        subtitle={`${t('pageSubtitle')} — ${t('last12MonthsNote')}`}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={handleExportCsv}>

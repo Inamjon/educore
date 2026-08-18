@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 
 export type LessonStatus = "scheduled" | "completed" | "cancelled";
 
@@ -24,11 +24,6 @@ export interface Lesson {
   updated_at: string | null;
 }
 
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
-}
-
 export interface ListLessonsParams {
   organizationId: string;
   group?: string;
@@ -36,9 +31,12 @@ export interface ListLessonsParams {
   date?: string;
   dateFrom?: string;
   dateTo?: string;
-  pageSize?: number;
 }
 
+// Unbounded (no date_from/date_to) callers are responsible for their own
+// window — a lesson accumulates every calendar date the org has ever held
+// class, with no natural cap. See app/(admin)/schedule/page.tsx's List View
+// for the one such caller in this app, and its default bound.
 export async function listLessons(params: ListLessonsParams): Promise<Lesson[]> {
   const query = new URLSearchParams({ organization: params.organizationId });
   if (params.group) query.set("group", params.group);
@@ -46,10 +44,8 @@ export async function listLessons(params: ListLessonsParams): Promise<Lesson[]> 
   if (params.date) query.set("date", params.date);
   if (params.dateFrom) query.set("date_from", params.dateFrom);
   if (params.dateTo) query.set("date_to", params.dateTo);
-  query.set("page_size", String(params.pageSize ?? 200));
 
-  const data = await apiFetch<ListResponse<Lesson>>(`/api/v1/schedule/lessons/?${query}`);
-  return data.results;
+  return fetchAllPages<Lesson>("/api/v1/schedule/lessons/", query);
 }
 
 export interface LessonInput {

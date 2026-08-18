@@ -38,6 +38,14 @@ export interface ListAuditLogsParams {
   pageSize?: number;
 }
 
+// Deliberately does NOT paginate through every page like most of this
+// file's siblings now do (see lib/api/client.ts::fetchAllPages) — audit
+// logs are a genuinely unbounded, ever-growing event log (every audited
+// action, forever), and this function is also used for a small bounded
+// "recent N" widget (Profile page's pageSize: 6). Looping every page here
+// would risk paging through an org's/platform's entire history. The
+// Super-Admin Audit Logs page instead defaults its own date_from filter to
+// a recent window — see that page for the actual bound.
 export async function listAuditLogs(params: ListAuditLogsParams = {}): Promise<AuditLog[]> {
   const query = new URLSearchParams();
   if (params.organizationId) query.set("organization", params.organizationId);

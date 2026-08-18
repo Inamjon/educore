@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 import type { SubscriptionPlanSummary } from "@/lib/api/billing";
 
 export type OrganizationStatus = "active" | "suspended" | "trial" | "cancelled";
@@ -40,17 +40,11 @@ export interface Organization {
   updated_at: string | null;
 }
 
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
-}
-
 export interface ListOrganizationsParams {
   status?: OrganizationStatus;
   subscriptionPlan?: string;
   country?: string;
   search?: string;
-  pageSize?: number;
 }
 
 export async function listOrganizations(params: ListOrganizationsParams = {}): Promise<Organization[]> {
@@ -59,10 +53,8 @@ export async function listOrganizations(params: ListOrganizationsParams = {}): P
   if (params.subscriptionPlan) query.set("subscription_plan", params.subscriptionPlan);
   if (params.country) query.set("country", params.country);
   if (params.search) query.set("search", params.search);
-  query.set("page_size", String(params.pageSize ?? 100));
 
-  const data = await apiFetch<ListResponse<Organization>>(`/api/v1/organizations/?${query}`);
-  return data.results;
+  return fetchAllPages<Organization>("/api/v1/organizations/", query);
 }
 
 export interface OrganizationInput {

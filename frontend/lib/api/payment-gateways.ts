@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 
 export type Provider = "payme" | "click";
 
@@ -14,15 +14,9 @@ export interface PaymentGatewayAccount {
   updated_at: string | null;
 }
 
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
-}
-
 export async function listGatewayAccounts(organizationId: string): Promise<PaymentGatewayAccount[]> {
-  const query = new URLSearchParams({ organization: organizationId, page_size: "20" });
-  const data = await apiFetch<ListResponse<PaymentGatewayAccount>>(`/api/v1/payment-gateways/gateway-accounts/?${query}`);
-  return data.results;
+  const query = new URLSearchParams({ organization: organizationId });
+  return fetchAllPages<PaymentGatewayAccount>("/api/v1/payment-gateways/gateway-accounts/", query);
 }
 
 export interface GatewayAccountInput {
