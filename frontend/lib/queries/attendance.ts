@@ -7,6 +7,7 @@ import {
   type ListAttendanceParams,
   type MarkAttendanceInput,
 } from "@/lib/api/attendance";
+import { daysFromTodayIso } from "@/lib/utils";
 
 const attendanceKey = (params: ListAttendanceParams) => ["attendance", params] as const;
 
@@ -18,14 +19,36 @@ export function useAttendanceQuery(params: ListAttendanceParams) {
   });
 }
 
+// A group's attendance is bounded by the group's own lifetime (a course
+// typically runs weeks to months, not years — Groups get archived/replaced
+// each term rather than accumulating forever) — see listAttendance's
+// caller-contract comment. Fanning this out across *every* one of a
+// teacher's groups at once, on every dashboard load, is a different problem
+// though: N groups each paging through their own full history multiplies
+// the request count, and the "Avg Attendance"/weekly-chart widgets this
+// feeds only ever look at the last 7 days anyway (see app/teacher/page.tsx).
+// Bounding to a rolling 30-day window here — not in listAttendance/
+// useAttendanceQuery itself, which single-group pages still use for a
+// real "full history" view — keeps the common dashboard-load path fast
+// without changing what a teacher sees when they deliberately open one
+// group's attendance history.
+const DASHBOARD_WINDOW_DAYS = 30;
+
 /** Aggregates attendance across several groups (e.g. all of a teacher's own
- * groups) — same fan-out-in-parallel shape as useMyRosterQuery, and shares
- * its per-group queryKey so the cache is reused. */
+ * groups) — same fan-out-in-parallel shape as useMyRosterQuery. Its queryKey
+ * now includes `dateFrom`, so — unlike useMyRosterQuery/useGroupMembersQuery,
+ * which really do share one cache entry with their single-target
+ * counterpart — this does NOT warm the cache for a single-group
+ * `useAttendanceQuery({organizationId, group})` call (no `dateFrom`) opened
+ * afterward; those are deliberately different queries now; see
+ * listAttendance's own comment for why they're bounded differently. Reuse
+ * here is only across this hook's own concurrent per-group fan-out. */
 export function useAttendanceForGroupsQuery(organizationId: string, groupIds: string[]) {
+  const dateFrom = daysFromTodayIso(-DASHBOARD_WINDOW_DAYS);
   const results = useQueries({
     queries: groupIds.map((groupId) => ({
-      queryKey: attendanceKey({ organizationId, group: groupId }),
-      queryFn: () => listAttendance({ organizationId, group: groupId }),
+      queryKey: attendanceKey({ organizationId, group: groupId, dateFrom }),
+      queryFn: () => listAttendance({ organizationId, group: groupId, dateFrom }),
       enabled: !!organizationId && !!groupId,
     })),
   });

@@ -16,6 +16,16 @@ import type { AttendanceRecord, AttendanceStatus } from "@/lib/api/attendance";
 import { ApiError } from "@/lib/api/client";
 import { formatLocalizedDate } from "@/i18n/date-locale";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
+import { daysFromTodayIso } from "@/lib/utils";
+
+// Attendance accumulates one row per student per session with no natural
+// cap — an unbounded org-wide query would grow forever as the org runs
+// classes over the years (see lib/api/attendance.ts's listAttendance
+// comment). Defaulting to a rolling 30-day window keeps this page fast and
+// bounded, and — since this page's own purpose is a *current* attendance
+// health snapshot (present/absent/late counts, "Low Attendance Alert") —
+// recent data is also the more useful default than all-time history.
+const RECENT_WINDOW_DAYS = 30;
 
 export default function AttendancePage() {
   const t = useTranslations("AdminAttendance");
@@ -66,6 +76,7 @@ export default function AttendancePage() {
   const [statusFilter, setStatusFilter] = useState<AttendanceStatus | "">("");
   const [groupFilter, setGroupFilter] = useState("");
 
+  const [dateFrom] = useState(() => daysFromTodayIso(-RECENT_WINDOW_DAYS));
   const { data: groups } = useGroupsQuery({ organizationId: organizationId ?? "" });
   const {
     data: records,
@@ -76,6 +87,7 @@ export default function AttendancePage() {
     organizationId: organizationId ?? "",
     status: statusFilter || undefined,
     group: groupFilter || undefined,
+    dateFrom,
   });
 
   const list = records ?? [];
@@ -115,7 +127,10 @@ export default function AttendancePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t("pageTitle")} subtitle={t("overallRateSubtitle", { rate: attendanceRate })} />
+      <PageHeader
+        title={t("pageTitle")}
+        subtitle={`${t("overallRateSubtitle", { rate: attendanceRate })} — ${t("last30DaysNote")}`}
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t("statPresent")} value={stats.present} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />

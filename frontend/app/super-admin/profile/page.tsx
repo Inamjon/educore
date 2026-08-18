@@ -85,7 +85,8 @@ export default function ProfilePage() {
 
   const { data: user, isLoading: userLoading } = useUserQuery(authUser?.id ?? null);
   const { data: sessions, isLoading: sessionsLoading } = useSessionsQuery();
-  const { data: myLogs } = useAuditLogsQuery({ userId: authUser?.id, pageSize: 6 });
+  const { data: myLogsPage } = useAuditLogsQuery({ userId: authUser?.id, pageSize: 6 });
+  const myLogs = myLogsPage?.results;
 
   const updateSelfMutation = useUpdateSelfMutation();
   const changePasswordMutation = useChangePasswordMutation();

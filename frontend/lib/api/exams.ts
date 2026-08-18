@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 
 export type ExamStatus = "scheduled" | "completed" | "cancelled";
 
@@ -32,32 +32,6 @@ export interface ExamResult {
   graded_at: string | null;
   created_at: string;
   updated_at: string | null;
-}
-
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
-}
-
-/** Fetches every page and concatenates results. The backend hard-caps
- * page_size at 100 (see backend/common/pagination.py's
- * EnvelopePageNumberPagination.max_page_size) — a single request with a
- * bigger page_size silently gets clamped back down, so any org-wide list
- * with more than 100 rows (a realistic count for exams/results once a
- * center has a real semester's worth) was getting truncated with no error
- * and no sign anything was missing. Every unscoped list in this file goes
- * through this now, not just a larger page_size. */
-async function fetchAllPages<T>(path: string, query: URLSearchParams): Promise<T[]> {
-  query.set("page_size", "100");
-  query.set("page", "1");
-  const first = await apiFetch<ListResponse<T>>(`${path}?${query}`);
-  const results = [...first.results];
-  for (let page = 2; page <= first.pagination.pages; page++) {
-    query.set("page", String(page));
-    const next = await apiFetch<ListResponse<T>>(`${path}?${query}`);
-    results.push(...next.results);
-  }
-  return results;
 }
 
 export interface ListExamsParams {

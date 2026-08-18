@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 import type { CourseLevel } from "@/lib/api/courses";
 
 export type GroupStatus = "forming" | "active" | "completed" | "cancelled" | "archived";
@@ -50,18 +50,12 @@ export interface GroupMember {
   created_at: string;
 }
 
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
-}
-
 export interface ListGroupsParams {
   organizationId: string;
   course?: string;
   teacher?: string;
   status?: GroupStatus;
   search?: string;
-  pageSize?: number;
 }
 
 export async function listGroups(params: ListGroupsParams): Promise<Group[]> {
@@ -70,22 +64,18 @@ export async function listGroups(params: ListGroupsParams): Promise<Group[]> {
   if (params.teacher) query.set("teacher", params.teacher);
   if (params.status) query.set("status", params.status);
   if (params.search) query.set("search", params.search);
-  query.set("page_size", String(params.pageSize ?? 100));
 
-  const data = await apiFetch<ListResponse<Group>>(`/api/v1/groups/?${query}`);
-  return data.results;
+  return fetchAllPages<Group>("/api/v1/groups/", query);
 }
 
 export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
-  const query = new URLSearchParams({ group: groupId, page_size: "100" });
-  const data = await apiFetch<ListResponse<GroupMember>>(`/api/v1/groups/members/?${query}`);
-  return data.results;
+  const query = new URLSearchParams({ group: groupId });
+  return fetchAllPages<GroupMember>("/api/v1/groups/members/", query);
 }
 
 export async function getStudentGroupMemberships(studentProfileId: string): Promise<GroupMember[]> {
-  const query = new URLSearchParams({ student_profile: studentProfileId, page_size: "50" });
-  const data = await apiFetch<ListResponse<GroupMember>>(`/api/v1/groups/members/?${query}`);
-  return data.results;
+  const query = new URLSearchParams({ student_profile: studentProfileId });
+  return fetchAllPages<GroupMember>("/api/v1/groups/members/", query);
 }
 
 /** Student portal only — deliberately doesn't take a student_profile id.
@@ -93,8 +83,7 @@ export async function getStudentGroupMemberships(studentProfileId: string): Prom
  * caller (see backend), so there's no need to know your own student_profile
  * id client-side just to ask for your own memberships. */
 export async function getMyGroupMemberships(): Promise<GroupMember[]> {
-  const data = await apiFetch<ListResponse<GroupMember>>("/api/v1/groups/members/?page_size=50");
-  return data.results;
+  return fetchAllPages<GroupMember>("/api/v1/groups/members/", new URLSearchParams());
 }
 
 export interface GroupInput {

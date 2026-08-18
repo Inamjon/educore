@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 
 export type AttendanceStatus = "present" | "absent" | "late" | "excused" | "early_leave" | "sick";
 
@@ -20,30 +20,44 @@ export interface AttendanceRecord {
   updated_at: string | null;
 }
 
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
-}
-
 export interface ListAttendanceParams {
   organizationId: string;
   group?: string;
   studentProfile?: string;
   date?: string;
+  dateFrom?: string;
+  dateTo?: string;
   status?: AttendanceStatus;
-  pageSize?: number;
 }
 
+// Unscoped (no group/studentProfile) callers are responsible for their own
+// date bound — this is a per-session record that accumulates without limit
+// over an org's lifetime, so an unbounded org-wide call risks paging through
+// years of history. See app/(admin)/attendance/page.tsx's default date
+// filter for the one such caller in this app.
+//
+// A single group's (or single student's) attendance is left unbounded by
+// design, not by oversight — unlike an org-wide query, its ceiling tracks
+// the group's own lifetime, and a Group typically runs one course's worth
+// of weeks/months before being archived and replaced (see groups.GroupStatus
+// — "completed"/"archived"), not years continuously. The one place this
+// still mattered in practice was fanning the same shape out across *every*
+// group a teacher has at once on every dashboard load, which multiplies the
+// request count regardless of any single group's size — see
+// lib/queries/attendance.ts::useAttendanceForGroupsQuery's own bound for
+// that specific case, applied at the query-hook layer rather than here so
+// single-group "view this group's full attendance history" pages are
+// unaffected.
 export async function listAttendance(params: ListAttendanceParams): Promise<AttendanceRecord[]> {
   const query = new URLSearchParams({ organization: params.organizationId });
   if (params.group) query.set("group", params.group);
   if (params.studentProfile) query.set("student_profile", params.studentProfile);
   if (params.date) query.set("date", params.date);
+  if (params.dateFrom) query.set("date_from", params.dateFrom);
+  if (params.dateTo) query.set("date_to", params.dateTo);
   if (params.status) query.set("status", params.status);
-  query.set("page_size", String(params.pageSize ?? 200));
 
-  const data = await apiFetch<ListResponse<AttendanceRecord>>(`/api/v1/attendance/?${query}`);
-  return data.results;
+  return fetchAllPages<AttendanceRecord>("/api/v1/attendance/", query);
 }
 
 export interface MarkAttendanceInput {

@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, fetchAllPages } from "@/lib/api/client";
 
 /** Platform <-> organization billing — EduCore selling a center a
  * subscription tier. Distinct from `lib/api/finance.ts` (a center billing
@@ -33,16 +33,10 @@ export interface SubscriptionPlan extends SubscriptionPlanSummary {
   updated_at: string | null;
 }
 
-interface ListResponse<T> {
-  results: T[];
-  pagination: { count: number; page: number; pages: number };
-}
-
 export interface ListSubscriptionPlansParams {
   isActive?: boolean;
   billingCycle?: BillingCycle;
   search?: string;
-  pageSize?: number;
 }
 
 export async function listSubscriptionPlans(params: ListSubscriptionPlansParams = {}): Promise<SubscriptionPlan[]> {
@@ -50,10 +44,8 @@ export async function listSubscriptionPlans(params: ListSubscriptionPlansParams 
   if (params.isActive !== undefined) query.set("is_active", String(params.isActive));
   if (params.billingCycle) query.set("billing_cycle", params.billingCycle);
   if (params.search) query.set("search", params.search);
-  query.set("page_size", String(params.pageSize ?? 100));
 
-  const data = await apiFetch<ListResponse<SubscriptionPlan>>(`/api/v1/billing/subscription-plans/?${query}`);
-  return data.results;
+  return fetchAllPages<SubscriptionPlan>("/api/v1/billing/subscription-plans/", query);
 }
 
 export interface SubscriptionPlanInput {
@@ -135,19 +127,24 @@ export interface ListPlatformInvoicesParams {
   subscriptionPlan?: string;
   status?: PlatformInvoiceStatus;
   search?: string;
-  pageSize?: number;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
+// Unbounded (no organization filter) callers are responsible for their own
+// date bound — this accumulates a new row every billing cycle for every
+// center on the platform with no natural cap. See the Super-Admin Payments
+// page's default date filter for the one such caller in this app.
 export async function listPlatformInvoices(params: ListPlatformInvoicesParams = {}): Promise<PlatformInvoice[]> {
   const query = new URLSearchParams();
   if (params.organization) query.set("organization", params.organization);
   if (params.subscriptionPlan) query.set("subscription_plan", params.subscriptionPlan);
   if (params.status) query.set("status", params.status);
   if (params.search) query.set("search", params.search);
-  query.set("page_size", String(params.pageSize ?? 100));
+  if (params.dateFrom) query.set("date_from", params.dateFrom);
+  if (params.dateTo) query.set("date_to", params.dateTo);
 
-  const data = await apiFetch<ListResponse<PlatformInvoice>>(`/api/v1/billing/platform-invoices/?${query}`);
-  return data.results;
+  return fetchAllPages<PlatformInvoice>("/api/v1/billing/platform-invoices/", query);
 }
 
 export interface PlatformInvoiceInput {
@@ -197,17 +194,18 @@ export interface PlatformPayment {
 export interface ListPlatformPaymentsParams {
   organization?: string;
   platformInvoice?: string;
-  pageSize?: number;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export async function listPlatformPayments(params: ListPlatformPaymentsParams = {}): Promise<PlatformPayment[]> {
   const query = new URLSearchParams();
   if (params.organization) query.set("organization", params.organization);
   if (params.platformInvoice) query.set("platform_invoice", params.platformInvoice);
-  query.set("page_size", String(params.pageSize ?? 100));
+  if (params.dateFrom) query.set("date_from", params.dateFrom);
+  if (params.dateTo) query.set("date_to", params.dateTo);
 
-  const data = await apiFetch<ListResponse<PlatformPayment>>(`/api/v1/billing/platform-payments/?${query}`);
-  return data.results;
+  return fetchAllPages<PlatformPayment>("/api/v1/billing/platform-payments/", query);
 }
 
 export interface PlatformPaymentInput {
