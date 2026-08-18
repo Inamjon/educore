@@ -40,6 +40,17 @@ export function toLocalIsoDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+/** `N` days from today (negative = past, positive = future) as a local
+ * "YYYY-MM-DD" string — the shared home for a rolling-window default that
+ * used to be copy-pasted per page (Admin Attendance/Finance, Super-Admin
+ * Payments/Audit Logs, Admin Schedule's list view), each hand-rolling
+ * `new Date(); d.setDate(d.getDate() - N); toLocalIsoDate(d)` inline. */
+export function daysFromTodayIso(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return toLocalIsoDate(d);
+}
+
 export function formatDate(date: string | Date) {
   const parsed = typeof date === "string" && DATE_ONLY.test(date) ? parseLocalDate(date) : new Date(date);
   return new Intl.DateTimeFormat("en-US", {

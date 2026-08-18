@@ -40,7 +40,7 @@ import {
   useCreatePlatformPaymentMutation,
 } from '@/lib/queries/billing';
 import { toast } from '@/lib/store/toast-store';
-import { formatCurrency, toLocalIsoDate } from '@/lib/utils';
+import { formatCurrency, daysFromTodayIso } from '@/lib/utils';
 import { ApiError } from '@/lib/api/client';
 import type { PlatformInvoice, PlatformInvoiceStatus, PlatformPaymentMethod } from '@/lib/api/billing';
 import { formatLocalizedDate } from '@/i18n/date-locale';
@@ -141,11 +141,7 @@ export default function PaymentsPage() {
   // still covering virtually every real-world open balance, since
   // pendingCount/overdueCount below are computed from this same unfiltered
   // fetch — see that page's comment for the fuller reasoning.
-  const [dateFrom] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 365);
-    return toLocalIsoDate(d);
-  });
+  const [dateFrom] = useState(() => daysFromTodayIso(-365));
 
   const { data: invoicesData, isLoading, isError, error } = usePlatformInvoicesQuery({
     status: (filterStatus || undefined) as PlatformInvoiceStatus | undefined,

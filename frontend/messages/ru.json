@@ -2315,7 +2315,8 @@
     "entityCourse": "Курс",
     "entitySession": "Сессия",
     "entityAttendance": "Посещаемость",
-    "entityTeacherProfile": "Профиль преподавателя"
+    "entityTeacherProfile": "Профиль преподавателя",
+    "truncatedNote": "Показаны первые {shown} из {total} подходящих событий — сузьте диапазон дат, чтобы увидеть остальные."
   },
   "SuperAdminProfile": {
     "pageTitle": "Профиль",

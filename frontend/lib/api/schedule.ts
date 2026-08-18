@@ -1,4 +1,5 @@
 import { apiFetch, fetchAllPages } from "@/lib/api/client";
+import { parseLocalDate, toLocalIsoDate } from "@/lib/utils";
 
 export type LessonStatus = "scheduled" | "completed" | "cancelled";
 
@@ -33,17 +34,34 @@ export interface ListLessonsParams {
   dateTo?: string;
 }
 
-// Unbounded (no date_from/date_to) callers are responsible for their own
+// Unbounded (no date_from at all) callers are responsible for their own
 // window — a lesson accumulates every calendar date the org has ever held
 // class, with no natural cap. See app/(admin)/schedule/page.tsx's List View
 // for the one such caller in this app, and its default bound.
+//
+// A dateFrom-only caller (no dateTo) is a *different*, easy-to-miss trap:
+// Teacher/Student Schedule's "today + upcoming" widgets pass only
+// `dateFrom: todayIso` to mean "from now on", but with no upper bound that
+// walks every future lesson the org ever schedules, one page at a time.
+// Default a dateTo 90 days out from dateFrom in that case — generous for
+// "upcoming", still bounded — rather than requiring every such caller to
+// remember a matching dateTo.
+const DEFAULT_FORWARD_WINDOW_DAYS = 90;
+
 export async function listLessons(params: ListLessonsParams): Promise<Lesson[]> {
+  let dateTo = params.dateTo;
+  if (params.dateFrom && !dateTo && !params.date) {
+    const d = parseLocalDate(params.dateFrom);
+    d.setDate(d.getDate() + DEFAULT_FORWARD_WINDOW_DAYS);
+    dateTo = toLocalIsoDate(d);
+  }
+
   const query = new URLSearchParams({ organization: params.organizationId });
   if (params.group) query.set("group", params.group);
   if (params.status) query.set("status", params.status);
   if (params.date) query.set("date", params.date);
   if (params.dateFrom) query.set("date_from", params.dateFrom);
-  if (params.dateTo) query.set("date_to", params.dateTo);
+  if (dateTo) query.set("date_to", dateTo);
 
   return fetchAllPages<Lesson>("/api/v1/schedule/lessons/", query);
 }

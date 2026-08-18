@@ -14,20 +14,10 @@ import { LessonDetailDialog } from "./_components/lesson-detail-dialog";
 import { LessonFormDialog } from "./_components/lesson-form-dialog";
 import { formatLocalizedDate, weekdayShort, formatWeekRange } from "@/i18n/date-locale";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
+import { daysFromTodayIso, toLocalIsoDate } from "@/lib/utils";
 
 const HOUR_START = 8;
 const HOURS = Array.from({ length: 11 }, (_, i) => `${String(HOUR_START + i).padStart(2, "0")}:00`);
-
-/** Formats a Date as a YYYY-MM-DD string using its local calendar date (not
- * toISOString, which converts to UTC and shifts the date backward a day in
- * timezones ahead of UTC — see app/teacher/schedule/page.tsx's toLocalIso
- * for the bug this fixes). */
-function toLocalIso(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 function getMondayOf(date: Date): Date {
   const d = new Date(date);
@@ -42,7 +32,7 @@ function buildWeek(monday: Date): string[] {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    return toLocalIso(d);
+    return toLocalIsoDate(d);
   });
 }
 
@@ -93,16 +83,8 @@ export default function SchedulePage() {
   // comment) — a ±90-day rolling window covers "recent past and near
   // future", which is what a schedule list view is actually for, without
   // silently paging through years of history.
-  const listViewFrom = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 90);
-    return toLocalIso(d);
-  }, []);
-  const listViewTo = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 90);
-    return toLocalIso(d);
-  }, []);
+  const [listViewFrom] = useState(() => daysFromTodayIso(-90));
+  const [listViewTo] = useState(() => daysFromTodayIso(90));
   const { data: allLessons = [] } = useLessonsQuery({
     organizationId: view === "list" ? organizationId ?? "" : "",
     dateFrom: listViewFrom,

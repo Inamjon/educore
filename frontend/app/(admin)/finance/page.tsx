@@ -22,7 +22,7 @@ import { InvoiceFormDialog } from "./_components/invoice-form-dialog";
 import { InvoiceDetailPanel } from "./_components/invoice-detail-panel";
 import { formatLocalizedDate } from "@/i18n/date-locale";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
-import { toLocalIsoDate } from "@/lib/utils";
+import { daysFromTodayIso } from "@/lib/utils";
 
 // Invoices/payments accumulate every billing cycle for every student with
 // no natural cap (see lib/api/finance.ts's listInvoices/listPayments
@@ -37,11 +37,6 @@ import { toLocalIsoDate } from "@/lib/utils";
 // separately from a date-bounded "recent activity" list — bigger change,
 // left for a follow-up if a year ever proves too short in practice.
 const RECENT_WINDOW_DAYS = 365;
-function defaultDateFrom(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - RECENT_WINDOW_DAYS);
-  return toLocalIsoDate(d);
-}
 
 export default function FinancePage() {
   const t = useTranslations("AdminFinance");
@@ -69,7 +64,7 @@ export default function FinancePage() {
   };
 
   const organizationId = useAuthStore((s) => s.user?.organizationId);
-  const [dateFrom] = useState(defaultDateFrom);
+  const [dateFrom] = useState(() => daysFromTodayIso(-RECENT_WINDOW_DAYS));
   const { data: invoicesData, isLoading } = useInvoicesQuery({ organizationId: organizationId ?? "", dateFrom });
   const invoices = invoicesData ?? [];
   const { data: paymentsData } = usePaymentsQuery({ organizationId: organizationId ?? "", dateFrom });

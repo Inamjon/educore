@@ -2315,7 +2315,8 @@
     "entityCourse": "Kurs",
     "entitySession": "Sessiya",
     "entityAttendance": "Davomat",
-    "entityTeacherProfile": "O'qituvchi profili"
+    "entityTeacherProfile": "O'qituvchi profili",
+    "truncatedNote": "{total} tadan birinchi {shown} tasi ko'rsatilmoqda — qolganini ko'rish uchun sana oralig'ini torroq qiling."
   },
   "SuperAdminProfile": {
     "pageTitle": "Profil",

@@ -16,7 +16,7 @@ import type { AttendanceRecord, AttendanceStatus } from "@/lib/api/attendance";
 import { ApiError } from "@/lib/api/client";
 import { formatLocalizedDate } from "@/i18n/date-locale";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
-import { toLocalIsoDate } from "@/lib/utils";
+import { daysFromTodayIso } from "@/lib/utils";
 
 // Attendance accumulates one row per student per session with no natural
 // cap — an unbounded org-wide query would grow forever as the org runs
@@ -26,11 +26,6 @@ import { toLocalIsoDate } from "@/lib/utils";
 // health snapshot (present/absent/late counts, "Low Attendance Alert") —
 // recent data is also the more useful default than all-time history.
 const RECENT_WINDOW_DAYS = 30;
-function defaultDateFrom(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - RECENT_WINDOW_DAYS);
-  return toLocalIsoDate(d);
-}
 
 export default function AttendancePage() {
   const t = useTranslations("AdminAttendance");
@@ -81,7 +76,7 @@ export default function AttendancePage() {
   const [statusFilter, setStatusFilter] = useState<AttendanceStatus | "">("");
   const [groupFilter, setGroupFilter] = useState("");
 
-  const [dateFrom] = useState(defaultDateFrom);
+  const [dateFrom] = useState(() => daysFromTodayIso(-RECENT_WINDOW_DAYS));
   const { data: groups } = useGroupsQuery({ organizationId: organizationId ?? "" });
   const {
     data: records,

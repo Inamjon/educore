@@ -2315,7 +2315,8 @@
     "entityCourse": "Course",
     "entitySession": "Session",
     "entityAttendance": "Attendance",
-    "entityTeacherProfile": "Teacher Profile"
+    "entityTeacherProfile": "Teacher Profile",
+    "truncatedNote": "Showing the first {shown} of {total} matching events — narrow the date range to see the rest."
   },
   "SuperAdminProfile": {
     "pageTitle": "Profile",

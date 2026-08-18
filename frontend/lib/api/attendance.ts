@@ -35,6 +35,19 @@ export interface ListAttendanceParams {
 // over an org's lifetime, so an unbounded org-wide call risks paging through
 // years of history. See app/(admin)/attendance/page.tsx's default date
 // filter for the one such caller in this app.
+//
+// A single group's (or single student's) attendance is left unbounded by
+// design, not by oversight — unlike an org-wide query, its ceiling tracks
+// the group's own lifetime, and a Group typically runs one course's worth
+// of weeks/months before being archived and replaced (see groups.GroupStatus
+// — "completed"/"archived"), not years continuously. The one place this
+// still mattered in practice was fanning the same shape out across *every*
+// group a teacher has at once on every dashboard load, which multiplies the
+// request count regardless of any single group's size — see
+// lib/queries/attendance.ts::useAttendanceForGroupsQuery's own bound for
+// that specific case, applied at the query-hook layer rather than here so
+// single-group "view this group's full attendance history" pages are
+// unaffected.
 export async function listAttendance(params: ListAttendanceParams): Promise<AttendanceRecord[]> {
   const query = new URLSearchParams({ organization: params.organizationId });
   if (params.group) query.set("group", params.group);
